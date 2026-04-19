@@ -1,0 +1,62 @@
+import 'package:intl/intl.dart';
+
+class Formatters {
+  Formatters._();
+
+  // ─── Currency ───
+  static final _currencyFormat = NumberFormat.currency(
+    locale: 'en_IN',
+    symbol: '₹',
+    decimalDigits: 2,
+  );
+
+  static final _compactCurrency = NumberFormat.compactCurrency(
+    locale: 'en_IN',
+    symbol: '₹',
+    decimalDigits: 1,
+  );
+
+  static String currency(double amount) => _currencyFormat.format(amount);
+  static String currencyCompact(double amount) => _compactCurrency.format(amount);
+
+  // ─── Numbers ───
+  static String number(int value) => NumberFormat('#,##,###').format(value);
+  static String decimal(double value) => NumberFormat('#,##,##0.00').format(value);
+
+  // ─── Dates ───
+  static String date(DateTime dt) => DateFormat('dd MMM yyyy').format(dt);
+  static String dateShort(DateTime dt) => DateFormat('dd/MM/yy').format(dt);
+  static String dateTime(DateTime dt) => DateFormat('dd MMM yyyy, hh:mm a').format(dt);
+  static String time(DateTime dt) => DateFormat('hh:mm a').format(dt);
+  static String invoiceDate(DateTime dt) => DateFormat('dd/MM/yyyy').format(dt);
+  static String monthYear(DateTime dt) => DateFormat('MMMM yyyy').format(dt);
+  static String dayOfWeek(DateTime dt) => DateFormat('EEEE').format(dt);
+
+  // ─── Invoice Number ───
+  static String invoiceNumber(int sequence) {
+    final now = DateTime.now();
+    final prefix = 'SKY';
+    final datePart = DateFormat('yyMM').format(now);
+    final seqPart = sequence.toString().padLeft(4, '0');
+    return '$prefix-$datePart-$seqPart';
+  }
+
+  // ─── Phone ───
+  static String phone(String number) {
+    if (number.length == 10) {
+      return '${number.substring(0, 5)} ${number.substring(5)}';
+    }
+    return number;
+  }
+
+  // ─── Percentage ───
+  static String percent(double value) => '${value.toStringAsFixed(1)}%';
+
+  // ─── Quantity with unit ───
+  static String quantity(double qty, [String unit = 'pcs']) {
+    if (qty == qty.roundToDouble()) {
+      return '${qty.toInt()} $unit';
+    }
+    return '${qty.toStringAsFixed(2)} $unit';
+  }
+}

@@ -1,0 +1,505 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
+import '../../core/utils/formatters.dart';
+import '../../providers/staff_provider.dart';
+import '../../data/models/staff_model.dart';
+import '../../data/models/attendance_model.dart';
+
+class StaffScreen extends StatefulWidget {
+  const StaffScreen({super.key});
+
+  @override
+  State<StaffScreen> createState() => _StaffScreenState();
+}
+
+class _StaffScreenState extends State<StaffScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<StaffProvider>();
+      provider.loadStaff();
+      provider.loadTodayAttendance();
+    });
+  }
+
+  void _showStaffDialog({StaffModel? staff}) {
+    final nameCtrl = TextEditingController(text: staff?.name ?? '');
+    final usernameCtrl = TextEditingController(text: staff?.username ?? '');
+    final pinCtrl = TextEditingController(text: staff?.pin ?? '');
+    String role = staff?.role ?? 'staff';
+    final formKey = GlobalKey<FormState>();
+    final isEditing = staff != null;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => Dialog(
+          backgroundColor: AppColors.cardDark,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            gradient: AppColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(isEditing ? Icons.edit_rounded : Icons.person_add_rounded,
+                              color: Colors.white, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(isEditing ? 'Edit Staff' : 'Add Staff',
+                            style: AppTypography.h3.copyWith(color: AppColors.textPrimaryDark)),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close_rounded, color: AppColors.textTertiaryDark),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    _field('Full Name', nameCtrl, 'e.g. John Doe',
+                        validator: (v) => v!.trim().isEmpty ? 'Required' : null),
+                    const SizedBox(height: 12),
+                    _field('Username', usernameCtrl, 'e.g. john',
+                        enabled: !isEditing,
+                        validator: (v) => v!.trim().isEmpty ? 'Required' : null),
+                    const SizedBox(height: 12),
+                    _field('PIN (4-6 digits)', pinCtrl, '••••',
+                        obscure: true,
+                        keyboardType: TextInputType.number,
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Required';
+                          if (v.length < 4 || v.length > 6) return '4-6 digits';
+                          return null;
+                        }),
+                    const SizedBox(height: 12),
+                    // Role selector
+                    DropdownButtonFormField<String>(
+                      value: role,
+                      decoration: InputDecoration(
+                        labelText: 'Role',
+                        labelStyle: const TextStyle(color: AppColors.textSecondaryDark, fontSize: 13),
+                        filled: true,
+                        fillColor: AppColors.surfaceDark,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                        ),
+                      ),
+                      dropdownColor: AppColors.surfaceDark,
+                      style: const TextStyle(color: AppColors.textPrimaryDark),
+                      items: const [
+                        DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                        DropdownMenuItem(value: 'staff', child: Text('Staff')),
+                      ],
+                      onChanged: (v) => setDialogState(() => role = v ?? 'staff'),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          if (!formKey.currentState!.validate()) return;
+                          final provider = context.read<StaffProvider>();
+                          bool success;
+                          if (isEditing) {
+                            success = await provider.updateStaff(staff!.copyWith(
+                              name: nameCtrl.text.trim(),
+                              pin: pinCtrl.text.trim(),
+                              role: role,
+                            ));
+                          } else {
+                            success = await provider.addStaff(
+                              name: nameCtrl.text.trim(),
+                              username: usernameCtrl.text.trim(),
+                              pin: pinCtrl.text.trim(),
+                              role: role,
+                            );
+                          }
+                          if (success && ctx.mounted) {
+                            Navigator.pop(ctx);
+                          } else if (!success && ctx.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                              content: Text('Username already exists'),
+                              backgroundColor: AppColors.error,
+                            ));
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text(isEditing ? 'Update Staff' : 'Add Staff',
+                            style: AppTypography.button.copyWith(color: Colors.white)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _field(String label, TextEditingController controller, String hint, {
+    bool obscure = false,
+    bool enabled = true,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscure,
+      enabled: enabled,
+      keyboardType: keyboardType,
+      style: TextStyle(
+        color: enabled ? AppColors.textPrimaryDark : AppColors.textTertiaryDark,
+        letterSpacing: obscure ? 6 : 0,
+      ),
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: const TextStyle(color: AppColors.textSecondaryDark, fontSize: 13),
+        hintStyle: const TextStyle(color: AppColors.textTertiaryDark),
+        filled: true,
+        fillColor: enabled ? AppColors.surfaceDark : AppColors.cardDark,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<StaffProvider>(
+      builder: (context, provider, _) {
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('Staff & Attendance',
+                        style: AppTypography.h1.copyWith(color: AppColors.textPrimaryDark)),
+                    const Spacer(),
+                    ElevatedButton.icon(
+                      onPressed: () => _showStaffDialog(),
+                      icon: const Icon(Icons.person_add_rounded, size: 18),
+                      label: const Text('Add User'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ─── Left: Staff Directory ───
+                      Expanded(
+                        flex: 3,
+                        child: _buildStaffDirectory(provider),
+                      ),
+                      const SizedBox(width: 20),
+                      // ─── Right: Today's Attendance ───
+                      Expanded(
+                        flex: 2,
+                        child: _buildAttendanceLog(provider),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStaffDirectory(StaffProvider provider) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorderDark),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Staff Directory', style: AppTypography.h4.copyWith(color: AppColors.textPrimaryDark)),
+          const SizedBox(height: 16),
+          // Header row
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceDark,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Expanded(flex: 2, child: Text('NAME', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('USERNAME', style: _headerStyle)),
+                Expanded(flex: 1, child: Text('ROLE', style: _headerStyle)),
+                Expanded(flex: 1, child: Text('STATUS', style: _headerStyle)),
+                const SizedBox(width: 48, child: Text('', style: TextStyle())),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: provider.staff.isEmpty
+                ? Center(child: Text('No staff members yet',
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark)))
+                : ListView.separated(
+                    itemCount: provider.staff.length,
+                    separatorBuilder: (_, __) => const Divider(color: AppColors.cardBorderDark, height: 1),
+                    itemBuilder: (_, i) => _staffRow(provider.staff[i], provider),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  TextStyle get _headerStyle => AppTypography.labelSmall.copyWith(
+      color: AppColors.textTertiaryDark, fontWeight: FontWeight.w600, letterSpacing: 0.5);
+
+  Widget _staffRow(StaffModel staff, StaffProvider provider) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(staff.name,
+                style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.textPrimaryDark, fontWeight: FontWeight.w500)),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(staff.username,
+                style: AppTypography.mono.copyWith(color: AppColors.textSecondaryDark, fontSize: 13)),
+          ),
+          Expanded(
+            flex: 1,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: staff.isAdmin
+                    ? AppColors.accent.withValues(alpha: 0.1)
+                    : AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                staff.role.toUpperCase(),
+                style: AppTypography.labelSmall.copyWith(
+                  color: staff.isAdmin ? AppColors.accent : AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Text(
+              staff.isActive ? 'Active' : 'Inactive',
+              style: AppTypography.labelSmall.copyWith(
+                color: staff.isActive ? AppColors.success : AppColors.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 48,
+            child: PopupMenuButton(
+              icon: const Icon(Icons.more_vert_rounded, color: AppColors.textSecondaryDark, size: 20),
+              color: AppColors.surfaceDark,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  onTap: () => Future.microtask(() => _showStaffDialog(staff: staff)),
+                  child: const Row(children: [Icon(Icons.edit_rounded, size: 16), SizedBox(width: 8), Text('Edit')]),
+                ),
+                PopupMenuItem(
+                  onTap: () async {
+                    await provider.updateStaff(staff.copyWith(isActive: !staff.isActive));
+                  },
+                  child: Row(children: [
+                    Icon(staff.isActive ? Icons.block_rounded : Icons.check_circle_rounded, size: 16),
+                    const SizedBox(width: 8),
+                    Text(staff.isActive ? 'Disable' : 'Enable'),
+                  ]),
+                ),
+                PopupMenuItem(
+                  onTap: () async => await provider.deleteStaff(staff.id),
+                  child: Row(children: [
+                    Icon(Icons.delete_rounded, size: 16, color: AppColors.error),
+                    const SizedBox(width: 8),
+                    Text('Delete', style: TextStyle(color: AppColors.error)),
+                  ]),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttendanceLog(StaffProvider provider) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorderDark),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text("Today's Attendance Log",
+                  style: AppTypography.h4.copyWith(color: AppColors.textPrimaryDark)),
+              const Spacer(),
+              IconButton(
+                onPressed: () => provider.loadTodayAttendance(),
+                icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondaryDark, size: 20),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceDark,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Expanded(flex: 2, child: Text('STAFF NAME', style: _headerStyle)),
+                Expanded(flex: 1, child: Text('ACTION', style: _headerStyle)),
+                Expanded(flex: 1, child: Text('TIME', style: _headerStyle)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: provider.todayAttendance.isEmpty
+                ? Center(child: Text('No attendance records today',
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark)))
+                : ListView.builder(
+                    itemCount: provider.todayAttendance.length,
+                    itemBuilder: (_, i) => _attendanceRow(provider.todayAttendance[i]),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _attendanceRow(AttendanceModel record) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Column(
+        children: [
+          // Clock In row
+          Row(
+            children: [
+              Expanded(flex: 2, child: Text(record.staffName,
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimaryDark))),
+              Expanded(
+                flex: 1,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text('CLOCKED IN',
+                      style: AppTypography.labelSmall.copyWith(color: AppColors.success, fontWeight: FontWeight.w700),
+                      textAlign: TextAlign.center),
+                ),
+              ),
+              Expanded(flex: 1, child: Text(
+                Formatters.time(record.clockInTime),
+                style: AppTypography.mono.copyWith(color: AppColors.textSecondaryDark, fontSize: 12),
+                textAlign: TextAlign.right,
+              )),
+            ],
+          ),
+          // Clock Out row (if exists)
+          if (record.clockOutTime != null) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(flex: 2, child: Text(record.staffName,
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimaryDark))),
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text('CLOCKED OUT',
+                        style: AppTypography.labelSmall.copyWith(color: AppColors.error, fontWeight: FontWeight.w700),
+                        textAlign: TextAlign.center),
+                  ),
+                ),
+                Expanded(flex: 1, child: Text(
+                  Formatters.time(record.clockOutTime!),
+                  style: AppTypography.mono.copyWith(color: AppColors.textSecondaryDark, fontSize: 12),
+                  textAlign: TextAlign.right,
+                )),
+              ],
+            ),
+          ],
+          const Divider(color: AppColors.cardBorderDark, height: 16),
+        ],
+      ),
+    );
+  }
+}
