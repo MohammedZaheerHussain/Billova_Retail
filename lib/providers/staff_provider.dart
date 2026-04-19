@@ -6,6 +6,7 @@ import '../data/local/db_helper.dart';
 import '../data/remote/supabase_service.dart';
 import '../data/models/staff_model.dart';
 import '../data/models/attendance_model.dart';
+import '../core/utils/rate_limiter.dart';
 
 class StaffProvider extends ChangeNotifier {
   final DBHelper _db = DBHelper.instance;
@@ -16,6 +17,13 @@ class StaffProvider extends ChangeNotifier {
   List<AttendanceModel> _todayAttendance = [];
   StaffModel? _currentStaff; // Currently logged-in staff
   bool _isLoading = false;
+
+  // Rate limiting for staff PIN login
+  final _staffLoginLimiter = RateLimiter(
+    maxAttempts: 5,
+    window: const Duration(minutes: 2),
+    lockoutDuration: const Duration(seconds: 60),
+  );
 
   // ─── Getters ───
   List<StaffModel> get staff => _staff;
@@ -139,6 +147,12 @@ class StaffProvider extends ChangeNotifier {
 
   /// Validate username + PIN, set session, auto clock-in
   Future<String?> loginStaff(String username, String pin) async {
+    // Rate limit check
+    if (!_staffLoginLimiter.isAllowed) {
+      return 'Too many attempts. Try again in ${_staffLoginLimiter.lockoutRemainingSeconds}s';
+    }
+    _staffLoginLimiter.recordAttempt();
+
     // Ensure staff are loaded
     if (_staff.isEmpty) await loadStaff();
 
@@ -148,6 +162,9 @@ class StaffProvider extends ChangeNotifier {
     );
 
     if (match == null) return 'Invalid username or PIN';
+
+    // Successful login — reset limiter
+    _staffLoginLimiter.reset();
 
     _currentStaff = match;
     debugPrint('👨‍💼 Staff login: ${match.name} (${match.role})');

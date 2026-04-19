@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/remote/supabase_service.dart';
+import '../core/utils/rate_limiter.dart';
 
 enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
 
@@ -11,6 +12,16 @@ class AuthProvider extends ChangeNotifier {
   String _errorMessage = '';
   bool _isSyncing = false;
   String _userType = 'admin'; // 'admin' | 'staff'
+
+  // ─── Rate Limiting ───
+  // Login: max 5 attempts per 2 minutes, then 60s lockout
+  final _loginLimiter = RateLimiter(
+    maxAttempts: 5,
+    window: const Duration(minutes: 2),
+    lockoutDuration: const Duration(seconds: 60),
+  );
+  // Sync: max once per 5 seconds
+  final _syncThrottle = Throttle(interval: const Duration(seconds: 5));
 
   AuthStatus get status => _status;
   String get errorMessage => _errorMessage;
@@ -49,14 +60,28 @@ class AuthProvider extends ChangeNotifier {
 
   /// Sign in with email/password (Admin only)
   Future<bool> signIn(String email, String password) async {
+    // Rate limit check
+    if (!_loginLimiter.isAllowed) {
+      _status = AuthStatus.error;
+      _errorMessage = 'Too many login attempts. Try again in ${_loginLimiter.lockoutRemainingSeconds}s';
+      notifyListeners();
+      return false;
+    }
+
     _status = AuthStatus.loading;
     _errorMessage = '';
     notifyListeners();
 
     try {
+      // Record attempt BEFORE trying
+      _loginLimiter.recordAttempt();
+
       await _supabase.signIn(email, password);
       _status = AuthStatus.authenticated;
       _userType = 'admin';
+
+      // Successful login — reset rate limiter
+      _loginLimiter.reset();
 
       // Save session type
       final prefs = await SharedPreferences.getInstance();
@@ -173,8 +198,15 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Background sync — pull data + process sync queue
+  /// Background sync — pull data + process sync queue (throttled)
   Future<void> _syncInBackground() async {
+    // Throttle: max once per 5 seconds
+    if (!_syncThrottle.canRun()) {
+      debugPrint('⏳ Sync throttled — skipping');
+      return;
+    }
+    _syncThrottle.markRun();
+
     _isSyncing = true;
     notifyListeners();
 
@@ -194,8 +226,9 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Manual retry sync
+  /// Manual retry sync (also throttled)
   Future<void> retrySync() async {
+    _syncThrottle.markRun(); // Force allow manual retry
     await _syncInBackground();
   }
 
