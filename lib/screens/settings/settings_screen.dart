@@ -412,6 +412,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontSize: 10,
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.asset(
+                            'assets/images/barakah_logo.png',
+                            width: 44,
+                            height: 44,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         Text(
                           'Barakah Tech',
