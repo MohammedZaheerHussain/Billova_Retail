@@ -15,6 +15,7 @@ class StaffProvider extends ChangeNotifier {
 
   List<StaffModel> _staff = [];
   List<AttendanceModel> _todayAttendance = [];
+  List<AttendanceModel> _attendanceHistory = [];
   StaffModel? _currentStaff; // Currently logged-in staff
   bool _isLoading = false;
 
@@ -29,6 +30,7 @@ class StaffProvider extends ChangeNotifier {
   List<StaffModel> get staff => _staff;
   List<StaffModel> get activeStaff => _staff.where((s) => s.isActive).toList();
   List<AttendanceModel> get todayAttendance => _todayAttendance;
+  List<AttendanceModel> get attendanceHistory => _attendanceHistory;
   StaffModel? get currentStaff => _currentStaff;
   bool get isLoading => _isLoading;
   bool get isStaffLoggedIn => _currentStaff != null;
@@ -272,6 +274,47 @@ class StaffProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to load attendance: $e');
+    }
+  }
+
+  /// Load attendance history for a date range
+  Future<void> loadAttendanceHistory({required DateTime from, required DateTime to}) async {
+    try {
+      final fromStr = '${from.year}-${from.month.toString().padLeft(2, '0')}-${from.day.toString().padLeft(2, '0')}';
+      final toStr = '${to.year}-${to.month.toString().padLeft(2, '0')}-${to.day.toString().padLeft(2, '0')}';
+      final maps = await _db.query(
+        'attendance',
+        where: 'date >= ? AND date <= ? AND is_deleted = 0',
+        whereArgs: [fromStr, toStr],
+        orderBy: 'date DESC, clock_in_time DESC',
+      );
+      _attendanceHistory = maps.map((m) => AttendanceModel.fromMap(m)).toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to load attendance history: $e');
+    }
+  }
+
+  /// Cleanup attendance older than 60 days (best-effort)
+  Future<void> cleanupOldAttendance() async {
+    try {
+      final cutoff = DateTime.now().subtract(const Duration(days: 60));
+      final cutoffStr = '${cutoff.year}-${cutoff.month.toString().padLeft(2, '0')}-${cutoff.day.toString().padLeft(2, '0')}';
+      // Get old records and soft-delete them
+      final oldRecords = await _db.query(
+        'attendance',
+        where: 'date < ?',
+        whereArgs: [cutoffStr],
+      );
+      for (final r in oldRecords) {
+        final id = r['id'] as String?;
+        if (id != null) await _db.softDelete('attendance', id);
+      }
+      if (oldRecords.isNotEmpty) {
+        debugPrint('🧹 Cleaned up ${oldRecords.length} attendance records older than 60 days');
+      }
+    } catch (e) {
+      debugPrint('Failed to cleanup attendance: $e');
     }
   }
 

@@ -419,12 +419,13 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             const SizedBox(height: 6),
             Wrap(spacing: 6, runSpacing: 6, children: lowStockItems.map((item) =>
               ActionChip(
-                label: Text('${item.name} (${item.quantity})', style: const TextStyle(fontSize: 11)),
+                label: Text('${item.name} (${item.quantity})',
+                    style: TextStyle(fontSize: 11, color: item.isOutOfStock ? Colors.white : AppColors.textPrimaryDark)),
                 avatar: Icon(item.isOutOfStock ? Icons.error_rounded : Icons.warning_rounded,
-                    size: 14, color: item.isOutOfStock ? AppColors.error : AppColors.warning),
+                    size: 14, color: item.isOutOfStock ? Colors.white : AppColors.warning),
                 onPressed: () => _addItemToEntries(item),
-                backgroundColor: AppColors.surfaceDark,
-                side: BorderSide(color: item.isOutOfStock ? AppColors.error.withValues(alpha: 0.3) : AppColors.warning.withValues(alpha: 0.3)),
+                backgroundColor: item.isOutOfStock ? AppColors.error.withValues(alpha: 0.8) : AppColors.warningBg,
+                side: BorderSide(color: item.isOutOfStock ? AppColors.error : AppColors.warning.withValues(alpha: 0.4)),
               ),
             ).toList()),
           ],

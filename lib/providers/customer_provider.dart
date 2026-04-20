@@ -126,6 +126,7 @@ class CustomerProvider extends ChangeNotifier {
     final updated = _customers[idx].copyWith(
       totalOrders: _customers[idx].totalOrders + 1,
       totalSpent: _customers[idx].totalSpent + amount,
+      lastPurchaseDate: DateTime.now(),
     );
     await _db.update('customers', updated.toMap(), updated.id);
     if (kIsWeb) {
@@ -135,6 +136,33 @@ class CustomerProvider extends ChangeNotifier {
     }
     _customers[idx] = updated;
     notifyListeners();
+  }
+
+  /// Record sale by customer name (finds or creates, then updates stats)
+  Future<void> recordSaleByName(String name, String phone, double amount) async {
+    if (name.isEmpty || name == 'Walk-in Customer') return;
+
+    // Find existing customer
+    CustomerModel? customer;
+    try {
+      customer = _customers.firstWhere(
+        (c) => c.name.toLowerCase().trim() == name.toLowerCase().trim(),
+      );
+    } catch (_) {
+      // Not found — create new
+      await addCustomer(name: name.trim(), phone: phone.trim());
+      try {
+        customer = _customers.firstWhere(
+          (c) => c.name.toLowerCase().trim() == name.toLowerCase().trim(),
+        );
+      } catch (_) {
+        return;
+      }
+    }
+
+    // Update stats
+    await recordSale(customer.id, amount);
+    debugPrint('📊 Customer "${customer.name}" stats updated: +₹$amount');
   }
 
   /// Find or create customer by phone

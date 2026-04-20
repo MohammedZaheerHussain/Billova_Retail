@@ -326,7 +326,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 16),
 
-            // ─── About ───
+            // ─── About & Branding ───
             _SettingsSection(
               title: 'About',
               icon: Icons.info_rounded,
@@ -337,6 +337,93 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'SKYWALK Billing',
                   subtitle: 'Version 1.0.0 • Built for shoe retail',
                   isDark: isDark,
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.primary.withValues(alpha: 0.05),
+                          AppColors.accent.withValues(alpha: 0.05),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDark
+                            ? AppColors.cardBorderDark.withValues(alpha: 0.5)
+                            : AppColors.cardBorderLight,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            gradient: AppColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(Icons.receipt_long_rounded, color: Colors.white, size: 24),
+                        ),
+                        const SizedBox(height: 12),
+                        ShaderMask(
+                          shaderCallback: (bounds) =>
+                              AppColors.primaryGradient.createShader(bounds),
+                          child: Text(
+                            'SKYWALK',
+                            style: AppTypography.h3.copyWith(
+                              color: Colors.white,
+                              letterSpacing: 4,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Billing Software',
+                          style: AppTypography.bodySmall.copyWith(
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Version 1.0',
+                          style: AppTypography.mono.copyWith(
+                            color: isDark ? AppColors.textTertiaryDark : AppColors.textTertiaryLight,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          width: 40,
+                          height: 1,
+                          color: (isDark ? AppColors.cardBorderDark : AppColors.cardBorderLight)
+                              .withValues(alpha: 0.5),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'Powered & Developed by',
+                          style: AppTypography.labelSmall.copyWith(
+                            color: isDark ? AppColors.textTertiaryDark : AppColors.textTertiaryLight,
+                            fontSize: 10,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Barakah Tech',
+                          style: AppTypography.h4.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),

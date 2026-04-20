@@ -46,3 +46,5 @@ BEGIN
     RAISE NOTICE '✅ No public access policies — data is secure';
   END IF;
 END $$;
+
+

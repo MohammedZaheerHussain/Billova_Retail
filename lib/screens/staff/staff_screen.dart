@@ -15,6 +15,8 @@ class StaffScreen extends StatefulWidget {
 }
 
 class _StaffScreenState extends State<StaffScreen> {
+  int _attendanceFilter = 0; // 0=Today, 1=Week, 2=Month
+
   @override
   void initState() {
     super.initState();
@@ -22,7 +24,29 @@ class _StaffScreenState extends State<StaffScreen> {
       final provider = context.read<StaffProvider>();
       provider.loadStaff();
       provider.loadTodayAttendance();
+      provider.cleanupOldAttendance();
     });
+  }
+
+  void _loadFilteredAttendance(StaffProvider provider) {
+    final now = DateTime.now();
+    switch (_attendanceFilter) {
+      case 0: // Today
+        provider.loadTodayAttendance();
+        break;
+      case 1: // Week
+        provider.loadAttendanceHistory(
+          from: now.subtract(const Duration(days: 7)),
+          to: now,
+        );
+        break;
+      case 2: // Month
+        provider.loadAttendanceHistory(
+          from: now.subtract(const Duration(days: 30)),
+          to: now,
+        );
+        break;
+    }
   }
 
   void _showStaffDialog({StaffModel? staff}) {
@@ -387,6 +411,19 @@ class _StaffScreenState extends State<StaffScreen> {
   }
 
   Widget _buildAttendanceLog(StaffProvider provider) {
+    // Get the right list based on filter
+    final records = _attendanceFilter == 0
+        ? provider.todayAttendance
+        : provider.attendanceHistory;
+
+    // Group by date
+    final Map<String, List<AttendanceModel>> grouped = {};
+    for (final r in records) {
+      final dateKey = r.date;
+      grouped.putIfAbsent(dateKey, () => []);
+      grouped[dateKey]!.add(r);
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -399,39 +436,47 @@ class _StaffScreenState extends State<StaffScreen> {
         children: [
           Row(
             children: [
-              Text("Today's Attendance Log",
+              Text('Attendance Log',
                   style: AppTypography.h4.copyWith(color: AppColors.textPrimaryDark)),
               const Spacer(),
               IconButton(
-                onPressed: () => provider.loadTodayAttendance(),
+                onPressed: () => _loadFilteredAttendance(provider),
                 icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondaryDark, size: 20),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          // Header
+          const SizedBox(height: 10),
+
+          // ─── Filter Tabs ───
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               color: AppColors.surfaceDark,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
               children: [
-                Expanded(flex: 2, child: Text('STAFF NAME', style: _headerStyle)),
-                Expanded(flex: 1, child: Text('ACTION', style: _headerStyle)),
-                Expanded(flex: 1, child: Text('TIME', style: _headerStyle)),
+                _filterTab(0, 'Today', provider),
+                _filterTab(1, 'Week', provider),
+                _filterTab(2, 'Month', provider),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+
+          // ─── Records ───
           Expanded(
-            child: provider.todayAttendance.isEmpty
-                ? Center(child: Text('No attendance records today',
+            child: records.isEmpty
+                ? Center(child: Text(
+                    _attendanceFilter == 0 ? 'No attendance records today' : 'No records found',
                     style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark)))
                 : ListView.builder(
-                    itemCount: provider.todayAttendance.length,
-                    itemBuilder: (_, i) => _attendanceRow(provider.todayAttendance[i]),
+                    itemCount: grouped.keys.length,
+                    itemBuilder: (_, i) {
+                      final date = grouped.keys.elementAt(i);
+                      final dayRecords = grouped[date]!;
+                      return _dateGroup(date, dayRecords);
+                    },
                   ),
           ),
         ],
@@ -439,16 +484,66 @@ class _StaffScreenState extends State<StaffScreen> {
     );
   }
 
+  Widget _filterTab(int index, String label, StaffProvider provider) {
+    final isActive = _attendanceFilter == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() => _attendanceFilter = index);
+          _loadFilteredAttendance(provider);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: isActive ? Border.all(color: AppColors.primary, width: 1) : null,
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: AppTypography.labelSmall.copyWith(
+              color: isActive ? AppColors.primary : AppColors.textTertiaryDark,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dateGroup(String date, List<AttendanceModel> records) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(children: [
+            const Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.accent),
+            const SizedBox(width: 6),
+            Text('📅 $date',
+                style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 12)),
+          ]),
+        ),
+        ...records.map((record) => _attendanceRow(record)),
+        const Divider(color: AppColors.cardBorderDark, height: 8),
+      ],
+    );
+  }
+
   Widget _attendanceRow(AttendanceModel record) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Column(
         children: [
           // Clock In row
           Row(
             children: [
               Expanded(flex: 2, child: Text(record.staffName,
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimaryDark))),
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimaryDark, fontSize: 13))),
               Expanded(
                 flex: 1,
                 child: Container(
@@ -457,8 +552,8 @@ class _StaffScreenState extends State<StaffScreen> {
                     color: AppColors.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Text('CLOCKED IN',
-                      style: AppTypography.labelSmall.copyWith(color: AppColors.success, fontWeight: FontWeight.w700),
+                  child: Text('IN',
+                      style: AppTypography.labelSmall.copyWith(color: AppColors.success, fontWeight: FontWeight.w700, fontSize: 10),
                       textAlign: TextAlign.center),
                 ),
               ),
@@ -471,11 +566,11 @@ class _StaffScreenState extends State<StaffScreen> {
           ),
           // Clock Out row (if exists)
           if (record.clockOutTime != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Row(
               children: [
                 Expanded(flex: 2, child: Text(record.staffName,
-                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimaryDark))),
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimaryDark, fontSize: 13))),
                 Expanded(
                   flex: 1,
                   child: Container(
@@ -484,8 +579,8 @@ class _StaffScreenState extends State<StaffScreen> {
                       color: AppColors.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text('CLOCKED OUT',
-                        style: AppTypography.labelSmall.copyWith(color: AppColors.error, fontWeight: FontWeight.w700),
+                    child: Text('OUT',
+                        style: AppTypography.labelSmall.copyWith(color: AppColors.error, fontWeight: FontWeight.w700, fontSize: 10),
                         textAlign: TextAlign.center),
                   ),
                 ),
@@ -497,9 +592,9 @@ class _StaffScreenState extends State<StaffScreen> {
               ],
             ),
           ],
-          const Divider(color: AppColors.cardBorderDark, height: 16),
         ],
       ),
     );
   }
 }
+

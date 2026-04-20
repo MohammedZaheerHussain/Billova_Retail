@@ -221,6 +221,10 @@ class _CustomerScreenState extends State<CustomerScreen> {
   }
 
   Widget _customerTile(CustomerModel customer, CustomerProvider provider) {
+    final lastPurchase = customer.lastPurchaseDate != null
+        ? '${customer.lastPurchaseDate!.day} ${_monthName(customer.lastPurchaseDate!.month)}'
+        : 'Never';
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.cardDark,
@@ -228,7 +232,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
         border: Border.all(color: AppColors.cardBorderDark),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Container(
           width: 44, height: 44,
           decoration: BoxDecoration(
@@ -246,13 +250,21 @@ class _CustomerScreenState extends State<CustomerScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (customer.phone.isNotEmpty)
-              Text(customer.phone, style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark)),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Row(children: [
+                  const Icon(Icons.phone_rounded, size: 12, color: AppColors.textTertiaryDark),
+                  const SizedBox(width: 4),
+                  Text(customer.phone, style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark)),
+                ]),
+              ),
+            const SizedBox(height: 6),
             Row(children: [
-              Text('${customer.totalOrders} orders',
-                  style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondaryDark)),
-              const SizedBox(width: 12),
-              Text(Formatters.currency(customer.totalSpent),
-                  style: AppTypography.mono.copyWith(color: AppColors.success, fontSize: 12)),
+              _statBadge(Icons.receipt_rounded, '${customer.totalOrders}', 'Orders'),
+              const SizedBox(width: 10),
+              _statBadge(Icons.currency_rupee_rounded, Formatters.currency(customer.totalSpent), 'Spent'),
+              const SizedBox(width: 10),
+              _statBadge(Icons.calendar_today_rounded, lastPurchase, 'Last'),
             ]),
           ],
         ),
@@ -277,5 +289,25 @@ class _CustomerScreenState extends State<CustomerScreen> {
         ),
       ),
     );
+  }
+
+  Widget _statBadge(IconData icon, String value, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDark,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 10, color: AppColors.accent),
+        const SizedBox(width: 4),
+        Text(value, style: AppTypography.mono.copyWith(fontSize: 11, color: AppColors.textPrimaryDark)),
+      ]),
+    );
+  }
+
+  String _monthName(int month) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[month - 1];
   }
 }

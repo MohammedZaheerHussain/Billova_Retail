@@ -6,6 +6,7 @@ class CustomerModel {
   final String phone;
   final int totalOrders;
   final double totalSpent;
+  final DateTime? lastPurchaseDate;
   final bool isDeleted;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -16,6 +17,7 @@ class CustomerModel {
     this.phone = '',
     this.totalOrders = 0,
     this.totalSpent = 0,
+    this.lastPurchaseDate,
     this.isDeleted = false,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -29,6 +31,7 @@ class CustomerModel {
       'phone': phone,
       'total_orders': totalOrders,
       'total_spent': totalSpent,
+      'last_purchase_date': lastPurchaseDate?.toIso8601String(),
       'is_deleted': isDeleted ? 1 : 0,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -42,6 +45,9 @@ class CustomerModel {
       phone: map['phone'] as String? ?? '',
       totalOrders: (map['total_orders'] as num?)?.toInt() ?? 0,
       totalSpent: (map['total_spent'] as num?)?.toDouble() ?? 0,
+      lastPurchaseDate: map['last_purchase_date'] != null
+          ? DateTime.tryParse(map['last_purchase_date'] as String)
+          : null,
       isDeleted: map['is_deleted'] == 1 || map['is_deleted'] == true,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
@@ -53,6 +59,7 @@ class CustomerModel {
     String? phone,
     int? totalOrders,
     double? totalSpent,
+    DateTime? lastPurchaseDate,
     bool? isDeleted,
     DateTime? updatedAt,
   }) {
@@ -62,6 +69,7 @@ class CustomerModel {
       phone: phone ?? this.phone,
       totalOrders: totalOrders ?? this.totalOrders,
       totalSpent: totalSpent ?? this.totalSpent,
+      lastPurchaseDate: lastPurchaseDate ?? this.lastPurchaseDate,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),

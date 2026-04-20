@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/staff_provider.dart';
+import '../../widgets/animated_login_background.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,8 +14,11 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
+
+  // Animation controller for floating icons overlay
+  late final AnimationController _floatIconController;
 
   // Admin fields
   final _emailController = TextEditingController();
@@ -31,7 +35,17 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   bool _isSubmitting = false;
 
   @override
+  void initState() {
+    super.initState();
+    _floatIconController = AnimationController(
+      duration: const Duration(seconds: 20),
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
   void dispose() {
+    _floatIconController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _usernameController.dispose();
@@ -97,15 +111,31 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
-      backgroundColor: AppColors.scaffoldDark,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+      backgroundColor: const Color(0xFF060612),
+      body: Stack(
+        children: [
+          // Animated background
+          const Positioned.fill(
+            child: AnimatedLoginBackground(),
+          ),
+
+          // Floating billing icons overlay
+          AnimatedBuilder(
+            animation: _floatIconController,
+            builder: (context, _) => FloatingIconsOverlay(
+              progress: _floatIconController.value,
+            ),
+          ),
+
+          // Login form (centered, glassmorphism card)
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                 // ─── Logo ───
                 Container(
                   width: 80,
@@ -168,16 +198,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
                 const SizedBox(height: 24),
 
-                // ─── Form Card ───
+                // ─── Form Card (glassmorphism) ───
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: AppColors.cardDark,
+                    color: AppColors.cardDark.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.cardBorderDark),
+                    border: Border.all(
+                      color: AppColors.cardBorderDark.withValues(alpha: 0.5),
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        blurRadius: 40,
+                        spreadRadius: 2,
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -369,6 +406,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           ),
         ),
       ),
+      ],
+    ),
     );
   }
 

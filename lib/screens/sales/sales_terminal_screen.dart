@@ -123,9 +123,14 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       // Refresh cash till
       context.read<CashTillProvider>().refresh();
 
-      // Auto-save customer if name was provided
+      // Auto-save customer + track purchase stats
       if (sale.customerName.isNotEmpty && sale.customerName != 'Walk-in Customer') {
-        _autoSaveCustomer(sale.customerName, sale.customerPhone);
+        final customerProvider = context.read<CustomerProvider>();
+        await customerProvider.recordSaleByName(
+          sale.customerName,
+          sale.customerPhone,
+          sale.total,
+        );
       }
 
       // Clear form
@@ -135,22 +140,6 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
 
       // Success feedback
       _showSuccessDialog(sale);
-    }
-  }
-
-  /// Auto-save customer to customer list if they don't already exist
-  void _autoSaveCustomer(String name, String phone) {
-    final customerProvider = context.read<CustomerProvider>();
-    final customers = customerProvider.customers;
-
-    // Check if customer already exists (case-insensitive name match)
-    final exists = customers.any(
-      (c) => c.name.toLowerCase().trim() == name.toLowerCase().trim(),
-    );
-
-    if (!exists) {
-      customerProvider.addCustomer(name: name.trim(), phone: phone.trim());
-      debugPrint('👤 Auto-saved new customer: $name');
     }
   }
 

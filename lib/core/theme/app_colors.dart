@@ -4,13 +4,13 @@ class AppColors {
   AppColors._();
 
   // ─── Primary Palette ───
-  static const Color primary = Color(0xFF6C5CE7);
-  static const Color primaryLight = Color(0xFF9B8FFF);
-  static const Color primaryDark = Color(0xFF4834D4);
+  static const Color primary = Color(0xFF4F46E5); // Indigo
+  static const Color primaryLight = Color(0xFF818CF8);
+  static const Color primaryDark = Color(0xFF3730A3);
 
   // ─── Accent ───
-  static const Color accent = Color(0xFF00D2FF);
-  static const Color accentGlow = Color(0x3300D2FF);
+  static const Color accent = Color(0xFF06B6D4); // Cyan
+  static const Color accentGlow = Color(0x3306B6D4);
 
   // ─── Surface (Dark Theme) ───
   static const Color scaffoldDark = Color(0xFF0A0A1A);
@@ -18,9 +18,9 @@ class AppColors {
   static const Color cardDark = Color(0xFF1A1A3E);
   static const Color cardBorderDark = Color(0xFF2A2A5E);
 
-  // ─── Surface (Light Theme) ───
-  static const Color scaffoldLight = Color(0xFFF0F2F8);
-  static const Color surfaceLight = Color(0xFFFFFFFF);
+  // ─── Surface (Light Theme — SaaS/Stripe style) ───
+  static const Color scaffoldLight = Color(0xFFF8FAFC);
+  static const Color surfaceLight = Color(0xFFF1F5F9);
   static const Color cardLight = Color(0xFFFFFFFF);
   static const Color cardBorderLight = Color(0xFFE2E8F0);
 
@@ -46,17 +46,17 @@ class AppColors {
   // ─── Sidebar ───
   static const Color sidebarDark = Color(0xFF0E0E24);
   static const Color sidebarLight = Color(0xFFFFFFFF);
-  static const Color sidebarActiveItem = Color(0xFF6C5CE7);
+  static const Color sidebarActiveItem = Color(0xFF4F46E5);
 
   // ─── Gradients ───
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF6C5CE7), Color(0xFF00D2FF)],
+    colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient cardGlowGradient = LinearGradient(
-    colors: [Color(0x206C5CE7), Color(0x2000D2FF)],
+    colors: [Color(0x204F46E5), Color(0x2006B6D4)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
