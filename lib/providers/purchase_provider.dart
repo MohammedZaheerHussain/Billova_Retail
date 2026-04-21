@@ -112,4 +112,111 @@ class PurchaseProvider extends ChangeNotifier {
         .where((p) => p.createdAt.toIso8601String().substring(0, 10) == today)
         .fold(0.0, (sum, p) => sum + p.paidAmount);
   }
+
+  // ─── Vendor Tracking ───
+
+  /// Get all purchases for a specific vendor (newest first)
+  List<PurchaseModel> getVendorPurchases(String vendorId) {
+    return _purchases.where((p) => p.vendorId == vendorId).toList();
+  }
+
+  /// Single-pass aggregation for ALL vendors — avoids N queries
+  Map<String, Map<String, dynamic>> getAllVendorSummaries() {
+    final Map<String, Map<String, dynamic>> summaries = {};
+
+    for (final p in _purchases) {
+      final vid = p.vendorId;
+      summaries.putIfAbsent(vid, () => {
+        'totalPurchase': 0.0,
+        'totalPaid': 0.0,
+        'pending': 0.0,
+        'totalItems': 0,
+        'purchaseCount': 0,
+      });
+
+      final s = summaries[vid]!;
+      s['totalPurchase'] = (s['totalPurchase'] as double) + p.totalAmount;
+      s['totalPaid'] = (s['totalPaid'] as double) + p.paidAmount;
+      s['pending'] = (s['totalPurchase'] as double) - (s['totalPaid'] as double);
+      s['purchaseCount'] = (s['purchaseCount'] as int) + 1;
+
+      // Parse items JSON once per purchase
+      try {
+        final items = p.itemsList;
+        int qty = 0;
+        for (final item in items) {
+          qty += ((item['quantity'] as num?) ?? 0).toInt();
+        }
+        s['totalItems'] = (s['totalItems'] as int) + qty;
+      } catch (_) {}
+    }
+
+    return summaries;
+  }
+
+  /// Get summary for a single vendor
+  Map<String, dynamic> getVendorSummary(String vendorId) {
+    final all = getAllVendorSummaries();
+    return all[vendorId] ?? {
+      'totalPurchase': 0.0,
+      'totalPaid': 0.0,
+      'pending': 0.0,
+      'totalItems': 0,
+      'purchaseCount': 0,
+    };
+  }
+
+  /// Record payment to a vendor — FIFO settlement (oldest pending first)
+  Future<bool> recordVendorPayment({
+    required String vendorId,
+    required double amount,
+    required String paymentMode,
+    required VendorProvider vendorProvider,
+  }) async {
+    try {
+      // Get all pending purchases for this vendor (oldest first)
+      final pending = _purchases
+          .where((p) => p.vendorId == vendorId && p.dueAmount > 0)
+          .toList()
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+      if (pending.isEmpty) return false;
+
+      double remaining = amount;
+
+      for (final purchase in pending) {
+        if (remaining <= 0) break;
+
+        final due = purchase.dueAmount;
+        final payNow = remaining >= due ? due : remaining;
+        final newPaid = purchase.paidAmount + payNow;
+
+        // Update local DB
+        final updatedMap = purchase.toMap();
+        updatedMap['paid_amount'] = newPaid;
+        updatedMap['updated_at'] = DateTime.now().toIso8601String();
+        await _db.update('purchases', updatedMap, purchase.id);
+
+        // Sync to Supabase
+        await _supabase.syncRecord('purchases', purchase.id, 'update', updatedMap);
+
+        // Update in-memory
+        final idx = _purchases.indexWhere((p) => p.id == purchase.id);
+        if (idx != -1) {
+          _purchases[idx] = PurchaseModel.fromMap(updatedMap);
+        }
+
+        remaining -= payNow;
+      }
+
+      // Reduce vendor balance
+      await vendorProvider.adjustBalance(vendorId, -amount);
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('❌ Failed to record vendor payment: $e');
+      return false;
+    }
+  }
 }

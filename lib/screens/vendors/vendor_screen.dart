@@ -4,7 +4,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/vendor_provider.dart';
+import '../../providers/purchase_provider.dart';
 import '../../data/models/vendor_model.dart';
+import 'vendor_detail_screen.dart';
 
 class VendorScreen extends StatefulWidget {
   const VendorScreen({super.key});
@@ -186,13 +188,22 @@ class _VendorScreenState extends State<VendorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final purchaseProvider = context.watch<PurchaseProvider>();
+    final summaries = purchaseProvider.getAllVendorSummaries();
+
     return Consumer<VendorProvider>(
       builder: (context, provider, _) {
-        final filtered = _search.isEmpty
-            ? provider.vendors
+        var filtered = _search.isEmpty
+            ? provider.vendors.toList()
             : provider.vendors.where((v) =>
                 v.name.toLowerCase().contains(_search.toLowerCase()) ||
                 v.phone.contains(_search)).toList();
+        // Sort by pending DESC — most important vendors first
+        filtered.sort((a, b) {
+          final aPending = (summaries[a.id]?['pending'] as double?) ?? a.balance;
+          final bPending = (summaries[b.id]?['pending'] as double?) ?? b.balance;
+          return bPending.compareTo(aPending);
+        });
 
         return Scaffold(
           backgroundColor: Colors.transparent,
@@ -274,7 +285,7 @@ class _VendorScreenState extends State<VendorScreen> {
                           : ListView.separated(
                               itemCount: filtered.length,
                               separatorBuilder: (_, __) => const SizedBox(height: 8),
-                              itemBuilder: (context, i) => _vendorTile(filtered[i], provider),
+                              itemBuilder: (context, i) => _vendorTile(filtered[i], provider, summaries),
                             ),
                 ),
               ],
@@ -285,89 +296,146 @@ class _VendorScreenState extends State<VendorScreen> {
     );
   }
 
-  Widget _vendorTile(VendorModel vendor, VendorProvider provider) {
-    final hasBalance = vendor.balance > 0;
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: hasBalance ? AppColors.error.withValues(alpha: 0.3) : AppColors.cardBorder(context)),
+  Widget _vendorTile(VendorModel vendor, VendorProvider provider, Map<String, Map<String, dynamic>> summaries) {
+    final s = summaries[vendor.id];
+    final totalPurchase = (s?['totalPurchase'] as double?) ?? 0;
+    final totalItems = (s?['totalItems'] as int?) ?? 0;
+    final pending = (s?['pending'] as double?) ?? vendor.balance;
+    final hasBalance = pending > 0;
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => VendorDetailScreen(vendor: vendor)),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        leading: Container(
-          width: 44, height: 44,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Center(
-            child: Text(
-              vendor.name.isNotEmpty ? vendor.name[0].toUpperCase() : '?',
-              style: AppTypography.h3.copyWith(color: AppColors.accent),
-            ),
-          ),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: hasBalance ? AppColors.error.withValues(alpha: 0.3) : AppColors.cardBorder(context)),
         ),
-        title: Text(vendor.name,
-            style: AppTypography.bodyLarge.copyWith(color: AppColors.textPrimary(context), fontWeight: FontWeight.w600)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            if (vendor.phone.isNotEmpty)
-              Text(vendor.phone,
-                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
-            if (vendor.notes.isNotEmpty)
-              Padding(
-                padding: EdgeInsets.only(top: 2),
-                child: Text(vendor.notes,
-                    maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context), fontStyle: FontStyle.italic)),
+            // Avatar
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(12),
               ),
-            if (hasBalance)
-              Text('Due: ${Formatters.currency(vendor.balance)}',
-                  style: AppTypography.mono.copyWith(color: AppColors.error, fontSize: 12, fontWeight: FontWeight.w600)),
-          ],
-        ),
-        trailing: PopupMenuButton(
-          icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary(context)),
-          color: AppColors.surface(context),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          itemBuilder: (_) => [
-            PopupMenuItem(
-              onTap: () => Future.microtask(() => _showVendorDialog(vendor: vendor)),
-              child: Row(children: [Icon(Icons.edit_rounded, size: 18), SizedBox(width: 8), Text('Edit')]),
+              child: Center(
+                child: Text(
+                  vendor.name.isNotEmpty ? vendor.name[0].toUpperCase() : '?',
+                  style: AppTypography.h3.copyWith(color: Colors.white),
+                ),
+              ),
             ),
-            PopupMenuItem(
-              onTap: () async {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: AppColors.card(context),
-                    title: Text('Delete Vendor?', style: TextStyle(color: AppColors.textPrimary(context))),
-                    content: Text('Are you sure you want to delete "${vendor.name}"?',
-                        style: TextStyle(color: AppColors.textSecondary(context))),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+            const SizedBox(width: 14),
+
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(vendor.name,
+                            style: AppTypography.bodyLarge.copyWith(
+                                color: AppColors.textPrimary(context), fontWeight: FontWeight.w600)),
                       ),
+                      if (vendor.phone.isNotEmpty)
+                        Text('📞 ${vendor.phone}',
+                            style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.textTertiary(context), fontSize: 10)),
                     ],
                   ),
-                );
-                if (confirmed == true) {
-                  await provider.deleteVendor(vendor.id);
-                }
-              },
-              child: Row(children: [
-                Icon(Icons.delete_rounded, size: 18, color: AppColors.error),
-                const SizedBox(width: 8),
-                Text('Delete', style: TextStyle(color: AppColors.error)),
-              ]),
+                  const SizedBox(height: 4),
+                  // Stats row
+                  Row(
+                    children: [
+                      Text('₹${_compact(totalPurchase)}',
+                          style: AppTypography.mono.copyWith(
+                              color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w700)),
+                      Text(' • ',
+                          style: TextStyle(color: AppColors.textTertiary(context), fontSize: 10)),
+                      Text('$totalItems items',
+                          style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textSecondary(context), fontSize: 11)),
+                      if (hasBalance) ...[
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text('Due: ${Formatters.currency(pending)}',
+                              style: AppTypography.mono.copyWith(
+                                  color: AppColors.error, fontSize: 11, fontWeight: FontWeight.w700)),
+                        ),
+                      ] else if (totalPurchase > 0) ...[
+                        const Spacer(),
+                        Icon(Icons.check_circle_rounded, size: 14, color: AppColors.success),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 8),
+            // Menu
+            PopupMenuButton(
+              icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary(context), size: 20),
+              color: AppColors.surface(context),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              itemBuilder: (ctx) => [
+                PopupMenuItem(
+                  onTap: () => Future.microtask(() => _showVendorDialog(vendor: vendor)),
+                  child: Row(children: [Icon(Icons.edit_rounded, size: 18), SizedBox(width: 8), Text('Edit')]),
+                ),
+                PopupMenuItem(
+                  onTap: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: AppColors.card(context),
+                        title: Text('Delete Vendor?', style: TextStyle(color: AppColors.textPrimary(context))),
+                        content: Text('Are you sure you want to delete "${vendor.name}"?',
+                            style: TextStyle(color: AppColors.textSecondary(context))),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed == true) {
+                      await provider.deleteVendor(vendor.id);
+                    }
+                  },
+                  child: Row(children: [
+                    Icon(Icons.delete_rounded, size: 18, color: AppColors.error),
+                    const SizedBox(width: 8),
+                    Text('Delete', style: TextStyle(color: AppColors.error)),
+                  ]),
+                ),
+              ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _compact(double v) {
+    if (v >= 100000) return '${(v / 100000).toStringAsFixed(1)}L';
+    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}K';
+    return v.toStringAsFixed(0);
   }
 }
