@@ -3,11 +3,11 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"flutter_bootstrap.js": "662b88d09e12188a93a15f78db34f87f",
+const RESOURCES = {"flutter_bootstrap.js": "843f3a6e6a1436329943312f8d90d12e",
 "version.json": "f0c576039f5239de1e2c64e73375b95d",
 "index.html": "fc8da5824874545fc3e878da5e1a2bf3",
 "/": "fc8da5824874545fc3e878da5e1a2bf3",
-"main.dart.js": "39360497b518bb97a40c83d0a66ea473",
+"main.dart.js": "08a31e24276fbece31fc9854df91b93d",
 "sqlite3.wasm": "fa7637a49a0e434f2a98f9981856d118",
 "flutter.js": "24bc71911b75b5f8135c949e27a2984e",
 "favicon.png": "5dcef449791fa27946b3d35ad8803796",
@@ -23,7 +23,7 @@ const RESOURCES = {"flutter_bootstrap.js": "662b88d09e12188a93a15f78db34f87f",
 "assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8cb9b6ce",
 "assets/shaders/stretch_effect.frag": "40d68efbbf360632f614c731219e95f0",
 "assets/AssetManifest.bin": "78542ec67c9cb347b89e04e462dfab21",
-"assets/fonts/MaterialIcons-Regular.otf": "72b402fe1cbbc93dbe0f376cb5c9161e",
+"assets/fonts/MaterialIcons-Regular.otf": "e32ff38da66a1443cf4f7d792db43ebf",
 "assets/assets/images/barakah_logo.png": "fa2f6e0042104ab904a8276e25103a88",
 "canvaskit/skwasm.js": "8060d46e9a4901ca9991edd3a26be4f0",
 "canvaskit/skwasm_heavy.js": "740d43a6b8240ef9e23eed8c48840da4",
