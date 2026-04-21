@@ -75,13 +75,13 @@ class _FilterChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          duration: Duration(milliseconds: 200),
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: isActive ? AppColors.primary.withValues(alpha: 0.15) : AppColors.surfaceDark,
+            color: isActive ? AppColors.primary.withValues(alpha: 0.15) : AppColors.surface(context),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isActive ? AppColors.primary : AppColors.cardBorderDark,
+              color: isActive ? AppColors.primary : AppColors.cardBorder(context),
               width: isActive ? 1.5 : 1,
             ),
           ),
@@ -91,13 +91,13 @@ class _FilterChip extends StatelessWidget {
               Icon(
                 icon,
                 size: 15,
-                color: isActive ? AppColors.accent : AppColors.textTertiaryDark,
+                color: isActive ? AppColors.accent : AppColors.textTertiary(context),
               ),
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
               Text(
                 label,
                 style: AppTypography.labelSmall.copyWith(
-                  color: isActive ? AppColors.accent : AppColors.textSecondaryDark,
+                  color: isActive ? AppColors.accent : AppColors.textSecondary(context),
                   fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),

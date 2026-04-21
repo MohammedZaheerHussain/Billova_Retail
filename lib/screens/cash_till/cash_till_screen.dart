@@ -43,17 +43,17 @@ class _CashTillScreenState extends State<CashTillScreen> {
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
                     Text('Daily Cash Till',
-                        style: AppTypography.h1.copyWith(color: AppColors.textPrimaryDark)),
+                        style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context))),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -63,22 +63,22 @@ class _CashTillScreenState extends State<CashTillScreen> {
                         style: AppTypography.mono.copyWith(color: AppColors.accent, fontSize: 13),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     IconButton(
                       onPressed: () => provider.refresh(),
-                      icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondaryDark),
+                      icon: Icon(Icons.refresh_rounded, color: AppColors.textSecondary(context)),
                       tooltip: 'Refresh',
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
 
                 if (provider.isLoading)
-                  const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                  Center(child: CircularProgressIndicator(color: AppColors.accent))
                 else if (till == null)
                   Center(
                     child: Text('Unable to load cash till',
-                        style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark)),
+                        style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))),
                   )
                 else ...[
                   // ─── Opening Cash ───
@@ -92,33 +92,33 @@ class _CashTillScreenState extends State<CashTillScreen> {
                           child: TextField(
                             controller: _openingCashCtrl,
                             keyboardType: TextInputType.number,
-                            style: AppTypography.monoLarge.copyWith(color: AppColors.textPrimaryDark),
+                            style: AppTypography.monoLarge.copyWith(color: AppColors.textPrimary(context)),
                             decoration: InputDecoration(
                               prefixText: '₹ ',
-                              prefixStyle: AppTypography.monoLarge.copyWith(color: AppColors.textTertiaryDark),
+                              prefixStyle: AppTypography.monoLarge.copyWith(color: AppColors.textTertiary(context)),
                               filled: true,
-                              fillColor: AppColors.surfaceDark,
+                              fillColor: AppColors.surface(context),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                                borderSide: BorderSide(color: AppColors.cardBorder(context)),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                                borderSide: BorderSide(color: AppColors.cardBorder(context)),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         ElevatedButton(
                           onPressed: () async {
                             final amount = double.tryParse(_openingCashCtrl.text) ?? 0;
                             final success = await provider.setOpeningCash(amount);
                             if (success && context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
+                                SnackBar(
                                   content: Text('Opening cash updated'),
-                                  backgroundColor: AppColors.cardDark,
+                                  backgroundColor: AppColors.card(context),
                                 ),
                               );
                             }
@@ -234,11 +234,11 @@ class _CashTillScreenState extends State<CashTillScreen> {
     required Widget child,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorderDark),
+        border: Border.all(color: AppColors.cardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,11 +253,11 @@ class _CashTillScreenState extends State<CashTillScreen> {
                 ),
                 child: Icon(icon, size: 18, color: Colors.white),
               ),
-              const SizedBox(width: 12),
-              Text(title, style: AppTypography.h4.copyWith(color: AppColors.textPrimaryDark)),
+              SizedBox(width: 12),
+              Text(title, style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           child,
         ],
       ),
@@ -266,27 +266,27 @@ class _CashTillScreenState extends State<CashTillScreen> {
 
   Widget _summaryCard(String title, String value, IconData icon, Color color, Color bgColor) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.cardBorderDark),
+        border: Border.all(color: AppColors.cardBorder(context)),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: bgColor,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark)),
+              Text(title, style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
               const SizedBox(height: 4),
               Text(value, style: AppTypography.mono.copyWith(color: color, fontWeight: FontWeight.w700, fontSize: 16)),
             ],

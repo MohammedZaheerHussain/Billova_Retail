@@ -41,7 +41,7 @@ class _VendorScreenState extends State<VendorScreen> {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: AppColors.cardDark,
+        backgroundColor: AppColors.card(context),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
@@ -56,7 +56,7 @@ class _VendorScreenState extends State<VendorScreen> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(10),
+                        padding: EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           gradient: AppColors.primaryGradient,
                           borderRadius: BorderRadius.circular(12),
@@ -66,43 +66,43 @@ class _VendorScreenState extends State<VendorScreen> {
                           color: Colors.white, size: 20,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       Text(
                         isEditing ? 'Edit Vendor' : 'Add Vendor',
-                        style: AppTypography.h3.copyWith(color: AppColors.textPrimaryDark),
+                        style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context)),
                       ),
-                      const Spacer(),
+                      Spacer(),
                       IconButton(
                         onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close_rounded, color: AppColors.textTertiaryDark),
+                        icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context)),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24),
                   _field('Vendor Name', nameCtrl, 'e.g. Nike India Pvt Ltd',
                       validator: (v) => v!.trim().isEmpty ? 'Required' : null),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   _field('Phone Number', phoneCtrl, 'e.g. 9876543210',
                       keyboardType: TextInputType.phone),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   TextFormField(
                     controller: notesCtrl,
                     maxLines: 3,
-                    style: const TextStyle(color: AppColors.textPrimaryDark),
+                    style: TextStyle(color: AppColors.textPrimary(context)),
                     decoration: InputDecoration(
                       labelText: 'Notes (Optional)',
                       hintText: 'e.g. Deals in sports shoes, delivers on Mondays, contact person: Ravi...',
-                      labelStyle: const TextStyle(color: AppColors.textSecondaryDark, fontSize: 13),
-                      hintStyle: const TextStyle(color: AppColors.textTertiaryDark, fontSize: 12),
+                      labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
+                      hintStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 12),
                       filled: true,
-                      fillColor: AppColors.surfaceDark,
+                      fillColor: AppColors.surface(context),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                        borderSide: BorderSide(color: AppColors.cardBorder(context)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                        borderSide: BorderSide(color: AppColors.cardBorder(context)),
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     ),
@@ -132,7 +132,7 @@ class _VendorScreenState extends State<VendorScreen> {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                             content: Text(isEditing ? 'Vendor updated' : 'Vendor added'),
-                            backgroundColor: AppColors.cardDark,
+                            backgroundColor: AppColors.card(context),
                           ));
                         }
                       },
@@ -162,22 +162,22 @@ class _VendorScreenState extends State<VendorScreen> {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
-      style: const TextStyle(color: AppColors.textPrimaryDark),
+      style: TextStyle(color: AppColors.textPrimary(context)),
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        labelStyle: const TextStyle(color: AppColors.textSecondaryDark, fontSize: 13),
-        hintStyle: const TextStyle(color: AppColors.textTertiaryDark),
+        labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
+        hintStyle: TextStyle(color: AppColors.textTertiary(context)),
         filled: true,
-        fillColor: AppColors.surfaceDark,
+        fillColor: AppColors.surface(context),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+          borderSide: BorderSide(color: AppColors.cardBorder(context)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+          borderSide: BorderSide(color: AppColors.cardBorder(context)),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
@@ -197,14 +197,14 @@ class _VendorScreenState extends State<VendorScreen> {
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header
                 Row(
                   children: [
-                    Text('Vendors', style: AppTypography.h1.copyWith(color: AppColors.textPrimaryDark)),
+                    Text('Vendors', style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context))),
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -218,7 +218,7 @@ class _VendorScreenState extends State<VendorScreen> {
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
                       onPressed: () => _showVendorDialog(),
-                      icon: const Icon(Icons.add_rounded, size: 18),
+                      icon: Icon(Icons.add_rounded, size: 18),
                       label: const Text('Add Vendor'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
@@ -229,45 +229,45 @@ class _VendorScreenState extends State<VendorScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
 
                 // Search
                 TextField(
                   controller: _searchCtrl,
                   onChanged: (v) => setState(() => _search = v),
-                  style: const TextStyle(color: AppColors.textPrimaryDark),
+                  style: TextStyle(color: AppColors.textPrimary(context)),
                   decoration: InputDecoration(
                     hintText: 'Search vendors...',
-                    hintStyle: const TextStyle(color: AppColors.textTertiaryDark),
-                    prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textTertiaryDark),
+                    hintStyle: TextStyle(color: AppColors.textTertiary(context)),
+                    prefixIcon: Icon(Icons.search_rounded, color: AppColors.textTertiary(context)),
                     filled: true,
-                    fillColor: AppColors.cardDark,
+                    fillColor: AppColors.card(context),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                      borderSide: BorderSide(color: AppColors.cardBorder(context)),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                      borderSide: BorderSide(color: AppColors.cardBorder(context)),
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
 
                 // List
                 Expanded(
                   child: provider.isLoading
-                      ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                      ? Center(child: CircularProgressIndicator(color: AppColors.accent))
                       : filtered.isEmpty
                           ? Center(
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.store_rounded, size: 64, color: AppColors.textTertiaryDark.withValues(alpha: 0.3)),
-                                  const SizedBox(height: 12),
-                                  Text('No vendors yet', style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark)),
-                                  const SizedBox(height: 4),
-                                  Text('Add your suppliers to track purchases', style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark)),
+                                  Icon(Icons.store_rounded, size: 64, color: AppColors.textTertiary(context).withValues(alpha: 0.3)),
+                                  SizedBox(height: 12),
+                                  Text('No vendors yet', style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))),
+                                  SizedBox(height: 4),
+                                  Text('Add your suppliers to track purchases', style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
                                 ],
                               ),
                             )
@@ -289,9 +289,9 @@ class _VendorScreenState extends State<VendorScreen> {
     final hasBalance = vendor.balance > 0;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: hasBalance ? AppColors.error.withValues(alpha: 0.3) : AppColors.cardBorderDark),
+        border: Border.all(color: hasBalance ? AppColors.error.withValues(alpha: 0.3) : AppColors.cardBorder(context)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -309,19 +309,19 @@ class _VendorScreenState extends State<VendorScreen> {
           ),
         ),
         title: Text(vendor.name,
-            style: AppTypography.bodyLarge.copyWith(color: AppColors.textPrimaryDark, fontWeight: FontWeight.w600)),
+            style: AppTypography.bodyLarge.copyWith(color: AppColors.textPrimary(context), fontWeight: FontWeight.w600)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (vendor.phone.isNotEmpty)
               Text(vendor.phone,
-                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark)),
+                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
             if (vendor.notes.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 2),
+                padding: EdgeInsets.only(top: 2),
                 child: Text(vendor.notes,
                     maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondaryDark, fontStyle: FontStyle.italic)),
+                    style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context), fontStyle: FontStyle.italic)),
               ),
             if (hasBalance)
               Text('Due: ${Formatters.currency(vendor.balance)}',
@@ -329,23 +329,23 @@ class _VendorScreenState extends State<VendorScreen> {
           ],
         ),
         trailing: PopupMenuButton(
-          icon: const Icon(Icons.more_vert_rounded, color: AppColors.textSecondaryDark),
-          color: AppColors.surfaceDark,
+          icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary(context)),
+          color: AppColors.surface(context),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           itemBuilder: (_) => [
             PopupMenuItem(
               onTap: () => Future.microtask(() => _showVendorDialog(vendor: vendor)),
-              child: const Row(children: [Icon(Icons.edit_rounded, size: 18), SizedBox(width: 8), Text('Edit')]),
+              child: Row(children: [Icon(Icons.edit_rounded, size: 18), SizedBox(width: 8), Text('Edit')]),
             ),
             PopupMenuItem(
               onTap: () async {
                 final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    backgroundColor: AppColors.cardDark,
-                    title: Text('Delete Vendor?', style: TextStyle(color: AppColors.textPrimaryDark)),
+                    backgroundColor: AppColors.card(context),
+                    title: Text('Delete Vendor?', style: TextStyle(color: AppColors.textPrimary(context))),
                     content: Text('Are you sure you want to delete "${vendor.name}"?',
-                        style: TextStyle(color: AppColors.textSecondaryDark)),
+                        style: TextStyle(color: AppColors.textSecondary(context))),
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
                       TextButton(

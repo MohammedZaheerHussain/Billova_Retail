@@ -201,7 +201,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       color: AppColors.accent,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -212,17 +212,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Dashboard', style: AppTypography.h1.copyWith(color: AppColors.textPrimaryDark)),
-                      const SizedBox(height: 4),
+                      Text('Dashboard', style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context))),
+                      SizedBox(height: 4),
                       Text(Formatters.date(DateTime.now()),
-                          style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondaryDark)),
+                          style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary(context))),
                     ],
                   ),
                 ),
                 IconButton(
                   onPressed: _loadDashboardData,
-                  icon: const Icon(Icons.refresh_rounded),
-                  color: AppColors.textSecondaryDark,
+                  icon: Icon(Icons.refresh_rounded),
+                  color: AppColors.textSecondary(context),
                   tooltip: 'Refresh',
                 ),
               ],
@@ -357,11 +357,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _statCard(String title, String value, String subtitle, IconData icon,
       LinearGradient gradient) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorderDark),
+        border: Border.all(color: AppColors.cardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,21 +371,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(child: Text(title, style: AppTypography.labelMedium.copyWith(
-                  color: AppColors.textSecondaryDark), overflow: TextOverflow.ellipsis)),
+                  color: AppColors.textSecondary(context)), overflow: TextOverflow.ellipsis)),
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: EdgeInsets.all(6),
                 decoration: BoxDecoration(gradient: gradient, borderRadius: BorderRadius.circular(8)),
                 child: Icon(icon, size: 16, color: Colors.white),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(value, style: AppTypography.monoLarge.copyWith(
-              color: AppColors.textPrimaryDark, fontSize: 18),
+              color: AppColors.textPrimary(context), fontSize: 18),
               overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 2),
+          SizedBox(height: 2),
           Text(subtitle, style: AppTypography.labelSmall.copyWith(
-              color: AppColors.textTertiaryDark)),
+              color: AppColors.textTertiary(context))),
         ],
       ),
     );
@@ -393,22 +393,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildChart() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorderDark),
+        border: Border.all(color: AppColors.cardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Sales (Last 7 Days)', style: AppTypography.h4.copyWith(color: AppColors.textPrimaryDark)),
-          const SizedBox(height: 20),
+          Text('Sales (Last 7 Days)', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
+          SizedBox(height: 20),
           SizedBox(
             height: 200,
             child: _chartData.isEmpty
                 ? Center(child: Text('No sales data yet',
-                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark)))
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))))
                 : BarChart(
                     BarChartData(
                       alignment: BarChartAlignment.spaceAround,
@@ -418,7 +418,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       gridData: FlGridData(
                         show: true, drawVerticalLine: false,
                         getDrawingHorizontalLine: (value) => FlLine(
-                          color: AppColors.cardBorderDark.withValues(alpha: 0.5), strokeWidth: 1),
+                          color: AppColors.cardBorder(context).withValues(alpha: 0.5), strokeWidth: 1),
                       ),
                       titlesData: FlTitlesData(
                         leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -432,9 +432,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               if (index >= 0 && index < _chartData.length) {
                                 final date = _chartData[index]['date'] as String;
                                 return Padding(
-                                  padding: const EdgeInsets.only(top: 8),
+                                  padding: EdgeInsets.only(top: 8),
                                   child: Text(date.substring(8, 10),
-                                      style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark)),
+                                      style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
                                 );
                               }
                               return const SizedBox();
@@ -473,26 +473,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final entries = _paymentDistribution.entries.toList();
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorderDark),
+        border: Border.all(color: AppColors.cardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.pie_chart_rounded, color: AppColors.accent, size: 18),
-            const SizedBox(width: 8),
-            Text('Sales by Payment', style: AppTypography.h4.copyWith(color: AppColors.textPrimaryDark)),
+            Icon(Icons.pie_chart_rounded, color: AppColors.accent, size: 18),
+            SizedBox(width: 8),
+            Text('Sales by Payment', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
           ]),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           if (_paymentDistribution.isEmpty || total == 0)
             SizedBox(
               height: 180,
               child: Center(child: Text('No sales data yet',
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark))),
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context)))),
             )
           else ...[
             SizedBox(
@@ -515,17 +515,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             ...entries.asMap().entries.map((e) {
               final color = _pieColors[e.key % _pieColors.length];
               return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: EdgeInsets.only(bottom: 8),
                 child: Row(children: [
                   Container(width: 12, height: 12, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(e.value.key, style: AppTypography.bodySmall.copyWith(color: AppColors.textPrimaryDark))),
+                  SizedBox(width: 8),
+                  Expanded(child: Text(e.value.key, style: AppTypography.bodySmall.copyWith(color: AppColors.textPrimary(context)))),
                   Text(Formatters.currency(e.value.value),
-                      style: AppTypography.mono.copyWith(color: AppColors.textSecondaryDark, fontSize: 12)),
+                      style: AppTypography.mono.copyWith(color: AppColors.textSecondary(context), fontSize: 12)),
                 ]),
               );
             }),
@@ -537,38 +537,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildRecentSales() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardDark, borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorderDark),
+        color: AppColors.card(context), borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Recent Sales', style: AppTypography.h4.copyWith(color: AppColors.textPrimaryDark)),
-          const SizedBox(height: 16),
+          Text('Recent Sales', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
+          SizedBox(height: 16),
           if (_recentSales.isEmpty)
-            Padding(padding: const EdgeInsets.symmetric(vertical: 24),
+            Padding(padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(child: Text('No sales yet today',
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark))))
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context)))))
           else
             ...List.generate(_recentSales.length, (index) {
               final sale = _recentSales[index];
               return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: EdgeInsets.only(bottom: 12),
                 child: Row(children: [
                   Container(
                     width: 40, height: 40,
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                    child: const Icon(Icons.receipt_rounded, size: 18, color: AppColors.accent),
+                    child: Icon(Icons.receipt_rounded, size: 18, color: AppColors.accent),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(sale['invoice_number'] as String? ?? 'INV-0000',
-                        style: AppTypography.mono.copyWith(color: AppColors.textPrimaryDark, fontSize: 13)),
+                        style: AppTypography.mono.copyWith(color: AppColors.textPrimary(context), fontSize: 13)),
                     Text(sale['customer_name'] as String? ?? 'Walk-in',
-                        style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark)),
+                        style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
                   ])),
                   Text(Formatters.currency((sale['total'] as num).toDouble()),
                       style: AppTypography.mono.copyWith(color: AppColors.success, fontSize: 13, fontWeight: FontWeight.w600)),
@@ -582,28 +582,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildTopProducts() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardDark, borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorderDark),
+        color: AppColors.card(context), borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.star_rounded, color: AppColors.accent, size: 20),
-            const SizedBox(width: 8),
-            Text('Top Products', style: AppTypography.h4.copyWith(color: AppColors.textPrimaryDark)),
+            Icon(Icons.star_rounded, color: AppColors.accent, size: 20),
+            SizedBox(width: 8),
+            Text('Top Products', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
           ]),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           if (_topProducts.isEmpty)
             Center(child: Text('No product data yet',
-                style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark)))
+                style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))))
           else
             ..._topProducts.asMap().entries.map((e) {
               final p = e.value;
               return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+                padding: EdgeInsets.only(bottom: 10),
                 child: Row(children: [
                   Container(
                     width: 24, height: 24,
@@ -613,13 +613,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Center(child: Text('${e.key + 1}',
                         style: AppTypography.mono.copyWith(color: AppColors.accent, fontSize: 11))),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(p['name'] as String, style: AppTypography.bodyMedium.copyWith(
-                        color: AppColors.textPrimaryDark, fontWeight: FontWeight.w500),
+                        color: AppColors.textPrimary(context), fontWeight: FontWeight.w500),
                         overflow: TextOverflow.ellipsis),
                     Text('${p['quantity']} sold', style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textTertiaryDark)),
+                        color: AppColors.textTertiary(context))),
                   ])),
                   Text(Formatters.currency((p['revenue'] as num).toDouble()),
                       style: AppTypography.mono.copyWith(color: AppColors.success, fontSize: 12)),
@@ -633,9 +633,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildAIInsights() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardDark, borderRadius: BorderRadius.circular(16),
+        color: AppColors.card(context), borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
       child: Column(
@@ -647,10 +647,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               decoration: BoxDecoration(
                 gradient: AppColors.primaryGradient,
                 borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.auto_awesome_rounded, size: 16, color: Colors.white),
+              child: Icon(Icons.auto_awesome_rounded, size: 16, color: Colors.white),
             ),
-            const SizedBox(width: 10),
-            Text('AI Business Advisor', style: AppTypography.h4.copyWith(color: AppColors.textPrimaryDark)),
+            SizedBox(width: 10),
+            Text('AI Business Advisor', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
             const Spacer(),
             SizedBox(
               height: 32,
@@ -659,7 +659,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 icon: _isLoadingAI
                     ? const SizedBox(width: 14, height: 14,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.refresh_rounded, size: 14),
+                    : Icon(Icons.refresh_rounded, size: 14),
                 label: Text(_isLoadingAI ? 'Analyzing...' : 'Get Insights',
                     style: const TextStyle(fontSize: 12)),
                 style: ElevatedButton.styleFrom(
@@ -672,41 +672,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
           ]),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           if (_aiInsights.isEmpty && !_isLoadingAI)
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surfaceDark,
+                color: AppColors.surface(context),
                 borderRadius: BorderRadius.circular(10)),
               child: Row(children: [
                 Icon(Icons.lightbulb_outline_rounded, color: AppColors.accent.withValues(alpha: 0.5), size: 20),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Flexible(child: Text(
                   'Click "Get Insights" to analyze your business data with AI',
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark),
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context)),
                 )),
               ]),
             )
           else if (_isLoadingAI)
-            const Center(child: Padding(
+            Center(child: Padding(
               padding: EdgeInsets.all(24),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 CircularProgressIndicator(color: AppColors.accent),
                 SizedBox(height: 12),
-                Text('Analyzing your business data...', style: TextStyle(color: AppColors.textTertiaryDark)),
+                Text('Analyzing your business data...', style: TextStyle(color: AppColors.textTertiary(context))),
               ]),
             ))
           else
             Container(
-              padding: const EdgeInsets.all(14),
+              padding: EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.surfaceDark,
+                color: AppColors.surface(context),
                 borderRadius: BorderRadius.circular(10)),
               child: SelectableText(
                 _aiInsights,
                 style: AppTypography.bodyMedium.copyWith(
-                  color: AppColors.textPrimaryDark,
+                  color: AppColors.textPrimary(context),
                   height: 1.6,
                   fontSize: 13,
                 ),
@@ -730,17 +730,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Row(children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: AppColors.error.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.error, size: 16),
+              child: Icon(Icons.account_balance_wallet_rounded, color: AppColors.error, size: 16),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Vendor Dues (Udhaar)', style: AppTypography.h4.copyWith(color: AppColors.error)),
               Text('${_vendorsWithDues.length} vendor${_vendorsWithDues.length != 1 ? "s" : ""} with pending payments',
-                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark)),
+                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
             ])),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -753,13 +753,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ]),
           const SizedBox(height: 14),
           ..._vendorsWithDues.take(5).map((vendor) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: EdgeInsets.only(bottom: 8),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: AppColors.cardDark,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.cardBorderDark)),
+                border: Border.all(color: AppColors.cardBorder(context))),
               child: Row(children: [
                 Container(
                   width: 28, height: 28,
@@ -767,15 +767,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     color: AppColors.error.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(7)),
                   child: Center(child: Text(vendor.name[0].toUpperCase(),
-                      style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w700, fontSize: 12))),
+                      style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w700, fontSize: 12))),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(vendor.name, style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textPrimaryDark, fontWeight: FontWeight.w500)),
+                      color: AppColors.textPrimary(context), fontWeight: FontWeight.w500)),
                   if (vendor.phone.isNotEmpty)
                     Text(vendor.phone, style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textTertiaryDark, fontSize: 10)),
+                        color: AppColors.textTertiary(context), fontSize: 10)),
                 ])),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -790,9 +790,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           )),
           if (_vendorsWithDues.length > 5)
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: EdgeInsets.only(top: 4),
               child: Text('+ ${_vendorsWithDues.length - 5} more vendors...',
-                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark)),
+                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
             ),
         ],
       ),
@@ -811,21 +811,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 20),
-            const SizedBox(width: 8),
+            Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 20),
+            SizedBox(width: 8),
             Text('Low Stock Alert', style: AppTypography.h4.copyWith(color: AppColors.warning)),
           ]),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Wrap(
             spacing: 8, runSpacing: 8,
             children: _lowStockItems.take(6).map((item) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.cardDark, borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.cardBorderDark)),
+                  color: AppColors.card(context), borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.cardBorder(context))),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text(item['name'] as String, style: AppTypography.bodySmall.copyWith(color: AppColors.textPrimaryDark)),
+                  Text(item['name'] as String, style: AppTypography.bodySmall.copyWith(color: AppColors.textPrimary(context))),
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

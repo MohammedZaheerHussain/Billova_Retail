@@ -44,7 +44,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       setState(() => _selectedCategory = 'General');
       context.read<CashTillProvider>().refresh();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Expense added'), backgroundColor: AppColors.cardDark),
+        SnackBar(content: Text('Expense added'), backgroundColor: AppColors.card(context)),
       );
     }
   }
@@ -56,17 +56,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       firstDate: DateTime(2024),
       lastDate: now,
       initialDateRange: DateTimeRange(
-        start: provider.customStart ?? now.subtract(const Duration(days: 7)),
+        start: provider.customStart ?? now.subtract(Duration(days: 7)),
         end: provider.customEnd ?? now,
       ),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
+            colorScheme: ColorScheme.dark(
               primary: AppColors.primary,
               onPrimary: Colors.white,
-              surface: AppColors.cardDark,
-              onSurface: AppColors.textPrimaryDark,
+              surface: AppColors.card(context),
+              onSurface: AppColors.textPrimary(context),
             ),
           ),
           child: child!,
@@ -99,14 +99,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ─── Header ───
                 Row(
                   children: [
-                    Text('Expenses', style: AppTypography.h1.copyWith(color: AppColors.textPrimaryDark)),
+                    Text('Expenses', style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context))),
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -130,15 +130,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   onChanged: (type) => provider.setFilter(type),
                   onCustomTap: () => _pickCustomRange(provider),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
 
                 // ─── Add Expense Card ───
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: AppColors.cardDark,
+                    color: AppColors.card(context),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.cardBorderDark),
+                    border: Border.all(color: AppColors.cardBorder(context)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,19 +146,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               gradient: AppColors.errorGradient,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                            child: Icon(Icons.add_rounded, color: Colors.white, size: 18),
                           ),
-                          const SizedBox(width: 10),
+                          SizedBox(width: 10),
                           Text('Add Expense',
-                              style: AppTypography.h4.copyWith(color: AppColors.textPrimaryDark)),
+                              style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       Row(
                         children: [
                           Expanded(
@@ -167,49 +167,49 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               controller: _amountCtrl,
                               keyboardType: TextInputType.number,
                               style: AppTypography.mono.copyWith(
-                                  color: AppColors.textPrimaryDark, fontSize: 16),
+                                  color: AppColors.textPrimary(context), fontSize: 16),
                               decoration: InputDecoration(
                                 prefixText: '₹ ',
                                 prefixStyle: AppTypography.mono
-                                    .copyWith(color: AppColors.textTertiaryDark),
+                                    .copyWith(color: AppColors.textTertiary(context)),
                                 hintText: '0.00',
-                                hintStyle: const TextStyle(color: AppColors.textTertiaryDark),
+                                hintStyle: TextStyle(color: AppColors.textTertiary(context)),
                                 filled: true,
-                                fillColor: AppColors.surfaceDark,
+                                fillColor: AppColors.surface(context),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                                  borderSide: BorderSide(color: AppColors.cardBorder(context)),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                                  borderSide: BorderSide(color: AppColors.cardBorder(context)),
                                 ),
                                 contentPadding:
                                     const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          SizedBox(width: 10),
                           Expanded(
                             flex: 2,
                             child: DropdownButtonFormField<String>(
                               value: _selectedCategory,
                               onChanged: (v) => setState(() => _selectedCategory = v!),
-                              dropdownColor: AppColors.cardDark,
-                              style: const TextStyle(
-                                  color: AppColors.textPrimaryDark, fontSize: 13),
+                              dropdownColor: AppColors.card(context),
+                              style: TextStyle(
+                                  color: AppColors.textPrimary(context), fontSize: 13),
                               decoration: InputDecoration(
                                 filled: true,
-                                fillColor: AppColors.surfaceDark,
+                                fillColor: AppColors.surface(context),
                                 contentPadding:
-                                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                    EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                                  borderSide: BorderSide(color: AppColors.cardBorder(context)),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                                  borderSide: BorderSide(color: AppColors.cardBorder(context)),
                                 ),
                               ),
                               items: AppConstants.expenseCategories
@@ -219,29 +219,29 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      SizedBox(height: 10),
                       Row(
                         children: [
                           Expanded(
                             child: TextField(
                               controller: _noteCtrl,
-                              style: const TextStyle(
-                                  color: AppColors.textPrimaryDark, fontSize: 13),
+                              style: TextStyle(
+                                  color: AppColors.textPrimary(context), fontSize: 13),
                               decoration: InputDecoration(
                                 hintText: 'Note (optional)',
                                 hintStyle:
-                                    const TextStyle(color: AppColors.textTertiaryDark, fontSize: 12),
+                                    TextStyle(color: AppColors.textTertiary(context), fontSize: 12),
                                 filled: true,
-                                fillColor: AppColors.surfaceDark,
+                                fillColor: AppColors.surface(context),
                                 contentPadding:
-                                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                    EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                                  borderSide: BorderSide(color: AppColors.cardBorder(context)),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                                  borderSide: BorderSide(color: AppColors.cardBorder(context)),
                                 ),
                               ),
                             ),
@@ -249,7 +249,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           const SizedBox(width: 10),
                           ElevatedButton.icon(
                             onPressed: _addExpense,
-                            icon: const Icon(Icons.add_rounded, size: 18),
+                            icon: Icon(Icons.add_rounded, size: 18),
                             label: const Text('Add'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.error,
@@ -285,10 +285,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             '${DateFilterHelper.filterLabel(provider.filterType)} Expenses',
                             style: AppTypography.labelMedium.copyWith(color: AppColors.error),
                           ),
-                          const SizedBox(height: 2),
+                          SizedBox(height: 2),
                           Text(
                             '${provider.expenseCount} transaction${provider.expenseCount != 1 ? 's' : ''}',
-                            style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark),
+                            style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context)),
                           ),
                         ],
                       ),
@@ -317,14 +317,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+                        Icon(Icons.error_outline, color: AppColors.error, size: 18),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(provider.error,
                               style: AppTypography.bodySmall.copyWith(color: AppColors.error)),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, size: 16, color: AppColors.error),
+                          icon: Icon(Icons.close, size: 16, color: AppColors.error),
                           onPressed: provider.clearError,
                         ),
                       ],
@@ -334,7 +334,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 // ─── Grouped Expenses List ───
                 Expanded(
                   child: provider.isLoading
-                      ? const Center(
+                      ? Center(
                           child: CircularProgressIndicator(color: AppColors.accent))
                       : _filteredExpenses.isEmpty
                           ? Center(
@@ -343,11 +343,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                 children: [
                                   Icon(Icons.money_off_rounded,
                                       size: 56,
-                                      color: AppColors.textTertiaryDark.withValues(alpha: 0.3)),
-                                  const SizedBox(height: 12),
+                                      color: AppColors.textTertiary(context).withValues(alpha: 0.3)),
+                                  SizedBox(height: 12),
                                   Text('No expenses for ${DateFilterHelper.filterLabel(provider.filterType).toLowerCase()}',
                                       style: AppTypography.bodyMedium
-                                          .copyWith(color: AppColors.textTertiaryDark)),
+                                          .copyWith(color: AppColors.textTertiary(context))),
                                 ],
                               ),
                             )
@@ -382,8 +382,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           padding: const EdgeInsets.only(top: 8, bottom: 6),
           child: Row(
             children: [
-              const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.accent),
-              const SizedBox(width: 8),
+              Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.accent),
+              SizedBox(width: 8),
               Text(
                 dateLabel,
                 style: AppTypography.labelMedium.copyWith(
@@ -391,9 +391,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
-                child: Container(height: 1, color: AppColors.cardBorderDark),
+                child: Container(height: 1, color: AppColors.cardBorder(context)),
               ),
               const SizedBox(width: 8),
               Text(
@@ -418,11 +418,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   Widget _expenseCard(dynamic expense) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 6),
+      margin: EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardBorderDark),
+        border: Border.all(color: AppColors.cardBorder(context)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
@@ -433,7 +433,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             color: AppColors.errorBg,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(Icons.arrow_upward_rounded,
+          child: Icon(Icons.arrow_upward_rounded,
               color: AppColors.error, size: 18),
         ),
         title: Row(
@@ -461,19 +461,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         ),
         subtitle: expense.note.isNotEmpty
             ? Text(expense.note,
-                style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiaryDark))
+                style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary(context)))
             : null,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               Formatters.time(expense.createdAt),
-              style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark),
+              style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context)),
             ),
-            const SizedBox(width: 4),
+            SizedBox(width: 4),
             IconButton(
-              icon: const Icon(Icons.delete_outline,
-                  color: AppColors.textTertiaryDark, size: 18),
+              icon: Icon(Icons.delete_outline,
+                  color: AppColors.textTertiary(context), size: 18),
               onPressed: () {
                 context.read<ExpenseProvider>().deleteExpense(expense.id);
                 context.read<CashTillProvider>().refresh();

@@ -61,7 +61,7 @@ class _StaffScreenState extends State<StaffScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => Dialog(
-          backgroundColor: AppColors.cardDark,
+          backgroundColor: AppColors.card(context),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
@@ -76,7 +76,7 @@ class _StaffScreenState extends State<StaffScreen> {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(10),
+                          padding: EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             gradient: AppColors.primaryGradient,
                             borderRadius: BorderRadius.circular(12),
@@ -84,13 +84,13 @@ class _StaffScreenState extends State<StaffScreen> {
                           child: Icon(isEditing ? Icons.edit_rounded : Icons.person_add_rounded,
                               color: Colors.white, size: 20),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         Text(isEditing ? 'Edit Staff' : 'Add Staff',
-                            style: AppTypography.h3.copyWith(color: AppColors.textPrimaryDark)),
-                        const Spacer(),
+                            style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context))),
+                        Spacer(),
                         IconButton(
                           onPressed: () => Navigator.pop(ctx),
-                          icon: const Icon(Icons.close_rounded, color: AppColors.textTertiaryDark),
+                          icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context)),
                         ),
                       ],
                     ),
@@ -110,26 +110,26 @@ class _StaffScreenState extends State<StaffScreen> {
                           if (v.length < 4 || v.length > 6) return '4-6 digits';
                           return null;
                         }),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     // Role selector
                     DropdownButtonFormField<String>(
                       value: role,
                       decoration: InputDecoration(
                         labelText: 'Role',
-                        labelStyle: const TextStyle(color: AppColors.textSecondaryDark, fontSize: 13),
+                        labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
                         filled: true,
-                        fillColor: AppColors.surfaceDark,
+                        fillColor: AppColors.surface(context),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                          borderSide: BorderSide(color: AppColors.cardBorder(context)),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                          borderSide: BorderSide(color: AppColors.cardBorder(context)),
                         ),
                       ),
-                      dropdownColor: AppColors.surfaceDark,
-                      style: const TextStyle(color: AppColors.textPrimaryDark),
+                      dropdownColor: AppColors.surface(context),
+                      style: TextStyle(color: AppColors.textPrimary(context)),
                       items: const [
                         DropdownMenuItem(value: 'admin', child: Text('Admin')),
                         DropdownMenuItem(value: 'staff', child: Text('Staff')),
@@ -197,24 +197,24 @@ class _StaffScreenState extends State<StaffScreen> {
       enabled: enabled,
       keyboardType: keyboardType,
       style: TextStyle(
-        color: enabled ? AppColors.textPrimaryDark : AppColors.textTertiaryDark,
+        color: enabled ? AppColors.textPrimary(context) : AppColors.textTertiary(context),
         letterSpacing: obscure ? 6 : 0,
       ),
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        labelStyle: const TextStyle(color: AppColors.textSecondaryDark, fontSize: 13),
-        hintStyle: const TextStyle(color: AppColors.textTertiaryDark),
+        labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
+        hintStyle: TextStyle(color: AppColors.textTertiary(context)),
         filled: true,
-        fillColor: enabled ? AppColors.surfaceDark : AppColors.cardDark,
+        fillColor: enabled ? AppColors.surface(context) : AppColors.card(context),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+          borderSide: BorderSide(color: AppColors.cardBorder(context)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+          borderSide: BorderSide(color: AppColors.cardBorder(context)),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
@@ -228,18 +228,18 @@ class _StaffScreenState extends State<StaffScreen> {
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
                     Text('Staff & Attendance',
-                        style: AppTypography.h1.copyWith(color: AppColors.textPrimaryDark)),
+                        style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context))),
                     const Spacer(),
                     ElevatedButton.icon(
                       onPressed: () => _showStaffDialog(),
-                      icon: const Icon(Icons.person_add_rounded, size: 18),
+                      icon: Icon(Icons.person_add_rounded, size: 18),
                       label: const Text('Add User'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.accent,
@@ -280,22 +280,22 @@ class _StaffScreenState extends State<StaffScreen> {
 
   Widget _buildStaffDirectory(StaffProvider provider) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorderDark),
+        border: Border.all(color: AppColors.cardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Staff Directory', style: AppTypography.h4.copyWith(color: AppColors.textPrimaryDark)),
-          const SizedBox(height: 16),
+          Text('Staff Directory', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
+          SizedBox(height: 16),
           // Header row
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: AppColors.surfaceDark,
+              color: AppColors.surface(context),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -304,18 +304,18 @@ class _StaffScreenState extends State<StaffScreen> {
                 Expanded(flex: 2, child: Text('USERNAME', style: _headerStyle)),
                 Expanded(flex: 1, child: Text('ROLE', style: _headerStyle)),
                 Expanded(flex: 1, child: Text('STATUS', style: _headerStyle)),
-                const SizedBox(width: 48, child: Text('', style: TextStyle())),
+                SizedBox(width: 48, child: Text('', style: TextStyle())),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Expanded(
             child: provider.staff.isEmpty
                 ? Center(child: Text('No staff members yet',
-                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark)))
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))))
                 : ListView.separated(
                     itemCount: provider.staff.length,
-                    separatorBuilder: (_, __) => const Divider(color: AppColors.cardBorderDark, height: 1),
+                    separatorBuilder: (_, __) => Divider(color: AppColors.cardBorder(context), height: 1),
                     itemBuilder: (_, i) => _staffRow(provider.staff[i], provider),
                   ),
           ),
@@ -325,23 +325,23 @@ class _StaffScreenState extends State<StaffScreen> {
   }
 
   TextStyle get _headerStyle => AppTypography.labelSmall.copyWith(
-      color: AppColors.textTertiaryDark, fontWeight: FontWeight.w600, letterSpacing: 0.5);
+      color: AppColors.textTertiary(context), fontWeight: FontWeight.w600, letterSpacing: 0.5);
 
   Widget _staffRow(StaffModel staff, StaffProvider provider) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           Expanded(
             flex: 2,
             child: Text(staff.name,
                 style: AppTypography.bodyMedium.copyWith(
-                    color: AppColors.textPrimaryDark, fontWeight: FontWeight.w500)),
+                    color: AppColors.textPrimary(context), fontWeight: FontWeight.w500)),
           ),
           Expanded(
             flex: 2,
             child: Text(staff.username,
-                style: AppTypography.mono.copyWith(color: AppColors.textSecondaryDark, fontSize: 13)),
+                style: AppTypography.mono.copyWith(color: AppColors.textSecondary(context), fontSize: 13)),
           ),
           Expanded(
             flex: 1,
@@ -376,8 +376,8 @@ class _StaffScreenState extends State<StaffScreen> {
           SizedBox(
             width: 48,
             child: PopupMenuButton(
-              icon: const Icon(Icons.more_vert_rounded, color: AppColors.textSecondaryDark, size: 20),
-              color: AppColors.surfaceDark,
+              icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary(context), size: 20),
+              color: AppColors.surface(context),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               itemBuilder: (_) => [
                 PopupMenuItem(
@@ -425,11 +425,11 @@ class _StaffScreenState extends State<StaffScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorderDark),
+        border: Border.all(color: AppColors.cardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -437,11 +437,11 @@ class _StaffScreenState extends State<StaffScreen> {
           Row(
             children: [
               Text('Attendance Log',
-                  style: AppTypography.h4.copyWith(color: AppColors.textPrimaryDark)),
-              const Spacer(),
+                  style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
+              Spacer(),
               IconButton(
                 onPressed: () => _loadFilteredAttendance(provider),
-                icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondaryDark, size: 20),
+                icon: Icon(Icons.refresh_rounded, color: AppColors.textSecondary(context), size: 20),
               ),
             ],
           ),
@@ -449,9 +449,9 @@ class _StaffScreenState extends State<StaffScreen> {
 
           // ─── Filter Tabs ───
           Container(
-            padding: const EdgeInsets.all(3),
+            padding: EdgeInsets.all(3),
             decoration: BoxDecoration(
-              color: AppColors.surfaceDark,
+              color: AppColors.surface(context),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -462,14 +462,14 @@ class _StaffScreenState extends State<StaffScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
 
           // ─── Records ───
           Expanded(
             child: records.isEmpty
                 ? Center(child: Text(
                     _attendanceFilter == 0 ? 'No attendance records today' : 'No records found',
-                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark)))
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))))
                 : ListView.builder(
                     itemCount: grouped.keys.length,
                     itemBuilder: (_, i) {
@@ -494,7 +494,7 @@ class _StaffScreenState extends State<StaffScreen> {
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: isActive ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
@@ -504,7 +504,7 @@ class _StaffScreenState extends State<StaffScreen> {
             label,
             textAlign: TextAlign.center,
             style: AppTypography.labelSmall.copyWith(
-              color: isActive ? AppColors.primary : AppColors.textTertiaryDark,
+              color: isActive ? AppColors.primary : AppColors.textTertiary(context),
               fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
               fontSize: 12,
             ),
@@ -521,7 +521,7 @@ class _StaffScreenState extends State<StaffScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(children: [
-            const Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.accent),
+            Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.accent),
             const SizedBox(width: 6),
             Text('📅 $date',
                 style: AppTypography.labelSmall.copyWith(
@@ -529,25 +529,25 @@ class _StaffScreenState extends State<StaffScreen> {
           ]),
         ),
         ...records.map((record) => _attendanceRow(record)),
-        const Divider(color: AppColors.cardBorderDark, height: 8),
+        Divider(color: AppColors.cardBorder(context), height: 8),
       ],
     );
   }
 
   Widget _attendanceRow(AttendanceModel record) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Column(
         children: [
           // Clock In row
           Row(
             children: [
               Expanded(flex: 2, child: Text(record.staffName,
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimaryDark, fontSize: 13))),
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary(context), fontSize: 13))),
               Expanded(
                 flex: 1,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: AppColors.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
@@ -559,22 +559,22 @@ class _StaffScreenState extends State<StaffScreen> {
               ),
               Expanded(flex: 1, child: Text(
                 Formatters.time(record.clockInTime),
-                style: AppTypography.mono.copyWith(color: AppColors.textSecondaryDark, fontSize: 12),
+                style: AppTypography.mono.copyWith(color: AppColors.textSecondary(context), fontSize: 12),
                 textAlign: TextAlign.right,
               )),
             ],
           ),
           // Clock Out row (if exists)
           if (record.clockOutTime != null) ...[
-            const SizedBox(height: 3),
+            SizedBox(height: 3),
             Row(
               children: [
                 Expanded(flex: 2, child: Text(record.staffName,
-                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimaryDark, fontSize: 13))),
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary(context), fontSize: 13))),
                 Expanded(
                   flex: 1,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: AppColors.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
@@ -586,7 +586,7 @@ class _StaffScreenState extends State<StaffScreen> {
                 ),
                 Expanded(flex: 1, child: Text(
                   Formatters.time(record.clockOutTime!),
-                  style: AppTypography.mono.copyWith(color: AppColors.textSecondaryDark, fontSize: 12),
+                  style: AppTypography.mono.copyWith(color: AppColors.textSecondary(context), fontSize: 12),
                   textAlign: TextAlign.right,
                 )),
               ],

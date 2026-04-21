@@ -17,7 +17,7 @@ class InventoryScreen extends StatelessWidget {
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -27,7 +27,7 @@ class InventoryScreen extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Inventory',
-                        style: AppTypography.h1.copyWith(color: AppColors.textPrimaryDark),
+                        style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context)),
                       ),
                     ),
                     // Stats
@@ -38,7 +38,7 @@ class InventoryScreen extends StatelessWidget {
                     const SizedBox(width: 16),
                     ElevatedButton.icon(
                       onPressed: () => _showItemForm(context),
-                      icon: const Icon(Icons.add_rounded, size: 20),
+                      icon: Icon(Icons.add_rounded, size: 20),
                       label: const Text('Add Item'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
@@ -51,22 +51,22 @@ class InventoryScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
 
                 // ─── Search ───
                 Container(
                   decoration: BoxDecoration(
-                    color: AppColors.cardDark,
+                    color: AppColors.card(context),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.cardBorderDark),
+                    border: Border.all(color: AppColors.cardBorder(context)),
                   ),
                   child: TextField(
                     onChanged: provider.search,
-                    style: const TextStyle(color: AppColors.textPrimaryDark),
+                    style: TextStyle(color: AppColors.textPrimary(context)),
                     decoration: InputDecoration(
                       hintText: 'Search items...',
-                      hintStyle: const TextStyle(color: AppColors.textTertiaryDark),
-                      prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textTertiaryDark),
+                      hintStyle: TextStyle(color: AppColors.textTertiary(context)),
+                      prefixIcon: Icon(Icons.search_rounded, color: AppColors.textTertiary(context)),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
@@ -83,7 +83,7 @@ class InventoryScreen extends StatelessWidget {
                   child: provider.isLoading
                       ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
                       : provider.items.isEmpty
-                          ? _emptyState()
+                          ? _emptyState(context)
                           : ListView.builder(
                               itemCount: provider.items.length,
                               itemBuilder: (context, index) {
@@ -129,13 +129,13 @@ class InventoryScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+          Icon(Icons.error_outline, color: AppColors.error, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(provider.error, style: AppTypography.bodySmall.copyWith(color: AppColors.error)),
           ),
           IconButton(
-            icon: const Icon(Icons.close, size: 16, color: AppColors.error),
+            icon: Icon(Icons.close, size: 16, color: AppColors.error),
             onPressed: provider.clearError,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -145,16 +145,16 @@ class InventoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _emptyState() {
+  Widget _emptyState(BuildContext context) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textTertiaryDark.withValues(alpha: 0.3)),
-          const SizedBox(height: 16),
-          Text('No items yet', style: AppTypography.h3.copyWith(color: AppColors.textSecondaryDark)),
-          const SizedBox(height: 8),
-          Text('Add your first product to get started', style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark)),
+          Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textTertiary(context).withValues(alpha: 0.3)),
+          SizedBox(height: 16),
+          Text('No items yet', style: AppTypography.h3.copyWith(color: AppColors.textSecondary(context))),
+          SizedBox(height: 8),
+          Text('Add your first product to get started', style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))),
         ],
       ),
     );
@@ -172,11 +172,11 @@ class InventoryScreen extends StatelessWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.cardBorderDark),
+        border: Border.all(color: AppColors.cardBorder(context)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -197,7 +197,7 @@ class InventoryScreen extends StatelessWidget {
         title: Text(
           item.name,
           style: AppTypography.bodyLarge.copyWith(
-            color: AppColors.textPrimaryDark,
+            color: AppColors.textPrimary(context),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -206,11 +206,11 @@ class InventoryScreen extends StatelessWidget {
           children: [
             if (item.vendor.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(bottom: 2),
+                padding: EdgeInsets.only(bottom: 2),
                 child: Text(
                   item.vendor,
                   style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.textTertiaryDark,
+                    color: AppColors.textTertiary(context),
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -238,17 +238,17 @@ class InventoryScreen extends StatelessWidget {
           ],
         ),
         trailing: PopupMenuButton(
-          icon: const Icon(Icons.more_vert_rounded, color: AppColors.textSecondaryDark),
-          color: AppColors.cardDark,
+          icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary(context)),
+          color: AppColors.card(context),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          itemBuilder: (_) => [
+          itemBuilder: (ctx) => [
             PopupMenuItem(
               onTap: () => Future.microtask(() => _showItemForm(context, item: item)),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.edit_rounded, size: 18, color: AppColors.textSecondaryDark),
+                  Icon(Icons.edit_rounded, size: 18, color: AppColors.textSecondary(context)),
                   SizedBox(width: 8),
-                  Text('Edit', style: TextStyle(color: AppColors.textPrimaryDark)),
+                  Text('Edit', style: TextStyle(color: AppColors.textPrimary(context))),
                 ],
               ),
             ),
@@ -280,17 +280,17 @@ class InventoryScreen extends StatelessWidget {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: AppColors.cardDark,
+          backgroundColor: AppColors.card(context),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Delete Item', style: AppTypography.h3.copyWith(color: AppColors.textPrimaryDark)),
+          title: Text('Delete Item', style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context))),
           content: Text(
             'Are you sure you want to delete "${item.name}"?',
-            style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondaryDark),
+            style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary(context)),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -300,7 +300,7 @@ class InventoryScreen extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('${item.name} deleted'),
-                      backgroundColor: AppColors.cardDark,
+                      backgroundColor: AppColors.card(context),
                     ),
                   );
                 }

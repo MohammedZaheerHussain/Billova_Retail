@@ -136,13 +136,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Settings',
                 style: AppTypography.h1.copyWith(
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight,
                 )),
             const SizedBox(height: 24),
 
@@ -221,7 +221,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : const Icon(Icons.backup_rounded, size: 20),
+                              : Icon(Icons.backup_rounded, size: 20),
                           label: Text(
                             _isBackingUp ? 'Backing up...' : 'Manual Backup to Cloud',
                             style: AppTypography.button.copyWith(color: Colors.white),
@@ -341,7 +341,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                    padding: EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
@@ -354,7 +354,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: isDark
-                            ? AppColors.cardBorderDark.withValues(alpha: 0.5)
+                            ? AppColors.cardBorder(context).withValues(alpha: 0.5)
                             : AppColors.cardBorderLight,
                       ),
                     ),
@@ -367,7 +367,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             gradient: AppColors.primaryGradient,
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(Icons.receipt_long_rounded, color: Colors.white, size: 24),
+                          child: Icon(Icons.receipt_long_rounded, color: Colors.white, size: 24),
                         ),
                         const SizedBox(height: 12),
                         ShaderMask(
@@ -382,33 +382,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           'Billing Software',
                           style: AppTypography.bodySmall.copyWith(
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                            color: isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           'Version 1.0',
                           style: AppTypography.mono.copyWith(
-                            color: isDark ? AppColors.textTertiaryDark : AppColors.textTertiaryLight,
+                            color: isDark ? AppColors.textTertiary(context) : AppColors.textTertiaryLight,
                             fontSize: 11,
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                         Container(
                           width: 40,
                           height: 1,
-                          color: (isDark ? AppColors.cardBorderDark : AppColors.cardBorderLight)
+                          color: (isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight)
                               .withValues(alpha: 0.5),
                         ),
-                        const SizedBox(height: 14),
+                        SizedBox(height: 14),
                         Text(
                           'Powered & Developed by',
                           style: AppTypography.labelSmall.copyWith(
-                            color: isDark ? AppColors.textTertiaryDark : AppColors.textTertiaryLight,
+                            color: isDark ? AppColors.textTertiary(context) : AppColors.textTertiaryLight,
                             fontSize: 10,
                           ),
                         ),
@@ -451,7 +451,7 @@ class _SettingsSection extends StatelessWidget {
   final bool isDark;
   final List<Widget> children;
 
-  const _SettingsSection({
+  _SettingsSection({
     required this.title,
     required this.icon,
     required this.isDark,
@@ -462,25 +462,25 @@ class _SettingsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : AppColors.cardLight,
+        color: isDark ? AppColors.card(context) : AppColors.cardLight,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? AppColors.cardBorderDark : AppColors.cardBorderLight,
+          color: isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Row(
               children: [
                 Icon(icon, size: 18, color: AppColors.primary),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Text(
                   title,
                   style: AppTypography.labelLarge.copyWith(
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight,
                     fontSize: 13,
                     letterSpacing: 0.5,
                   ),
@@ -517,7 +517,7 @@ class _SettingsTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+        contentPadding: EdgeInsets.symmetric(horizontal: 8),
         leading: Container(
           width: 40,
           height: 40,
@@ -530,14 +530,14 @@ class _SettingsTile extends StatelessWidget {
         title: Text(
           title,
           style: AppTypography.bodyMedium.copyWith(
-            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight,
             fontWeight: FontWeight.w500,
           ),
         ),
         subtitle: Text(
           subtitle,
           style: AppTypography.labelSmall.copyWith(
-            color: isDark ? AppColors.textTertiaryDark : AppColors.textTertiaryLight,
+            color: isDark ? AppColors.textTertiary(context) : AppColors.textTertiaryLight,
           ),
         ),
         trailing: trailing,

@@ -19,17 +19,17 @@ class BillHistoryScreen extends StatelessWidget {
       firstDate: DateTime(2024),
       lastDate: now,
       initialDateRange: DateTimeRange(
-        start: provider.customStart ?? now.subtract(const Duration(days: 7)),
+        start: provider.customStart ?? now.subtract(Duration(days: 7)),
         end: provider.customEnd ?? now,
       ),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
+            colorScheme: ColorScheme.dark(
               primary: AppColors.primary,
               onPrimary: Colors.white,
-              surface: AppColors.cardDark,
-              onSurface: AppColors.textPrimaryDark,
+              surface: AppColors.card(context),
+              onSurface: AppColors.textPrimary(context),
             ),
           ),
           child: child!,
@@ -55,7 +55,7 @@ class BillHistoryScreen extends StatelessWidget {
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -63,7 +63,7 @@ class BillHistoryScreen extends StatelessWidget {
                 Row(
                   children: [
                     Text('Bill History',
-                        style: AppTypography.h1.copyWith(color: AppColors.textPrimaryDark)),
+                        style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context))),
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -100,22 +100,22 @@ class BillHistoryScreen extends StatelessWidget {
                         child: GestureDetector(
                           onTap: () => provider.setPaymentFilter(mode),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: isActive
-                                  ? _paymentColor(mode).withValues(alpha: 0.15)
+                                  ? _paymentColor(context, mode).withValues(alpha: 0.15)
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
                                 color: isActive
-                                    ? _paymentColor(mode)
-                                    : AppColors.cardBorderDark,
+                                    ? _paymentColor(context, mode)
+                                    : AppColors.cardBorder(context),
                               ),
                             ),
                             child: Text(
                               mode,
                               style: AppTypography.labelSmall.copyWith(
-                                color: isActive ? _paymentColor(mode) : AppColors.textTertiaryDark,
+                                color: isActive ? _paymentColor(context, mode) : AppColors.textTertiary(context),
                                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                               ),
                             ),
@@ -130,7 +130,7 @@ class BillHistoryScreen extends StatelessWidget {
                 // ─── Summary Cards ───
                 Row(
                   children: [
-                    _summaryCard(
+                    _summaryCard(context,
                       icon: Icons.receipt_long_rounded,
                       label: '${DateFilterHelper.filterLabel(provider.filterType)} Sales',
                       value: Formatters.currency(provider.filteredTotal),
@@ -138,7 +138,7 @@ class BillHistoryScreen extends StatelessWidget {
                       bgColor: AppColors.successBg,
                     ),
                     const SizedBox(width: 12),
-                    _summaryCard(
+                    _summaryCard(context,
                       icon: Icons.shopping_bag_rounded,
                       label: 'Bills',
                       value: '${provider.filteredCount}',
@@ -146,7 +146,7 @@ class BillHistoryScreen extends StatelessWidget {
                       bgColor: AppColors.infoBg,
                     ),
                     const SizedBox(width: 12),
-                    _summaryCard(
+                    _summaryCard(context,
                       icon: Icons.inventory_2_rounded,
                       label: 'Items Sold',
                       value: '${provider.filteredItemCount}',
@@ -168,7 +168,7 @@ class BillHistoryScreen extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+                        Icon(Icons.error_outline, color: AppColors.error, size: 18),
                         const SizedBox(width: 8),
                         Text(provider.error,
                             style: AppTypography.bodySmall.copyWith(color: AppColors.error)),
@@ -179,7 +179,7 @@ class BillHistoryScreen extends StatelessWidget {
                 // ─── Grouped List ───
                 Expanded(
                   child: provider.isLoading
-                      ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                      ? Center(child: CircularProgressIndicator(color: AppColors.accent))
                       : provider.sales.isEmpty
                           ? Center(
                               child: Column(
@@ -187,15 +187,15 @@ class BillHistoryScreen extends StatelessWidget {
                                 children: [
                                   Icon(Icons.receipt_long_outlined,
                                       size: 64,
-                                      color: AppColors.textTertiaryDark.withValues(alpha: 0.3)),
-                                  const SizedBox(height: 16),
+                                      color: AppColors.textTertiary(context).withValues(alpha: 0.3)),
+                                  SizedBox(height: 16),
                                   Text('No bills for ${DateFilterHelper.filterLabel(provider.filterType).toLowerCase()}',
                                       style: AppTypography.h3
-                                          .copyWith(color: AppColors.textSecondaryDark)),
-                                  const SizedBox(height: 8),
+                                          .copyWith(color: AppColors.textSecondary(context))),
+                                  SizedBox(height: 8),
                                   Text('Complete a sale to see it here',
                                       style: AppTypography.bodyMedium
-                                          .copyWith(color: AppColors.textTertiaryDark)),
+                                          .copyWith(color: AppColors.textTertiary(context))),
                                 ],
                               ),
                             )
@@ -211,7 +211,7 @@ class BillHistoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _summaryCard({
+  Widget _summaryCard(BuildContext context, {
     required IconData icon,
     required String label,
     required String value,
@@ -256,8 +256,8 @@ class BillHistoryScreen extends StatelessWidget {
           padding: const EdgeInsets.only(top: 8, bottom: 6),
           child: Row(
             children: [
-              const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.accent),
-              const SizedBox(width: 8),
+              Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.accent),
+              SizedBox(width: 8),
               Text(
                 dateLabel,
                 style: AppTypography.labelMedium.copyWith(
@@ -265,13 +265,13 @@ class BillHistoryScreen extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
               Text(
                 '(${items.length} bill${items.length != 1 ? 's' : ''})',
-                style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark),
+                style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context)),
               ),
-              const SizedBox(width: 8),
-              Expanded(child: Container(height: 1, color: AppColors.cardBorderDark)),
+              SizedBox(width: 8),
+              Expanded(child: Container(height: 1, color: AppColors.cardBorder(context))),
               const SizedBox(width: 8),
               Text(
                 Formatters.currency(dayTotal),
@@ -293,11 +293,11 @@ class BillHistoryScreen extends StatelessWidget {
 
   Widget _billCard(BuildContext context, SaleModel sale, SalesProvider provider) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.cardBorderDark),
+        border: Border.all(color: AppColors.cardBorder(context)),
       ),
       child: Material(
         color: Colors.transparent,
@@ -316,9 +316,9 @@ class BillHistoryScreen extends StatelessWidget {
                     color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.receipt_rounded, color: AppColors.accent, size: 22),
+                  child: Icon(Icons.receipt_rounded, color: AppColors.accent, size: 22),
                 ),
-                const SizedBox(width: 14),
+                SizedBox(width: 14),
 
                 // Info
                 Expanded(
@@ -330,32 +330,32 @@ class BillHistoryScreen extends StatelessWidget {
                           Text(
                             sale.invoiceNumber,
                             style: AppTypography.mono
-                                .copyWith(color: AppColors.textPrimaryDark, fontWeight: FontWeight.w600),
+                                .copyWith(color: AppColors.textPrimary(context), fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: _paymentColor(sale.paymentMode).withValues(alpha: 0.1),
+                              color: _paymentColor(context, sale.paymentMode).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               sale.paymentMode,
                               style: AppTypography.labelSmall.copyWith(
-                                color: _paymentColor(sale.paymentMode),
+                                color: _paymentColor(context, sale.paymentMode),
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
                         sale.customerName.isNotEmpty ? sale.customerName : 'Walk-in Customer',
-                        style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondaryDark),
+                        style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary(context)),
                       ),
                       Text(
                         '${sale.totalItems} items • ${Formatters.time(sale.createdAt)}',
-                        style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark),
+                        style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context)),
                       ),
                     ],
                   ),
@@ -380,8 +380,8 @@ class BillHistoryScreen extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(width: 8),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiaryDark, size: 20),
+                SizedBox(width: 8),
+                Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary(context), size: 20),
               ],
             ),
           ),
@@ -390,7 +390,7 @@ class BillHistoryScreen extends StatelessWidget {
     );
   }
 
-  Color _paymentColor(String mode) {
+  Color _paymentColor(BuildContext context, String mode) {
     switch (mode.toLowerCase()) {
       case 'cash':
         return AppColors.success;
@@ -401,9 +401,9 @@ class BillHistoryScreen extends StatelessWidget {
       case 'credit':
         return AppColors.warning;
       case 'all':
-        return AppColors.textSecondaryDark;
+        return AppColors.textSecondary(context);
       default:
-        return AppColors.textSecondaryDark;
+        return AppColors.textSecondary(context);
     }
   }
 

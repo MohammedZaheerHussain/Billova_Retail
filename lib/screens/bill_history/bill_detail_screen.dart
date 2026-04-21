@@ -7,12 +7,12 @@ import '../../data/models/sale_model.dart';
 
 class BillDetailDialog extends StatelessWidget {
   final SaleModel sale;
-  const BillDetailDialog({super.key, required this.sale});
+  BillDetailDialog({super.key, required this.sale});
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: AppColors.cardDark,
+      backgroundColor: AppColors.card(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 480, maxHeight: 600),
@@ -31,7 +31,7 @@ class BillDetailDialog extends StatelessWidget {
                       gradient: AppColors.primaryGradient,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.receipt_long_rounded, color: Colors.white, size: 20),
+                    child: Icon(Icons.receipt_long_rounded, color: Colors.white, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -49,7 +49,7 @@ class BillDetailDialog extends StatelessWidget {
                         Text(
                           Formatters.dateTime(sale.createdAt),
                           style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.textTertiaryDark,
+                            color: AppColors.textTertiary(context),
                           ),
                         ),
                       ],
@@ -57,7 +57,7 @@ class BillDetailDialog extends StatelessWidget {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded, color: AppColors.textTertiaryDark),
+                    icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context)),
                   ),
                 ],
               ),
@@ -66,26 +66,26 @@ class BillDetailDialog extends StatelessWidget {
               // ─── Customer ───
               if (sale.customerName.isNotEmpty || sale.customerPhone.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: EdgeInsets.all(12),
+                  margin: EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceDark,
+                    color: AppColors.surface(context),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.person_rounded, color: AppColors.textTertiaryDark, size: 18),
-                      const SizedBox(width: 8),
+                      Icon(Icons.person_rounded, color: AppColors.textTertiary(context), size: 18),
+                      SizedBox(width: 8),
                       Text(
                         sale.customerName.isNotEmpty ? sale.customerName : 'Walk-in',
-                        style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimaryDark),
+                        style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary(context)),
                       ),
                       if (sale.customerPhone.isNotEmpty) ...[
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         Text(
                           Formatters.phone(sale.customerPhone),
                           style: AppTypography.mono.copyWith(
-                            color: AppColors.textSecondaryDark,
+                            color: AppColors.textSecondary(context),
                             fontSize: 12,
                           ),
                         ),
@@ -98,7 +98,7 @@ class BillDetailDialog extends StatelessWidget {
               Flexible(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceDark,
+                    color: AppColors.surface(context),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -106,32 +106,32 @@ class BillDetailDialog extends StatelessWidget {
                     children: [
                       // Header row
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         child: Row(
                           children: [
                             Expanded(
                               flex: 3,
                               child: Text('Item',
                                   style: AppTypography.labelSmall
-                                      .copyWith(color: AppColors.textTertiaryDark)),
+                                      .copyWith(color: AppColors.textTertiary(context))),
                             ),
                             Expanded(
                               child: Text('Qty',
                                   style: AppTypography.labelSmall
-                                      .copyWith(color: AppColors.textTertiaryDark),
+                                      .copyWith(color: AppColors.textTertiary(context)),
                                   textAlign: TextAlign.center),
                             ),
                             Expanded(
                               flex: 2,
                               child: Text('Amount',
                                   style: AppTypography.labelSmall
-                                      .copyWith(color: AppColors.textTertiaryDark),
+                                      .copyWith(color: AppColors.textTertiary(context)),
                                   textAlign: TextAlign.right),
                             ),
                           ],
                         ),
                       ),
-                      const Divider(color: AppColors.cardBorderDark, height: 1),
+                      Divider(color: AppColors.cardBorder(context), height: 1),
                       // Items
                       Flexible(
                         child: ListView.builder(
@@ -140,7 +140,7 @@ class BillDetailDialog extends StatelessWidget {
                           itemBuilder: (context, index) {
                             final item = sale.items[index];
                             return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                               child: Row(
                                 children: [
                                   Expanded(
@@ -150,11 +150,11 @@ class BillDetailDialog extends StatelessWidget {
                                       children: [
                                         Text(item.name,
                                             style: AppTypography.bodySmall.copyWith(
-                                                color: AppColors.textPrimaryDark)),
+                                                color: AppColors.textPrimary(context))),
                                         Text(
                                           '@ ${Formatters.currency(item.price)}',
                                           style: AppTypography.monoSmall.copyWith(
-                                              color: AppColors.textTertiaryDark),
+                                              color: AppColors.textTertiary(context)),
                                         ),
                                       ],
                                     ),
@@ -162,14 +162,14 @@ class BillDetailDialog extends StatelessWidget {
                                   Expanded(
                                     child: Text('${item.quantity}',
                                         style: AppTypography.mono.copyWith(
-                                            color: AppColors.textSecondaryDark, fontSize: 13),
+                                            color: AppColors.textSecondary(context), fontSize: 13),
                                         textAlign: TextAlign.center),
                                   ),
                                   Expanded(
                                     flex: 2,
                                     child: Text(Formatters.currency(item.total),
                                         style: AppTypography.mono.copyWith(
-                                            color: AppColors.textPrimaryDark, fontSize: 13),
+                                            color: AppColors.textPrimary(context), fontSize: 13),
                                         textAlign: TextAlign.right),
                                   ),
                                 ],
@@ -182,14 +182,14 @@ class BillDetailDialog extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
               // ─── Totals ───
-              _row('Subtotal', Formatters.currency(sale.subtotal)),
-              if (sale.discount > 0) _row('Discount', '- ${Formatters.currency(sale.discount)}', color: AppColors.error),
-              const Divider(color: AppColors.cardBorderDark),
-              _row('Total', Formatters.currency(sale.total), isBold: true, color: AppColors.success),
-              _row('Payment', sale.paymentMode, fontSize: 12),
+              _row(context, 'Subtotal', Formatters.currency(sale.subtotal)),
+              if (sale.discount > 0) _row(context, 'Discount', '- ${Formatters.currency(sale.discount)}', color: AppColors.error),
+              Divider(color: AppColors.cardBorder(context)),
+              _row(context, 'Total', Formatters.currency(sale.total), isBold: true, color: AppColors.success),
+              _row(context, 'Payment', sale.paymentMode, fontSize: 12),
               const SizedBox(height: 16),
 
               // ─── Actions ───
@@ -198,7 +198,7 @@ class BillDetailDialog extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => _shareViaWhatsApp(context),
-                      icon: const Icon(Icons.share_rounded, size: 18),
+                      icon: Icon(Icons.share_rounded, size: 18),
                       label: const Text('WhatsApp'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.success,
@@ -212,7 +212,7 @@ class BillDetailDialog extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.check_rounded, size: 18),
+                      icon: Icon(Icons.check_rounded, size: 18),
                       label: const Text('Close'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
@@ -231,19 +231,19 @@ class BillDetailDialog extends StatelessWidget {
     );
   }
 
-  Widget _row(String label, String value, {bool isBold = false, Color? color, double? fontSize}) {
+  Widget _row(BuildContext context, String label, String value, {bool isBold = false, Color? color, double? fontSize}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
               style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textSecondaryDark,
+                  color: AppColors.textSecondary(context),
                   fontWeight: isBold ? FontWeight.w600 : FontWeight.w400)),
           Text(value,
               style: AppTypography.mono.copyWith(
-                color: color ?? AppColors.textPrimaryDark,
+                color: color ?? AppColors.textPrimary(context),
                 fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
                 fontSize: fontSize ?? (isBold ? 18 : 14),
               )),

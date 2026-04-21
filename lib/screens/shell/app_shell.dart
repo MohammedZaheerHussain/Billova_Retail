@@ -225,7 +225,7 @@ class _AppShellState extends State<AppShell> {
                 _buildSidebar(isSmall, isDark, visibleNav, staffProvider),
                 Container(
                   width: 1,
-                  color: (isDark ? AppColors.cardBorderDark : AppColors.cardBorderLight).withValues(alpha: 0.5),
+                  color: (isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight).withValues(alpha: 0.5),
                 ),
                 Expanded(child: visibleScreens[safeIndex]),
               ],
@@ -240,14 +240,14 @@ class _AppShellState extends State<AppShell> {
     final sidebarWidth = _sidebarExpanded ? 220.0 : 72.0;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       width: sidebarWidth,
       decoration: BoxDecoration(
         color: isDark ? AppColors.sidebarDark : AppColors.sidebarLight,
         border: Border(
           right: BorderSide(
-            color: (isDark ? AppColors.cardBorderDark : AppColors.cardBorderLight).withValues(alpha: 0.3),
+            color: (isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight).withValues(alpha: 0.3),
           ),
         ),
       ),
@@ -264,7 +264,7 @@ class _AppShellState extends State<AppShell> {
                     gradient: AppColors.primaryGradient,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.receipt_long_rounded, size: 22, color: Colors.white),
+                  child: Icon(Icons.receipt_long_rounded, size: 22, color: Colors.white),
                 ),
                 if (_sidebarExpanded) ...[
                   const SizedBox(width: 12),
@@ -317,31 +317,31 @@ class _AppShellState extends State<AppShell> {
                           children: [
                             Icon(item.icon, size: 22,
                                 color: isSelected ? AppColors.accent
-                                    : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight)),
+                                    : (isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight)),
                             if (_sidebarExpanded) ...[
-                              const SizedBox(width: 12),
+                              SizedBox(width: 12),
                               Expanded(
                                 child: Text(item.label,
                                     style: AppTypography.bodyMedium.copyWith(
                                       color: isSelected
-                                          ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
-                                          : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                                          ? (isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight)
+                                          : (isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight),
                                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                                     ),
                                     overflow: TextOverflow.ellipsis),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? AppColors.accent.withValues(alpha: 0.2)
-                                      : (isDark ? AppColors.cardBorderDark : AppColors.cardBorderLight).withValues(alpha: 0.5),
+                                      : (isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight).withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(item.shortcut,
                                     style: AppTypography.monoSmall.copyWith(
                                       color: isSelected ? AppColors.accent
-                                          : (isDark ? AppColors.textTertiaryDark : AppColors.textTertiaryLight),
+                                          : (isDark ? AppColors.textTertiary(context) : AppColors.textTertiaryLight),
                                       fontSize: 9,
                                       fontWeight: FontWeight.w600,
                                     )),
@@ -377,16 +377,16 @@ class _AppShellState extends State<AppShell> {
                           color: AppColors.accent.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.person_rounded, size: 16, color: AppColors.accent),
+                        child: Icon(Icons.person_rounded, size: 16, color: AppColors.accent),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(staffProvider.currentStaffName,
                                 style: AppTypography.labelSmall.copyWith(
-                                    color: AppColors.textPrimaryDark, fontWeight: FontWeight.w600),
+                                    color: AppColors.textPrimary(context), fontWeight: FontWeight.w600),
                                 overflow: TextOverflow.ellipsis),
                             Text(staffProvider.currentStaffRole,
                                 style: AppTypography.labelSmall.copyWith(
@@ -411,7 +411,7 @@ class _AppShellState extends State<AppShell> {
                         if (success && mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                             content: Text(staffProvider.isClockedIn ? 'Clocked In ✅' : 'Clocked Out'),
-                            backgroundColor: AppColors.cardDark,
+                            backgroundColor: AppColors.card(context),
                             behavior: SnackBarBehavior.floating,
                           ));
                         }
@@ -441,10 +441,10 @@ class _AppShellState extends State<AppShell> {
             InkWell(
               onTap: () => setState(() => _sidebarExpanded = !_sidebarExpanded),
               child: Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 child: Icon(
                   _sidebarExpanded ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
-                  color: isDark ? AppColors.textTertiaryDark : AppColors.textTertiaryLight,
+                  color: isDark ? AppColors.textTertiary(context) : AppColors.textTertiaryLight,
                   size: 22,
                 ),
               ),
@@ -463,9 +463,9 @@ class _AppShellState extends State<AppShell> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: AppColors.accent.withValues(alpha: 0.6))),
                       if (_sidebarExpanded) ...[
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Text('Syncing...',
-                            style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark)),
+                            style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
                       ],
                     ],
                   ),
@@ -492,14 +492,14 @@ class _AppShellState extends State<AppShell> {
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (ctx) => AlertDialog(
-                      backgroundColor: AppColors.cardDark,
+                      backgroundColor: AppColors.card(context),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      title: Text(signOutLabel, style: AppTypography.h3.copyWith(color: AppColors.textPrimaryDark)),
+                      title: Text(signOutLabel, style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context))),
                       content: Text(
                           isStaffSession
                               ? 'This will clock you out and end your shift.'
                               : 'Are you sure you want to sign out?',
-                          style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondaryDark)),
+                          style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary(context))),
                       actions: [
                         TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
                         ElevatedButton(
@@ -533,20 +533,20 @@ class _AppShellState extends State<AppShell> {
                       Icon(
                         isStaffSession ? Icons.timer_off_rounded : Icons.logout_rounded,
                         size: 20,
-                        color: isStaffSession ? AppColors.warning : AppColors.textTertiaryDark,
+                        color: isStaffSession ? AppColors.warning : AppColors.textTertiary(context),
                       ),
                       if (_sidebarExpanded) ...[
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(displayName,
-                                  style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondaryDark),
+                                  style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context)),
                                   overflow: TextOverflow.ellipsis),
                               Text(roleLabel,
                                   style: AppTypography.labelSmall.copyWith(
-                                      color: isStaffSession ? AppColors.accent : AppColors.textTertiaryDark,
+                                      color: isStaffSession ? AppColors.accent : AppColors.textTertiary(context),
                                       fontSize: 9)),
                             ],
                           ),

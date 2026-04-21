@@ -59,11 +59,11 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
       body: Center(
         child: Container(
           width: 380,
-          padding: const EdgeInsets.all(32),
+          padding: EdgeInsets.all(32),
           decoration: BoxDecoration(
-            color: AppColors.cardDark,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppColors.cardBorderDark),
+            border: Border.all(color: AppColors.cardBorder(context)),
             boxShadow: [
               BoxShadow(
                 color: AppColors.primary.withValues(alpha: 0.15),
@@ -82,39 +82,39 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
                   gradient: AppColors.primaryGradient,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Icon(Icons.person_rounded, color: Colors.white, size: 30),
+                child: Icon(Icons.person_rounded, color: Colors.white, size: 30),
               ),
-              const SizedBox(height: 16),
-              Text('Staff Login', style: AppTypography.h2.copyWith(color: AppColors.textPrimaryDark)),
-              const SizedBox(height: 4),
+              SizedBox(height: 16),
+              Text('Staff Login', style: AppTypography.h2.copyWith(color: AppColors.textPrimary(context))),
+              SizedBox(height: 4),
               Text('Enter your credentials to continue',
-                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark)),
-              const SizedBox(height: 28),
+                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
+              SizedBox(height: 28),
 
               // Username
               TextField(
                 controller: _usernameCtrl,
-                style: const TextStyle(color: AppColors.textPrimaryDark),
+                style: TextStyle(color: AppColors.textPrimary(context)),
                 textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
                   labelText: 'Username',
                   hintText: 'e.g. john',
-                  labelStyle: const TextStyle(color: AppColors.textSecondaryDark, fontSize: 13),
-                  hintStyle: const TextStyle(color: AppColors.textTertiaryDark),
-                  prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.textTertiaryDark),
+                  labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
+                  hintStyle: TextStyle(color: AppColors.textTertiary(context)),
+                  prefixIcon: Icon(Icons.person_outline_rounded, color: AppColors.textTertiary(context)),
                   filled: true,
-                  fillColor: AppColors.surfaceDark,
+                  fillColor: AppColors.surface(context),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                    borderSide: BorderSide(color: AppColors.cardBorder(context)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                    borderSide: BorderSide(color: AppColors.cardBorder(context)),
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
+              SizedBox(height: 14),
 
               // PIN
               TextField(
@@ -122,25 +122,25 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
                 obscureText: true,
                 keyboardType: TextInputType.number,
                 maxLength: 6,
-                style: const TextStyle(color: AppColors.textPrimaryDark, letterSpacing: 8),
+                style: TextStyle(color: AppColors.textPrimary(context), letterSpacing: 8),
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _login(),
                 decoration: InputDecoration(
                   labelText: 'PIN',
                   hintText: '••••',
                   counterText: '',
-                  labelStyle: const TextStyle(color: AppColors.textSecondaryDark, fontSize: 13),
-                  hintStyle: const TextStyle(color: AppColors.textTertiaryDark),
-                  prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.textTertiaryDark),
+                  labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
+                  hintStyle: TextStyle(color: AppColors.textTertiary(context)),
+                  prefixIcon: Icon(Icons.lock_outline_rounded, color: AppColors.textTertiary(context)),
                   filled: true,
-                  fillColor: AppColors.surfaceDark,
+                  fillColor: AppColors.surface(context),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                    borderSide: BorderSide(color: AppColors.cardBorder(context)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                    borderSide: BorderSide(color: AppColors.cardBorder(context)),
                   ),
                 ),
               ),

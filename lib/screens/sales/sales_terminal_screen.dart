@@ -147,7 +147,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cardDark,
+        backgroundColor: AppColors.card(context),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -159,10 +159,10 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                 color: AppColors.successBg,
                 borderRadius: BorderRadius.circular(32),
               ),
-              child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 40),
+              child: Icon(Icons.check_circle_rounded, color: AppColors.success, size: 40),
             ),
-            const SizedBox(height: 16),
-            Text('Sale Complete!', style: AppTypography.h2.copyWith(color: AppColors.textPrimaryDark)),
+            SizedBox(height: 16),
+            Text('Sale Complete!', style: AppTypography.h2.copyWith(color: AppColors.textPrimary(context))),
             const SizedBox(height: 8),
             Text(
               sale.invoiceNumber,
@@ -182,7 +182,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                     Navigator.pop(ctx);
                     // TODO: Share via WhatsApp
                   },
-                  icon: const Icon(Icons.share_rounded, size: 18),
+                  icon: Icon(Icons.share_rounded, size: 18),
                   label: const Text('Share'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.accent,
@@ -217,14 +217,14 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
             Row(
               children: [
-                Text('Sales Terminal', style: AppTypography.h1.copyWith(color: AppColors.textPrimaryDark)),
+                Text('Sales Terminal', style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context))),
                 const Spacer(),
                 // Barcode scanner indicator
                 Container(
@@ -237,7 +237,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.qr_code_scanner_rounded, size: 16, color: AppColors.accent),
+                      Icon(Icons.qr_code_scanner_rounded, size: 16, color: AppColors.accent),
                       const SizedBox(width: 6),
                       Text('Barcode Ready', style: AppTypography.labelSmall.copyWith(
                           color: AppColors.accent, fontWeight: FontWeight.w600)),
@@ -277,18 +277,18 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
     final categories = _getCategories(inventory);
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorderDark),
+        border: Border.all(color: AppColors.cardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Title + count
           Row(children: [
-            Text('Products', style: AppTypography.h4.copyWith(color: AppColors.textPrimaryDark)),
+            Text('Products', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -300,31 +300,31 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                   style: AppTypography.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700)),
             ),
           ]),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
 
           // Search bar
           TextField(
             controller: _searchCtrl,
             onChanged: _onSearchChanged,
-            style: const TextStyle(color: AppColors.textPrimaryDark),
+            style: TextStyle(color: AppColors.textPrimary(context)),
             decoration: InputDecoration(
               hintText: 'Search by name, barcode, or brand...',
-              hintStyle: const TextStyle(color: AppColors.textTertiaryDark, fontSize: 13),
-              prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textTertiaryDark),
+              hintStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 13),
+              prefixIcon: Icon(Icons.search_rounded, color: AppColors.textTertiary(context)),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textTertiaryDark),
+                      icon: Icon(Icons.clear_rounded, size: 18, color: AppColors.textTertiary(context)),
                       onPressed: () { _searchCtrl.clear(); setState(() => _searchQuery = ''); })
-                  : const Icon(Icons.qr_code_scanner_rounded, size: 18, color: AppColors.textTertiaryDark),
+                  : Icon(Icons.qr_code_scanner_rounded, size: 18, color: AppColors.textTertiary(context)),
               filled: true,
-              fillColor: AppColors.surfaceDark,
+              fillColor: AppColors.surface(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                borderSide: BorderSide(color: AppColors.cardBorder(context)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                borderSide: BorderSide(color: AppColors.cardBorder(context)),
               ),
             ),
           ),
@@ -337,22 +337,22 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: categories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                separatorBuilder: (_, __) => SizedBox(width: 6),
                 itemBuilder: (_, i) {
                   final cat = categories[i];
                   final isSelected = cat == _selectedCategory;
                   return GestureDetector(
                     onTap: () => setState(() => _selectedCategory = cat),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.accent.withValues(alpha: 0.2) : AppColors.surfaceDark,
+                        color: isSelected ? AppColors.accent.withValues(alpha: 0.2) : AppColors.surface(context),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isSelected ? AppColors.accent : AppColors.cardBorderDark),
+                          color: isSelected ? AppColors.accent : AppColors.cardBorder(context)),
                       ),
                       child: Text(cat, style: AppTypography.labelSmall.copyWith(
-                        color: isSelected ? AppColors.accent : AppColors.textSecondaryDark,
+                        color: isSelected ? AppColors.accent : AppColors.textSecondary(context),
                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                       )),
                     ),
@@ -360,7 +360,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                 },
               ),
             ),
-          if (categories.length > 1) const SizedBox(height: 10),
+          if (categories.length > 1) SizedBox(height: 10),
 
           // Product grid
           Expanded(
@@ -368,11 +368,11 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                 ? Center(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.inventory_2_outlined, size: 48,
-                          color: AppColors.textTertiaryDark.withValues(alpha: 0.5)),
-                      const SizedBox(height: 8),
+                          color: AppColors.textTertiary(context).withValues(alpha: 0.5)),
+                      SizedBox(height: 8),
                       Text(
                         _searchQuery.isEmpty ? 'All products shown above' : 'No products found',
-                        style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark),
+                        style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context)),
                       ),
                     ]),
                   )
@@ -402,11 +402,11 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
         onTap: () => _addToCart(item),
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.surfaceDark,
+            color: AppColors.surface(context),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.cardBorderDark),
+            border: Border.all(color: AppColors.cardBorder(context)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -423,14 +423,14 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                     ),
                     child: Center(child: Text(
                       item.name[0].toUpperCase(),
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
                     )),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Expanded(
                     child: Text(item.name,
                         style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textPrimaryDark, fontWeight: FontWeight.w500),
+                          color: AppColors.textPrimary(context), fontWeight: FontWeight.w500),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ],
@@ -465,11 +465,11 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
 
   Widget _buildCartPanel(SalesProvider sales) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorderDark),
+        border: Border.all(color: AppColors.cardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -477,9 +477,9 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
           // Header
           Row(
             children: [
-              const Icon(Icons.shopping_cart_rounded, color: AppColors.accent, size: 20),
-              const SizedBox(width: 8),
-              Text('Cart', style: AppTypography.h4.copyWith(color: AppColors.textPrimaryDark)),
+              Icon(Icons.shopping_cart_rounded, color: AppColors.accent, size: 20),
+              SizedBox(width: 8),
+              Text('Cart', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
               if (!sales.isCartEmpty) ...[
                 const SizedBox(width: 6),
                 Container(
@@ -500,8 +500,8 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                 ),
             ],
           ),
-          const Divider(color: AppColors.cardBorderDark),
-          const SizedBox(height: 8),
+          Divider(color: AppColors.cardBorder(context)),
+          SizedBox(height: 8),
 
           // Cart Items
           Expanded(
@@ -509,7 +509,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                 ? Center(
                     child: Text(
                       'Add products to cart',
-                      style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryDark),
+                      style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context)),
                     ),
                   )
                 : ListView.builder(
@@ -518,9 +518,9 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                       final item = sales.cart[index];
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
+                        padding: EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceDark,
+                          color: AppColors.surface(context),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
@@ -532,13 +532,13 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                                   Text(
                                     item.name,
                                     style: AppTypography.bodyMedium.copyWith(
-                                      color: AppColors.textPrimaryDark,
+                                      color: AppColors.textPrimary(context),
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                   Text(
                                     '${Formatters.currency(item.price)} × ${item.quantity}',
-                                    style: AppTypography.monoSmall.copyWith(color: AppColors.textTertiaryDark),
+                                    style: AppTypography.monoSmall.copyWith(color: AppColors.textTertiary(context)),
                                   ),
                                 ],
                               ),
@@ -551,10 +551,10 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                                   sales.updateCartItemQty(index, item.quantity - 1);
                                 }),
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  padding: EdgeInsets.symmetric(horizontal: 8),
                                   child: Text(
                                     '${item.quantity}',
-                                    style: AppTypography.mono.copyWith(color: AppColors.textPrimaryDark),
+                                    style: AppTypography.mono.copyWith(color: AppColors.textPrimary(context)),
                                   ),
                                 ),
                                 _qtyBtn(Icons.add, () {
@@ -591,7 +591,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
 
           // ─── Payment Mode + Discount ───
           Row(
@@ -600,21 +600,21 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                 child: DropdownButtonFormField<String>(
                   value: sales.paymentMode,
                   onChanged: (v) => sales.setPaymentMode(v!),
-                  dropdownColor: AppColors.cardDark,
-                  style: const TextStyle(color: AppColors.textPrimaryDark, fontSize: 13),
+                  dropdownColor: AppColors.card(context),
+                  style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
                   decoration: InputDecoration(
                     labelText: 'Payment',
-                    labelStyle: const TextStyle(color: AppColors.textTertiaryDark, fontSize: 12),
+                    labelStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 12),
                     filled: true,
-                    fillColor: AppColors.surfaceDark,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    fillColor: AppColors.surface(context),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                      borderSide: BorderSide(color: AppColors.cardBorder(context)),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: AppColors.cardBorderDark),
+                      borderSide: BorderSide(color: AppColors.cardBorder(context)),
                     ),
                   ),
                   items: AppConstants.paymentModes.map((mode) {
@@ -637,9 +637,9 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
 
           // ─── Totals ───
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.surfaceDark,
+              color: AppColors.surface(context),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
             ),
@@ -652,7 +652,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                     color: AppColors.error,
                   ),
                 ],
-                const Divider(color: AppColors.cardBorderDark, height: 16),
+                Divider(color: AppColors.cardBorder(context), height: 16),
                 _totalRow('Total', Formatters.currency(sales.total),
                     isBold: true, color: AppColors.accent),
               ],
@@ -665,7 +665,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
             height: 52,
             child: ElevatedButton.icon(
               onPressed: sales.isCartEmpty ? null : _completeSale,
-              icon: const Icon(Icons.check_circle_rounded),
+              icon: Icon(Icons.check_circle_rounded),
               label: Text(
                 'Complete Sale (${sales.cartItemCount} items)',
                 style: AppTypography.button.copyWith(color: Colors.white),
@@ -673,7 +673,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.success,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.cardBorderDark,
+                disabledBackgroundColor: AppColors.cardBorder(context),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
             ),
@@ -705,20 +705,20 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       controller: ctrl,
       keyboardType: keyboardType,
       onChanged: onChanged,
-      style: const TextStyle(color: AppColors.textPrimaryDark, fontSize: 13),
+      style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: AppColors.textTertiaryDark, fontSize: 12),
+        hintStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 12),
         filled: true,
-        fillColor: AppColors.surfaceDark,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        fillColor: AppColors.surface(context),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+          borderSide: BorderSide(color: AppColors.cardBorder(context)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+          borderSide: BorderSide(color: AppColors.cardBorder(context)),
         ),
       ),
     );
@@ -726,18 +726,18 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
 
   Widget _totalRow(String label, String value, {bool isBold = false, Color? color}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
               style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textSecondaryDark,
+                color: AppColors.textSecondary(context),
                 fontWeight: isBold ? FontWeight.w600 : FontWeight.w400,
               )),
           Text(value,
               style: AppTypography.mono.copyWith(
-                color: color ?? AppColors.textPrimaryDark,
+                color: color ?? AppColors.textPrimary(context),
                 fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
                 fontSize: isBold ? 18 : 14,
               )),

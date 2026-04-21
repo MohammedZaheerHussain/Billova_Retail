@@ -107,7 +107,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(isEditing ? 'Item updated' : 'Item added'),
-          backgroundColor: AppColors.cardDark,
+          backgroundColor: AppColors.card(context),
         ),
       );
     }
@@ -116,7 +116,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: AppColors.cardDark,
+      backgroundColor: AppColors.card(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520, maxHeight: 620),
@@ -132,7 +132,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         gradient: AppColors.primaryGradient,
                         borderRadius: BorderRadius.circular(12),
@@ -143,15 +143,15 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                         size: 20,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     Text(
                       isEditing ? 'Edit Item' : 'Add New Item',
-                      style: AppTypography.h3.copyWith(color: AppColors.textPrimaryDark),
+                      style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context)),
                     ),
-                    const Spacer(),
+                    Spacer(),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close_rounded, color: AppColors.textTertiaryDark),
+                      icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context)),
                     ),
                   ],
                 ),
@@ -277,7 +277,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     return Row(children: [
       Container(width: 3, height: 14,
           decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(2))),
-      const SizedBox(width: 8),
+      SizedBox(width: 8),
       Text(text, style: AppTypography.labelMedium.copyWith(
           color: AppColors.accent, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
     ]);
@@ -291,23 +291,23 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
-      style: const TextStyle(color: AppColors.textPrimaryDark, fontSize: 13),
+      style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        labelStyle: const TextStyle(color: AppColors.textSecondaryDark, fontSize: 12),
-        hintStyle: const TextStyle(color: AppColors.textTertiaryDark, fontSize: 12),
-        prefixIcon: icon != null ? Icon(icon, size: 18, color: AppColors.textTertiaryDark) : null,
+        labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 12),
+        hintStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 12),
+        prefixIcon: icon != null ? Icon(icon, size: 18, color: AppColors.textTertiary(context)) : null,
         filled: true,
-        fillColor: AppColors.surfaceDark,
+        fillColor: AppColors.surface(context),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+          borderSide: BorderSide(color: AppColors.cardBorder(context)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+          borderSide: BorderSide(color: AppColors.cardBorder(context)),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),

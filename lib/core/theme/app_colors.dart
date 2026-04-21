@@ -78,4 +78,29 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  // ─── Theme-Aware Helpers ───
+  static bool isDark(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark;
+
+  static Color textPrimary(BuildContext context) =>
+      isDark(context) ? textPrimaryDark : textPrimaryLight;
+
+  static Color textSecondary(BuildContext context) =>
+      isDark(context) ? textSecondaryDark : textSecondaryLight;
+
+  static Color textTertiary(BuildContext context) =>
+      isDark(context) ? textTertiaryDark : textTertiaryLight;
+
+  static Color card(BuildContext context) =>
+      isDark(context) ? cardDark : cardLight;
+
+  static Color cardBorder(BuildContext context) =>
+      isDark(context) ? cardBorderDark : cardBorderLight;
+
+  static Color surface(BuildContext context) =>
+      isDark(context) ? surfaceDark : surfaceLight;
+
+  static Color scaffold(BuildContext context) =>
+      isDark(context) ? scaffoldDark : scaffoldLight;
 }

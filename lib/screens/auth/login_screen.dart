@@ -230,7 +230,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
-                            style: const TextStyle(color: AppColors.textPrimaryDark),
+                            style: TextStyle(color: AppColors.textPrimaryDark),
                             decoration: _inputDecoration(
                               label: 'Email',
                               icon: Icons.email_outlined,
@@ -245,7 +245,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
-                            style: const TextStyle(color: AppColors.textPrimaryDark),
+                            style: TextStyle(color: AppColors.textPrimaryDark),
                             decoration: _inputDecoration(
                               label: 'Password',
                               icon: Icons.lock_outlined,
@@ -267,7 +267,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                           // ─── STAFF: Username + PIN ───
                           TextFormField(
                             controller: _usernameController,
-                            style: const TextStyle(color: AppColors.textPrimaryDark),
+                            style: TextStyle(color: AppColors.textPrimaryDark),
                             decoration: _inputDecoration(
                               label: 'Username',
                               icon: Icons.person_outline_rounded,
@@ -319,7 +319,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+                                Icon(Icons.error_outline, color: AppColors.error, size: 18),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -387,7 +387,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.info_outline_rounded, color: AppColors.info, size: 16),
+                        Icon(Icons.info_outline_rounded, color: AppColors.info, size: 16),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -401,6 +401,41 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       ],
                     ),
                   ),
+
+                const SizedBox(height: 32),
+
+                // ─── Powered by Barakah Tech ───
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Powered by',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.textTertiaryDark,
+                        fontSize: 10,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Image.asset(
+                        'assets/images/barakah_logo.png',
+                        width: 18,
+                        height: 18,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Barakah Tech',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.textSecondaryDark,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -462,7 +497,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: AppColors.textSecondaryDark),
+      labelStyle: TextStyle(color: AppColors.textSecondaryDark),
       prefixIcon: Icon(icon, color: AppColors.textTertiaryDark),
       suffixIcon: suffix,
       filled: true,
