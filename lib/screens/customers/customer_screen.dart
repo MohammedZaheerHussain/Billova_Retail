@@ -357,7 +357,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                     PopupMenuItem(
                       onTap: () => WhatsAppHelper.send(
                         phone: customer.phone,
-                        message: 'Hi ${customer.name}! 👋\nThank you for shopping at SKYWALK.\nVisit us again for exciting offers! 🙏',
+                        message: 'Hi ${customer.name}!\nThank you for shopping at SKYWALK.\nVisit us again for exciting offers!',
                       ),
                       child: Row(children: [
                         Icon(Icons.chat_rounded, size: 18, color: Color(0xFF25D366)),

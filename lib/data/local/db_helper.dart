@@ -612,10 +612,32 @@ class DBHelper {
   // ─── Invoice Number ───
 
   Future<String> nextInvoiceNumber() async {
+    // Get stored counter
     final lastStr = await getSetting('last_invoice_number') ?? '0';
-    final next = int.parse(lastStr) + 1;
+    int next = int.parse(lastStr) + 1;
+
+    // Double-check uniqueness: scan existing sales for highest number
+    try {
+      List<Map<String, dynamic>> rows;
+      if (kIsWeb) {
+        final web = await _web;
+        rows = await web.query('sales', orderBy: 'created_at DESC', limit: 1);
+      } else {
+        final db = await database;
+        rows = await db.query('sales', orderBy: 'created_at DESC', limit: 1);
+      }
+      if (rows.isNotEmpty) {
+        final lastInv = rows.first['invoice_number'] as String? ?? '';
+        final match = RegExp(r'(\d+)$').firstMatch(lastInv);
+        if (match != null) {
+          final dbMax = int.parse(match.group(1)!);
+          if (dbMax >= next) next = dbMax + 1;
+        }
+      }
+    } catch (_) {}
+
     await setSetting('last_invoice_number', next.toString());
-    return 'INV-${next.toString().padLeft(4, '0')}';
+    return 'SKY-${next.toString().padLeft(4, '0')}';
   }
 
   // ─── Sync Queue ───
