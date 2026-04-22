@@ -552,7 +552,7 @@ class _PurchaseItem {
   String name;
   int quantity;
   double costPrice;
-  String? itemId; // null for manual entries
+  String? itemId;
   _PurchaseItem({required this.name, this.quantity = 1, this.costPrice = 0, this.itemId});
   double get total => quantity * costPrice;
 }
@@ -562,6 +562,7 @@ class _AddPurchaseDialogState extends State<_AddPurchaseDialog> {
   final _paidCtrl = TextEditingController(text: '0');
   String _paymentMode = 'Cash';
   bool _submitting = false;
+  String _inventorySearch = '';
 
   // Manual entry
   final _nameCtrl = TextEditingController();
@@ -577,7 +578,6 @@ class _AddPurchaseDialogState extends State<_AddPurchaseDialog> {
     final qty = int.tryParse(_qtyCtrl.text) ?? 1;
     final price = double.tryParse(_priceCtrl.text) ?? 0;
     if (name.isEmpty || price <= 0) return;
-
     setState(() {
       _items.add(_PurchaseItem(name: name, quantity: qty, costPrice: price));
       _nameCtrl.clear();
@@ -603,18 +603,15 @@ class _AddPurchaseDialogState extends State<_AddPurchaseDialog> {
   Future<void> _submit() async {
     if (_items.isEmpty) return;
     setState(() => _submitting = true);
-
     final itemMaps = _items.map((i) => {
       'item_id': i.itemId ?? '',
       'name': i.name,
       'quantity': i.quantity,
       'cost_price': i.costPrice,
     }).toList();
-
     final pp = context.read<PurchaseProvider>();
     final vp = context.read<VendorProvider>();
     final ip = context.read<InventoryProvider>();
-
     await pp.addPurchase(
       vendorId: widget.vendor.id,
       vendorName: widget.vendor.name,
@@ -625,7 +622,6 @@ class _AddPurchaseDialogState extends State<_AddPurchaseDialog> {
       inventoryProvider: ip,
       vendorProvider: vp,
     );
-
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -649,19 +645,23 @@ class _AddPurchaseDialogState extends State<_AddPurchaseDialog> {
   @override
   Widget build(BuildContext context) {
     final inventory = context.watch<InventoryProvider>();
+    final filteredInventory = _inventorySearch.isEmpty
+        ? inventory.items
+        : inventory.items.where((i) =>
+            i.name.toLowerCase().contains(_inventorySearch.toLowerCase())).toList();
 
     return Dialog(
       backgroundColor: AppColors.card(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 620),
+        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 680),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header
+              // ─── Header ───
               Row(
                 children: [
                   Container(
@@ -693,122 +693,177 @@ class _AddPurchaseDialogState extends State<_AddPurchaseDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Quick add from inventory
-              if (inventory.items.isNotEmpty)
+              // ─── Inventory Search + Chips ───
+              if (inventory.items.isNotEmpty) ...[
+                TextField(
+                  onChanged: (v) => setState(() => _inventorySearch = v),
+                  style: TextStyle(color: AppColors.textPrimary(context), fontSize: 12),
+                  decoration: InputDecoration(
+                    hintText: '🔍 Search inventory to add...',
+                    hintStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 11),
+                    isDense: true,
+                    filled: true,
+                    fillColor: AppColors.surface(context),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: AppColors.cardBorder(context)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: AppColors.cardBorder(context)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 SizedBox(
-                  height: 36,
+                  height: 34,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    itemCount: inventory.items.length > 10 ? 10 : inventory.items.length,
+                    itemCount: filteredInventory.length > 15 ? 15 : filteredInventory.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 6),
                     itemBuilder: (_, i) {
-                      final item = inventory.items[i];
+                      final item = filteredInventory[i];
+                      final already = _items.any((e) => e.itemId == item.id);
                       return ActionChip(
-                        label: Text(item.name, style: const TextStyle(fontSize: 11)),
-                        avatar: Icon(Icons.add, size: 14, color: AppColors.primary),
-                        backgroundColor: AppColors.surface(context),
+                        label: Text(
+                          already
+                              ? '${item.name} ✓'
+                              : '${item.name} (₹${item.costPrice > 0 ? item.costPrice.toStringAsFixed(0) : item.price.toStringAsFixed(0)})',
+                          style: TextStyle(fontSize: 10, color: already ? AppColors.success : AppColors.textPrimary(context)),
+                        ),
+                        avatar: Icon(Icons.add_rounded, size: 14,
+                            color: already ? AppColors.success : AppColors.primary),
+                        backgroundColor: already
+                            ? AppColors.success.withValues(alpha: 0.08)
+                            : AppColors.surface(context),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(color: already ? AppColors.success.withValues(alpha: 0.3) : AppColors.cardBorder(context)),
+                        ),
                         onPressed: () => _addFromInventory(item),
                       );
                     },
                   ),
                 ),
+                const SizedBox(height: 10),
+              ],
 
-              const SizedBox(height: 12),
-
-              // Manual entry row
-              Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: _miniField(_nameCtrl, 'Item Name'),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: _miniField(_qtyCtrl, 'Qty', isNumber: true),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    flex: 2,
-                    child: _miniField(_priceCtrl, 'Cost ₹', isNumber: true),
-                  ),
-                  const SizedBox(width: 6),
-                  SizedBox(
-                    width: 36, height: 36,
-                    child: IconButton(
-                      onPressed: _addManualItem,
-                      icon: Icon(Icons.add_circle_rounded, color: AppColors.primary),
-                      padding: EdgeInsets.zero,
+              // ─── Manual Entry Row ───
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.surface(context),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.cardBorder(context)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Or add manually:',
+                        style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.textTertiary(context), fontSize: 10)),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(flex: 3, child: _miniField(_nameCtrl, 'Item Name')),
+                        const SizedBox(width: 6),
+                        Expanded(child: _miniField(_qtyCtrl, 'Qty', isNumber: true)),
+                        const SizedBox(width: 6),
+                        Expanded(flex: 2, child: _miniField(_priceCtrl, 'Cost ₹/unit', isNumber: true)),
+                        const SizedBox(width: 6),
+                        Material(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(8),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: _addManualItem,
+                            child: const Padding(
+                              padding: EdgeInsets.all(8),
+                              child: Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-
               const SizedBox(height: 12),
 
-              // Items list
+              // ─── Item table header ───
+              if (_items.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
+                    children: [
+                      Expanded(flex: 3, child: Text('ITEM',
+                          style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textTertiary(context), fontSize: 9, fontWeight: FontWeight.w700))),
+                      SizedBox(width: 90, child: Text('QTY',
+                          textAlign: TextAlign.center,
+                          style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textTertiary(context), fontSize: 9, fontWeight: FontWeight.w700))),
+                      SizedBox(width: 70, child: Text('COST',
+                          textAlign: TextAlign.center,
+                          style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textTertiary(context), fontSize: 9, fontWeight: FontWeight.w700))),
+                      SizedBox(width: 70, child: Text('TOTAL',
+                          textAlign: TextAlign.right,
+                          style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textTertiary(context), fontSize: 9, fontWeight: FontWeight.w700))),
+                      const SizedBox(width: 24),
+                    ],
+                  ),
+                ),
+
+              // ─── Items List (editable) ───
               Flexible(
                 child: _items.isEmpty
                     ? Center(
-                        child: Text('Add items above',
-                            style: AppTypography.bodySmall.copyWith(
-                                color: AppColors.textTertiary(context))),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.shopping_bag_outlined, size: 36,
+                                  color: AppColors.textTertiary(context).withValues(alpha: 0.3)),
+                              const SizedBox(height: 8),
+                              Text('Tap a product above or enter manually',
+                                  style: AppTypography.bodySmall.copyWith(
+                                      color: AppColors.textTertiary(context))),
+                            ],
+                          ),
+                        ),
                       )
                     : ListView.builder(
                         shrinkWrap: true,
                         itemCount: _items.length,
-                        itemBuilder: (_, i) {
-                          final item = _items[i];
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface(context),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(item.name,
-                                      style: AppTypography.bodySmall.copyWith(
-                                          color: AppColors.textPrimary(context), fontSize: 12)),
-                                ),
-                                Text('×${item.quantity}',
-                                    style: AppTypography.mono.copyWith(
-                                        color: AppColors.textSecondary(context), fontSize: 11)),
-                                const SizedBox(width: 8),
-                                Text(Formatters.currency(item.total),
-                                    style: AppTypography.mono.copyWith(
-                                        color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
-                                const SizedBox(width: 4),
-                                GestureDetector(
-                                  onTap: () => setState(() => _items.removeAt(i)),
-                                  child: Icon(Icons.close_rounded, size: 16, color: AppColors.error),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                        itemBuilder: (_, i) => _buildItemRow(i),
                       ),
               ),
 
+              // ─── Totals & Payment ───
               if (_items.isNotEmpty) ...[
                 Divider(color: AppColors.cardBorder(context)),
-                // Total row
+
+                // Grand total
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Total', style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textSecondary(context))),
+                    Text('Grand Total (${_items.length} items)',
+                        style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary(context))),
                     Text(Formatters.currency(_total),
                         style: AppTypography.mono.copyWith(
-                            color: AppColors.textPrimary(context), fontWeight: FontWeight.w700, fontSize: 16)),
+                            color: AppColors.textPrimary(context), fontWeight: FontWeight.w700, fontSize: 18)),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
 
-                // Paid + mode
+                // Payment row
                 Row(
                   children: [
+                    // Paid field
                     Expanded(
                       child: TextField(
                         controller: _paidCtrl,
@@ -818,8 +873,7 @@ class _AddPurchaseDialogState extends State<_AddPurchaseDialog> {
                         decoration: InputDecoration(
                           labelText: 'Paid ₹',
                           labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 11),
-                          isDense: true,
-                          filled: true,
+                          isDense: true, filled: true,
                           fillColor: AppColors.surface(context),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                           border: OutlineInputBorder(
@@ -834,27 +888,56 @@ class _AddPurchaseDialogState extends State<_AddPurchaseDialog> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    ...['Cash', 'UPI'].map((m) => Padding(
+                    // Pay Full button
+                    SizedBox(
+                      height: 38,
+                      child: OutlinedButton(
+                        onPressed: () => setState(() => _paidCtrl.text = _total.toStringAsFixed(0)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.success,
+                          side: BorderSide(color: AppColors.success),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('Pay Full', style: TextStyle(fontSize: 11)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Payment mode chips
+                    ...['Cash', 'UPI', 'Card'].map((m) => Padding(
                       padding: const EdgeInsets.only(right: 4),
                       child: ChoiceChip(
                         label: Text(m, style: TextStyle(fontSize: 10)),
                         selected: _paymentMode == m,
                         visualDensity: VisualDensity.compact,
                         selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                        labelStyle: TextStyle(
+                          color: _paymentMode == m ? AppColors.primary : AppColors.textSecondary(context),
+                          fontWeight: _paymentMode == m ? FontWeight.w700 : FontWeight.w400,
+                        ),
                         onSelected: (_) => setState(() => _paymentMode = m),
                       ),
                     )),
                   ],
                 ),
 
+                // Due amount
                 if (_due > 0)
                   Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text('Due: ${Formatters.currency(_due)}',
-                        style: AppTypography.mono.copyWith(color: AppColors.error, fontSize: 12)),
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, size: 14, color: AppColors.error),
+                        const SizedBox(width: 4),
+                        Text('Due: ${Formatters.currency(_due)} (will be added to vendor balance)',
+                            style: AppTypography.labelSmall.copyWith(color: AppColors.error, fontSize: 10)),
+                      ],
+                    ),
                   ),
 
                 const SizedBox(height: 14),
+
+                // Submit
                 ElevatedButton(
                   onPressed: _submitting ? null : _submit,
                   style: ElevatedButton.styleFrom(
@@ -866,12 +949,151 @@ class _AddPurchaseDialogState extends State<_AddPurchaseDialog> {
                   child: _submitting
                       ? const SizedBox(width: 20, height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Text('Record Purchase — ${Formatters.currency(_total)}'),
+                      : Text('Record Purchase — ${Formatters.currency(_total)}',
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
                 ),
               ],
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildItemRow(int index) {
+    final item = _items[index];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          // Item name
+          Expanded(
+            flex: 3,
+            child: Text(item.name,
+                style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textPrimary(context), fontSize: 12, fontWeight: FontWeight.w500)),
+          ),
+
+          // Qty controls: - [qty] +
+          SizedBox(
+            width: 90,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _qtyButton(Icons.remove_rounded, () {
+                  if (item.quantity > 1) setState(() => item.quantity--);
+                }),
+                Container(
+                  width: 32,
+                  alignment: Alignment.center,
+                  child: Text('${item.quantity}',
+                      style: AppTypography.mono.copyWith(
+                          color: AppColors.textPrimary(context), fontSize: 13, fontWeight: FontWeight.w700)),
+                ),
+                _qtyButton(Icons.add_rounded, () {
+                  setState(() => item.quantity++);
+                }),
+              ],
+            ),
+          ),
+
+          // Cost per unit (editable)
+          SizedBox(
+            width: 70,
+            child: GestureDetector(
+              onTap: () => _editCostPrice(index),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.cardBorder(context)),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text('₹${item.costPrice.toStringAsFixed(0)}',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.mono.copyWith(
+                        color: AppColors.accent, fontSize: 11)),
+              ),
+            ),
+          ),
+
+          // Line total
+          SizedBox(
+            width: 70,
+            child: Text(Formatters.currency(item.total),
+                textAlign: TextAlign.right,
+                style: AppTypography.mono.copyWith(
+                    color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+          ),
+
+          // Delete
+          SizedBox(
+            width: 24,
+            child: GestureDetector(
+              onTap: () => setState(() => _items.removeAt(index)),
+              child: Icon(Icons.close_rounded, size: 16, color: AppColors.error.withValues(alpha: 0.6)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _qtyButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 24, height: 24,
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Icon(icon, size: 14, color: AppColors.primary),
+      ),
+    );
+  }
+
+  void _editCostPrice(int index) {
+    final item = _items[index];
+    final ctrl = TextEditingController(text: item.costPrice.toStringAsFixed(0));
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card(context),
+        title: Text('Edit Cost — ${item.name}',
+            style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          style: TextStyle(color: AppColors.textPrimary(context)),
+          decoration: InputDecoration(
+            labelText: 'Cost per unit (₹)',
+            labelStyle: TextStyle(color: AppColors.textSecondary(context)),
+            filled: true,
+            fillColor: AppColors.surface(context),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: AppColors.textSecondary(context))),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newPrice = double.tryParse(ctrl.text) ?? item.costPrice;
+              setState(() => item.costPrice = newPrice);
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }
@@ -884,9 +1106,8 @@ class _AddPurchaseDialogState extends State<_AddPurchaseDialog> {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 11),
-        isDense: true,
-        filled: true,
-        fillColor: AppColors.surface(context),
+        isDense: true, filled: true,
+        fillColor: AppColors.card(context),
         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
