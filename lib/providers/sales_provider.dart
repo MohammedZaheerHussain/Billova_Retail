@@ -59,6 +59,31 @@ class SalesProvider extends ChangeNotifier {
     return groups;
   }
 
+  /// Single-pass customer summary from ALL sales — keyed by phone, fallback name
+  Map<String, Map<String, dynamic>> getCustomerSummaries() {
+    final Map<String, Map<String, dynamic>> summaries = {};
+    for (final sale in _allSales) {
+      if (sale.customerName.isEmpty || sale.customerName == 'Walk-in Customer') continue;
+      // Use phone as key if available, else lowercase name
+      final key = sale.customerPhone.isNotEmpty
+          ? sale.customerPhone
+          : sale.customerName.toLowerCase().trim();
+      summaries.putIfAbsent(key, () => {
+        'totalOrders': 0,
+        'totalSpent': 0.0,
+        'lastPurchaseDate': sale.createdAt,
+      });
+      final s = summaries[key]!;
+      s['totalOrders'] = (s['totalOrders'] as int) + 1;
+      s['totalSpent'] = (s['totalSpent'] as double) + sale.total;
+      if (sale.createdAt.isAfter(s['lastPurchaseDate'] as DateTime)) {
+        s['lastPurchaseDate'] = sale.createdAt;
+      }
+    }
+    return summaries;
+  }
+
+
   // Getters — Cart
   List<SaleItem> get cart => _cart;
   String get customerName => _customerName;

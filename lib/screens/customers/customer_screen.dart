@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/customer_provider.dart';
+import '../../providers/sales_provider.dart';
 import '../../data/models/customer_model.dart';
 
 class CustomerScreen extends StatefulWidget {
@@ -139,6 +140,9 @@ class _CustomerScreenState extends State<CustomerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final salesProvider = context.watch<SalesProvider>();
+    final customerSummaries = salesProvider.getCustomerSummaries();
+
     return Consumer<CustomerProvider>(
       builder: (context, provider, _) {
         final filtered = _search.isEmpty
@@ -209,7 +213,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                           : ListView.separated(
                               itemCount: filtered.length,
                               separatorBuilder: (_, __) => const SizedBox(height: 8),
-                              itemBuilder: (_, i) => _customerTile(filtered[i], provider),
+                              itemBuilder: (_, i) => _customerTile(filtered[i], provider, customerSummaries),
                             ),
                 ),
               ],
@@ -220,9 +224,17 @@ class _CustomerScreenState extends State<CustomerScreen> {
     );
   }
 
-  Widget _customerTile(CustomerModel customer, CustomerProvider provider) {
-    final lastPurchase = customer.lastPurchaseDate != null
-        ? '${customer.lastPurchaseDate!.day} ${_monthName(customer.lastPurchaseDate!.month)}'
+  Widget _customerTile(CustomerModel customer, CustomerProvider provider, Map<String, Map<String, dynamic>> summaries) {
+    // Match by phone first, then by name
+    final key = customer.phone.isNotEmpty
+        ? customer.phone
+        : customer.name.toLowerCase().trim();
+    final s = summaries[key];
+    final totalOrders = (s?['totalOrders'] as int?) ?? customer.totalOrders;
+    final totalSpent = (s?['totalSpent'] as double?) ?? customer.totalSpent;
+    final lastDate = (s?['lastPurchaseDate'] as DateTime?) ?? customer.lastPurchaseDate;
+    final lastPurchase = lastDate != null
+        ? '${lastDate.day} ${_monthName(lastDate.month)}'
         : 'Never';
 
     return Container(
@@ -260,9 +272,9 @@ class _CustomerScreenState extends State<CustomerScreen> {
               ),
             SizedBox(height: 6),
             Row(children: [
-              _statBadge(Icons.receipt_rounded, '${customer.totalOrders}', 'Orders'),
+              _statBadge(Icons.receipt_rounded, '$totalOrders', 'Orders'),
               const SizedBox(width: 10),
-              _statBadge(Icons.currency_rupee_rounded, Formatters.currency(customer.totalSpent), 'Spent'),
+              _statBadge(Icons.currency_rupee_rounded, Formatters.currency(totalSpent), 'Spent'),
               const SizedBox(width: 10),
               _statBadge(Icons.calendar_today_rounded, lastPurchase, 'Last'),
             ]),
