@@ -1,0 +1,72 @@
+import 'package:url_launcher/url_launcher.dart';
+import 'formatters.dart';
+
+/// Lightweight WhatsApp deep-link helper — no API, no server, just wa.me links
+class WhatsAppHelper {
+  WhatsAppHelper._();
+
+  /// Open WhatsApp with pre-filled message for a specific phone number
+  static Future<void> send({required String phone, required String message}) async {
+    // Ensure phone starts with country code (default India)
+    String cleaned = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleaned.length == 10) cleaned = '91$cleaned';
+    final url = 'https://wa.me/$cleaned?text=${Uri.encodeComponent(message)}';
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
+  /// Format invoice message for WhatsApp
+  static String invoiceMessage({
+    required String invoiceNumber,
+    required double total,
+    required double discount,
+    required String paymentMode,
+    required List<Map<String, dynamic>> items,
+    String customerName = '',
+  }) {
+    final buf = StringBuffer();
+    buf.writeln('🧾 *SKYWALK BILL*');
+    buf.writeln('');
+    if (customerName.isNotEmpty) buf.writeln('Hi $customerName,');
+    buf.writeln('Invoice: *$invoiceNumber*');
+    buf.writeln('');
+    buf.writeln('📦 Items:');
+    for (final item in items) {
+      buf.writeln('  • ${item['name']} × ${item['qty']} — ${Formatters.currency(item['total'] as double)}');
+    }
+    buf.writeln('');
+    if (discount > 0) {
+      buf.writeln('Discount: -${Formatters.currency(discount)}');
+    }
+    buf.writeln('*Total: ${Formatters.currency(total)}*');
+    buf.writeln('Payment: $paymentMode');
+    buf.writeln('');
+    buf.writeln('Thank you for shopping with us 🙏');
+    buf.writeln('Visit again! — Team SKYWALK');
+    return buf.toString();
+  }
+
+  // ─── Offer Templates ───
+
+  static const List<Map<String, String>> offerTemplates = [
+    {
+      'title': '🔥 Festival Offer',
+      'message': '🔥 *Festival Special from SKYWALK!*\n\nFlat *20% OFF* on all products 🎉\n\nHurry — offer valid for limited time only!\n\nVisit now 👟',
+    },
+    {
+      'title': '🏷️ Clearance Sale',
+      'message': '🏷️ *SKYWALK Clearance Sale!*\n\nUp to *50% OFF* on selected styles 👟\n\nLimited stock — first come, first served!\n\nVisit today!',
+    },
+    {
+      'title': '✨ New Arrivals',
+      'message': '✨ *New Arrivals at SKYWALK!*\n\nFresh styles just dropped 👟🔥\n\nBe the first to grab them!\n\nVisit now or miss out!',
+    },
+    {
+      'title': '💎 VIP/Loyalty',
+      'message': '💎 *Exclusive VIP Offer — SKYWALK*\n\nAs a valued customer, you get *EXTRA 10% OFF*!\n\nUse this message to claim at store.\n\nThank you for your loyalty 🙏',
+    },
+    {
+      'title': '⏰ Weekend Special',
+      'message': '⏰ *Weekend Special — SKYWALK*\n\nBuy 2 pairs, get *₹500 OFF*!\n\nThis Saturday & Sunday only 🎉\n\nSee you there!',
+    },
+  ];
+}

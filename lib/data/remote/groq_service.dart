@@ -30,8 +30,8 @@ ${jsonEncode(businessData)}
 Rules:
 - All currency values are in Indian Rupees (₹). ALWAYS use ₹ symbol, NEVER use dollars or \$.
 - Keep tone friendly and conversational — talk like a helpful business partner, not a robot
-- Give exactly 5-6 short, actionable bullet points
-- Start each point with a relevant emoji (💡 ✅ ⚠️ 📦 💰 📈 🔥 👍)
+- Give exactly 6-8 short, actionable bullet points
+- Start each point with a relevant emoji (💡 ✅ ⚠️ 📦 💰 📈 🔥 👍 🎯 📱 👥)
 - Keep each point to 1-2 sentences max
 - Be specific with numbers from the data
 - Suggest concrete actions the owner can take today
@@ -42,12 +42,21 @@ Focus on:
 3. 💰 Profit improvement tips
 4. ⚠️ Risks or warnings
 5. 💡 Quick opportunities
+6. 👥 Customer retention — identify inactive customers and suggest WhatsApp offers to bring them back
+7. 🎯 VIP customers — highlight top spenders and suggest exclusive deals for them
+8. 📱 WhatsApp marketing — suggest specific offers or messages to send based on current stock and customer behavior
+
+If there are inactive customers (haven't bought in 7+ days), suggest sending them a WhatsApp offer.
+If there are high-spending customers, suggest VIP treatment or loyalty rewards.
+Always include at least 1 customer engagement suggestion.
 
 Example tone:
 "👍 Your sales are looking solid this week — keep it up!"
 "📦 You might want to restock those fast-moving items soon"
 "💡 Try running a small discount on slow movers to clear stock"
 "⚠️ Expenses are creeping up — worth reviewing today"
+"📱 3 customers haven't visited in 10+ days — send them a WhatsApp offer!"
+"🎯 Rahul has spent ₹15K — consider a VIP discount to keep him loyal"
 
 Avoid technical jargon. Be brief and human.''';
 

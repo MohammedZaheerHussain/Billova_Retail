@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/whatsapp_helper.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../data/models/customer_model.dart';
@@ -17,6 +18,8 @@ class CustomerScreen extends StatefulWidget {
 class _CustomerScreenState extends State<CustomerScreen> {
   final _searchCtrl = TextEditingController();
   String _search = '';
+  final Set<String> _selectedIds = {};
+  bool _isSelectMode = false;
 
   @override
   void initState() {
@@ -162,26 +165,69 @@ class _CustomerScreenState extends State<CustomerScreen> {
                   children: [
                     Text('Customers', style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context))),
                     const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
+                    // Select mode toggle
+                    if (!_isSelectMode)
+                      IconButton(
+                        onPressed: () => setState(() => _isSelectMode = true),
+                        tooltip: 'Select for offer',
+                        icon: Icon(Icons.checklist_rounded, color: AppColors.textSecondary(context)),
                       ),
-                      child: Text('${provider.customers.length} customers',
-                          style: AppTypography.mono.copyWith(color: AppColors.accent, fontSize: 13)),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: () => _showCustomerDialog(),
-                      icon: Icon(Icons.person_add_rounded, size: 18),
-                      label: const Text('Add Customer'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary, foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    if (_isSelectMode) ...[
+                      TextButton(
+                        onPressed: () {
+                          final allIds = filtered.where((c) => c.phone.isNotEmpty).map((c) => c.id).toSet();
+                          setState(() {
+                            if (_selectedIds.length == allIds.length) {
+                              _selectedIds.clear();
+                            } else {
+                              _selectedIds.addAll(allIds);
+                            }
+                          });
+                        },
+                        child: Text(
+                          _selectedIds.length == filtered.where((c) => c.phone.isNotEmpty).length ? 'Deselect All' : 'Select All',
+                          style: TextStyle(color: AppColors.accent, fontSize: 12),
+                        ),
                       ),
-                    ),
+                      ElevatedButton.icon(
+                        onPressed: _selectedIds.isEmpty ? null : () => _showOfferDialog(provider),
+                        icon: Icon(Icons.campaign_rounded, size: 16),
+                        label: Text('Send Offer (${_selectedIds.length})'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFF25D366),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: () => setState(() { _isSelectMode = false; _selectedIds.clear(); }),
+                        icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context)),
+                      ),
+                    ],
+                    if (!_isSelectMode) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text('${provider.customers.length} customers',
+                            style: AppTypography.mono.copyWith(color: AppColors.accent, fontSize: 13)),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () => _showCustomerDialog(),
+                        icon: Icon(Icons.person_add_rounded, size: 18),
+                        label: const Text('Add Customer'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 SizedBox(height: 16),
@@ -280,27 +326,239 @@ class _CustomerScreenState extends State<CustomerScreen> {
             ]),
           ],
         ),
-        trailing: PopupMenuButton(
-          icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary(context)),
-          color: AppColors.surface(context),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          itemBuilder: (_) => [
-            PopupMenuItem(
-              onTap: () => Future.microtask(() => _showCustomerDialog(customer: customer)),
-              child: const Row(children: [Icon(Icons.edit_rounded, size: 18), SizedBox(width: 8), Text('Edit')]),
+        trailing: _isSelectMode
+            ? (customer.phone.isEmpty
+                ? Tooltip(
+                    message: 'No phone number',
+                    child: Icon(Icons.phone_disabled_rounded, size: 18, color: AppColors.textTertiary(context).withValues(alpha: 0.3)),
+                  )
+                : Checkbox(
+                    value: _selectedIds.contains(customer.id),
+                    onChanged: (_) => setState(() {
+                      if (_selectedIds.contains(customer.id)) {
+                        _selectedIds.remove(customer.id);
+                      } else {
+                        _selectedIds.add(customer.id);
+                      }
+                    }),
+                    activeColor: Color(0xFF25D366),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  ))
+            : PopupMenuButton(
+                icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary(context)),
+                color: AppColors.surface(context),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    onTap: () => Future.microtask(() => _showCustomerDialog(customer: customer)),
+                    child: const Row(children: [Icon(Icons.edit_rounded, size: 18), SizedBox(width: 8), Text('Edit')]),
+                  ),
+                  if (customer.phone.isNotEmpty)
+                    PopupMenuItem(
+                      onTap: () => WhatsAppHelper.send(
+                        phone: customer.phone,
+                        message: 'Hi ${customer.name}! 👋\nThank you for shopping at SKYWALK.\nVisit us again for exciting offers! 🙏',
+                      ),
+                      child: Row(children: [
+                        Icon(Icons.chat_rounded, size: 18, color: Color(0xFF25D366)),
+                        const SizedBox(width: 8),
+                        Text('WhatsApp', style: TextStyle(color: Color(0xFF25D366))),
+                      ]),
+                    ),
+                  PopupMenuItem(
+                    onTap: () => provider.deleteCustomer(customer.id),
+                    child: Row(children: [
+                      Icon(Icons.delete_rounded, size: 18, color: AppColors.error),
+                      const SizedBox(width: 8),
+                      Text('Delete', style: TextStyle(color: AppColors.error)),
+                    ]),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  // ─── Offer Broadcast Dialog ───
+
+  void _showOfferDialog(CustomerProvider provider) {
+    final msgCtrl = TextEditingController();
+    int selectedTemplate = -1;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => Dialog(
+          backgroundColor: AppColors.card(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480, maxHeight: 560),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Color(0xFF25D366).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.campaign_rounded, color: Color(0xFF25D366), size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Send Offer', style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context))),
+                            Text('To ${_selectedIds.length} customers via WhatsApp',
+                                style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context), fontSize: 10)),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Quick Templates
+                  Text('Quick Templates', style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.textTertiary(context), fontSize: 10, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 36,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: WhatsAppHelper.offerTemplates.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 6),
+                      itemBuilder: (_, i) {
+                        final t = WhatsAppHelper.offerTemplates[i];
+                        final isActive = selectedTemplate == i;
+                        return ActionChip(
+                          label: Text(t['title']!, style: TextStyle(fontSize: 11,
+                              color: isActive ? Colors.white : AppColors.textPrimary(context))),
+                          backgroundColor: isActive ? Color(0xFF25D366) : AppColors.surface(context),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(color: isActive ? Color(0xFF25D366) : AppColors.cardBorder(context)),
+                          ),
+                          onPressed: () {
+                            setDlgState(() {
+                              selectedTemplate = i;
+                              msgCtrl.text = t['message']!;
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Custom message
+                  Flexible(
+                    child: TextField(
+                      controller: msgCtrl,
+                      maxLines: 6,
+                      style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
+                      decoration: InputDecoration(
+                        labelText: 'Message',
+                        hintText: 'Type your offer message...',
+                        labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 12),
+                        hintStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 12),
+                        filled: true,
+                        fillColor: AppColors.surface(context),
+                        alignLabelWithHint: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Info
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded, size: 14, color: AppColors.accent),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'WhatsApp will open for each customer. Tap Send in WhatsApp to deliver.',
+                            style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context), fontSize: 10),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Send
+                  ElevatedButton.icon(
+                    onPressed: msgCtrl.text.trim().isEmpty ? null : () {
+                      Navigator.pop(ctx);
+                      _sendOfferToSelected(provider, msgCtrl.text.trim());
+                    },
+                    icon: Icon(Icons.send_rounded, size: 18),
+                    label: Text('Send via WhatsApp (${_selectedIds.length})'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF25D366),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            PopupMenuItem(
-              onTap: () => provider.deleteCustomer(customer.id),
-              child: Row(children: [
-                Icon(Icons.delete_rounded, size: 18, color: AppColors.error),
-                const SizedBox(width: 8),
-                Text('Delete', style: TextStyle(color: AppColors.error)),
-              ]),
-            ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  void _sendOfferToSelected(CustomerProvider provider, String message) async {
+    final selected = provider.customers.where((c) => _selectedIds.contains(c.id) && c.phone.isNotEmpty).toList();
+    if (selected.isEmpty) return;
+
+    // Open WhatsApp for each customer sequentially
+    for (int i = 0; i < selected.length; i++) {
+      final c = selected[i];
+      final personalMsg = message.replaceAll('{name}', c.name);
+      await WhatsAppHelper.send(phone: c.phone, message: personalMsg);
+      // Small delay between opens so user can send each one
+      if (i < selected.length - 1) {
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+    }
+
+    setState(() {
+      _isSelectMode = false;
+      _selectedIds.clear();
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Opened WhatsApp for ${selected.length} customers'),
+        backgroundColor: Color(0xFF25D366),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+    }
   }
 
   Widget _statBadge(IconData icon, String value, String label) {

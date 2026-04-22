@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/whatsapp_helper.dart';
 import '../../core/constants.dart';
 import '../../data/models/item_model.dart';
 import '../../data/models/sale_model.dart';
@@ -180,13 +181,31 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                 OutlinedButton.icon(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    // TODO: Share via WhatsApp
+                    final items = sale.items.map((i) => {
+                      'name': i.name,
+                      'qty': i.quantity,
+                      'total': i.total,
+                    }).toList();
+                    final msg = WhatsAppHelper.invoiceMessage(
+                      invoiceNumber: sale.invoiceNumber,
+                      total: sale.total,
+                      discount: sale.discount,
+                      paymentMode: sale.paymentMode,
+                      items: items,
+                      customerName: sale.customerName,
+                    );
+                    if (sale.customerPhone.isNotEmpty) {
+                      WhatsAppHelper.send(phone: sale.customerPhone, message: msg);
+                    } else {
+                      // No phone — open with empty phone so user can choose contact
+                      WhatsAppHelper.send(phone: '', message: msg);
+                    }
                   },
-                  icon: Icon(Icons.share_rounded, size: 18),
-                  label: const Text('Share'),
+                  icon: Icon(Icons.chat_rounded, size: 18, color: Color(0xFF25D366)),
+                  label: const Text('WhatsApp'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.accent,
-                    side: const BorderSide(color: AppColors.accent),
+                    foregroundColor: Color(0xFF25D366),
+                    side: const BorderSide(color: Color(0xFF25D366)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),

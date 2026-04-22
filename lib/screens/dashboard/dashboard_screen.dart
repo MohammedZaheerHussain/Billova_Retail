@@ -169,6 +169,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _generateAIInsights() async {
     setState(() => _isLoadingAI = true);
 
+    // Build customer insights for AI
+    final customerProv = context.read<CustomerProvider>();
+    final salesProv = context.read<SalesProvider>();
+    final summaries = salesProv.getCustomerSummaries();
+    final now = DateTime.now();
+
+    // Top 5 spenders
+    final sortedCustomers = customerProv.customers.map((c) {
+      final key = c.phone.isNotEmpty ? c.phone : c.name.toLowerCase().trim();
+      final s = summaries[key];
+      return {
+        'name': c.name,
+        'phone': c.phone,
+        'totalSpent': (s?['totalSpent'] as double?) ?? c.totalSpent,
+        'totalOrders': (s?['totalOrders'] as int?) ?? c.totalOrders,
+        'lastPurchaseDate': ((s?['lastPurchaseDate'] as DateTime?) ?? c.lastPurchaseDate)?.toIso8601String(),
+        'daysSinceLastVisit': ((s?['lastPurchaseDate'] as DateTime?) ?? c.lastPurchaseDate) != null
+            ? now.difference((s?['lastPurchaseDate'] as DateTime?) ?? c.lastPurchaseDate!).inDays
+            : null,
+      };
+    }).toList();
+
+    sortedCustomers.sort((a, b) => ((b['totalSpent'] as double?) ?? 0).compareTo((a['totalSpent'] as double?) ?? 0));
+    final topSpenders = sortedCustomers.take(5).toList();
+    final inactive = sortedCustomers.where((c) => (c['daysSinceLastVisit'] as int?) != null && (c['daysSinceLastVisit'] as int?) != null && (c['daysSinceLastVisit'] as int)! > 7).take(5).toList();
+
     final businessData = {
       'today_sales': _todaySales,
       'today_sales_count': _todaySalesCount,
@@ -181,7 +207,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'name': i['name'], 'quantity': i['quantity'],
       }).toList(),
       'top_products': _topProducts,
-      'total_customers': context.read<CustomerProvider>().customers.length,
+      'total_customers': customerProv.customers.length,
+      'top_spenders': topSpenders,
+      'inactive_customers': inactive,
     };
 
     final insights = await GroqService.instance.generateInsights(businessData);
