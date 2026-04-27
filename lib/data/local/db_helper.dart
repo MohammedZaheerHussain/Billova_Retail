@@ -23,6 +23,7 @@ class _WebDB {
     _tables['settings'] = [
       {'key': 'last_invoice_number', 'value': '0'},
     ];
+    _tables['categories'] = [];
     _tables['sync_queue'] = [];
     _initialized = true;
   }
@@ -284,6 +285,17 @@ class DBHelper {
       'key': 'last_invoice_number',
       'value': '0',
     });
+
+    // ─── Categories Table ───
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS categories (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        requires_size INTEGER DEFAULT 0,
+        requires_color INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL
+      )
+    ''');
 
     // ─── Sync Queue ───
     await db.execute('''
@@ -638,6 +650,37 @@ class DBHelper {
 
     await setSetting('last_invoice_number', next.toString());
     return 'SKY-${next.toString().padLeft(4, '0')}';
+  }
+
+  // ─── Categories CRUD ───
+
+  Future<List<Map<String, dynamic>>> getCategories() async {
+    if (kIsWeb) {
+      final web = await _web;
+      return await web.query('categories', orderBy: 'name ASC');
+    }
+    final db = await database;
+    return await db.query('categories', orderBy: 'name ASC');
+  }
+
+  Future<void> insertCategory(Map<String, dynamic> data) async {
+    if (kIsWeb) {
+      final web = await _web;
+      await web.insert('categories', data);
+      return;
+    }
+    final db = await database;
+    await db.insert('categories', data, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<void> deleteCategory(String id) async {
+    if (kIsWeb) {
+      final web = await _web;
+      await web.delete('categories', where: 'id = ?', whereArgs: [id]);
+      return;
+    }
+    final db = await database;
+    await db.delete('categories', where: 'id = ?', whereArgs: [id]);
   }
 
   // ─── Sync Queue ───
