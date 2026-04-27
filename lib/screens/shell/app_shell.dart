@@ -25,6 +25,10 @@ import '../purchases/purchase_screen.dart';
 import '../staff/staff_screen.dart';
 import '../customers/customer_screen.dart';
 import '../settings/settings_screen.dart';
+import '../returns/return_exchange_screen.dart';
+import '../clearance/clearance_stock_screen.dart';
+import '../loans/loans_chits_screen.dart';
+import '../reports/crm_reports_screen.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -40,45 +44,63 @@ class _AppShellState extends State<AppShell> {
 
   // F-key → absolute nav index mapping
   static final Map<LogicalKeyboardKey, int> _shortcutMap = {
-    LogicalKeyboardKey.f1: 0,
-    LogicalKeyboardKey.f2: 1,
-    LogicalKeyboardKey.f3: 2,
-    LogicalKeyboardKey.f4: 3,
-    LogicalKeyboardKey.f5: 4,
-    LogicalKeyboardKey.f6: 5,
-    LogicalKeyboardKey.f7: 6,
-    LogicalKeyboardKey.f8: 7,
-    LogicalKeyboardKey.f9: 8,
-    LogicalKeyboardKey.f10: 9,
-    LogicalKeyboardKey.f11: 10,
+    LogicalKeyboardKey.f1: 0,   // Dashboard
+    LogicalKeyboardKey.f2: 1,   // Daily Cash Till
+    LogicalKeyboardKey.f3: 2,   // Sales Terminal
+    LogicalKeyboardKey.f4: 3,   // Returns & Exchange
+    LogicalKeyboardKey.f5: 4,   // Purchases (In)
+    LogicalKeyboardKey.f6: 5,   // Master Inventory
+    LogicalKeyboardKey.f7: 6,   // Clearance Stock
+    LogicalKeyboardKey.f8: 7,   // Customers
+    LogicalKeyboardKey.f9: 8,   // Vendors
+    LogicalKeyboardKey.f10: 9,  // Staff & Attendance
+    LogicalKeyboardKey.f11: 10, // Expenses
   };
 
-  // All nav items — filtered dynamically by role
+  // All nav items — grouped by section, filtered dynamically by role
   static const List<_NavItem> _allNavItems = [
-    _NavItem(icon: Icons.dashboard_rounded, label: 'Dashboard', shortcut: 'F1', adminOnly: true),
-    _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Cash Till', shortcut: 'F2', adminOnly: true),
-    _NavItem(icon: Icons.inventory_2_rounded, label: 'Inventory', shortcut: 'F3', adminOnly: false),
-    _NavItem(icon: Icons.point_of_sale_rounded, label: 'Sales Terminal', shortcut: 'F4', adminOnly: false),
-    _NavItem(icon: Icons.local_shipping_rounded, label: 'Purchases (In)', shortcut: 'F5', adminOnly: true),
-    _NavItem(icon: Icons.store_rounded, label: 'Vendors', shortcut: 'F6', adminOnly: true),
-    _NavItem(icon: Icons.people_outline_rounded, label: 'Customers', shortcut: 'F7', adminOnly: false),
-    _NavItem(icon: Icons.money_off_rounded, label: 'Expenses', shortcut: 'F8', adminOnly: true),
-    _NavItem(icon: Icons.history_rounded, label: 'Bill History', shortcut: 'F9', adminOnly: false),
-    _NavItem(icon: Icons.badge_rounded, label: 'Staff & Attendance', shortcut: 'F10', adminOnly: true),
-    _NavItem(icon: Icons.settings_rounded, label: 'Settings', shortcut: 'F11', adminOnly: true),
+    // OVERVIEW
+    _NavItem(icon: Icons.dashboard_rounded, label: 'Dashboard', shortcut: 'F1', adminOnly: true, section: 'OVERVIEW'),
+    _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Daily Cash Till', shortcut: 'F2', adminOnly: true, section: 'OVERVIEW'),
+    // TRANSACTIONS
+    _NavItem(icon: Icons.point_of_sale_rounded, label: 'Sales Terminal', shortcut: 'F3', adminOnly: false, section: 'TRANSACTIONS'),
+    _NavItem(icon: Icons.swap_horiz_rounded, label: 'Returns & Exchange', shortcut: 'F4', adminOnly: true, section: 'TRANSACTIONS'),
+    _NavItem(icon: Icons.local_shipping_rounded, label: 'Purchases (In)', shortcut: 'F5', adminOnly: true, section: 'TRANSACTIONS'),
+    // INVENTORY & CLEARANCE
+    _NavItem(icon: Icons.inventory_2_rounded, label: 'Master Inventory', shortcut: 'F6', adminOnly: false, section: 'INVENTORY & CLEARANCE'),
+    _NavItem(icon: Icons.cleaning_services_rounded, label: 'Clearance Stock', shortcut: 'F7', adminOnly: true, section: 'INVENTORY & CLEARANCE'),
+    // DIRECTORY
+    _NavItem(icon: Icons.people_outline_rounded, label: 'Customers', shortcut: 'F8', adminOnly: false, section: 'DIRECTORY'),
+    _NavItem(icon: Icons.store_rounded, label: 'Vendors', shortcut: 'F9', adminOnly: true, section: 'DIRECTORY'),
+    _NavItem(icon: Icons.badge_rounded, label: 'Staff & Attendance', shortcut: 'F10', adminOnly: true, section: 'DIRECTORY'),
+    // FINANCE & ANALYTICS
+    _NavItem(icon: Icons.money_off_rounded, label: 'Expenses', shortcut: 'F11', adminOnly: true, section: 'FINANCE & ANALYTICS'),
+    _NavItem(icon: Icons.account_balance_rounded, label: 'Loans & Chits', shortcut: '', adminOnly: true, section: 'FINANCE & ANALYTICS'),
+    _NavItem(icon: Icons.analytics_rounded, label: 'CRM Reports', shortcut: '', adminOnly: true, section: 'FINANCE & ANALYTICS'),
+    // SYSTEM
+    _NavItem(icon: Icons.settings_rounded, label: 'Settings & Backup', shortcut: '', adminOnly: true, section: 'SYSTEM'),
   ];
 
   static const List<Widget> _allScreens = [
+    // OVERVIEW
     DashboardScreen(),
     CashTillScreen(),
-    InventoryScreen(),
+    // TRANSACTIONS
     SalesTerminalScreen(),
+    ReturnExchangeScreen(),
     PurchaseScreen(),
-    VendorScreen(),
+    // INVENTORY & CLEARANCE
+    InventoryScreen(),
+    ClearanceStockScreen(),
+    // DIRECTORY
     CustomerScreen(),
-    ExpensesScreen(),
-    BillHistoryScreen(),
+    VendorScreen(),
     StaffScreen(),
+    // FINANCE & ANALYTICS
+    ExpensesScreen(),
+    LoansChitsScreen(),
+    CrmReportsScreen(),
+    // SYSTEM
     SettingsScreen(),
   ];
 
@@ -282,7 +304,7 @@ class _AppShellState extends State<AppShell> {
           ),
           const SizedBox(height: 8),
 
-          // ─── Nav Items ───
+          // ─── Nav Items with Section Headers ───
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -291,67 +313,97 @@ class _AppShellState extends State<AppShell> {
                 final item = navItems[index];
                 final isSelected = index == _selectedIndex.clamp(0, navItems.length - 1);
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => setState(() => _selectedIndex = index),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: _sidebarExpanded ? 14 : 0, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.primary.withValues(alpha: 0.15)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                          border: isSelected
-                              ? Border.all(color: AppColors.primary.withValues(alpha: 0.3))
-                              : null,
+                // Check if we need a section header
+                final showSection = _sidebarExpanded &&
+                    item.section.isNotEmpty &&
+                    (index == 0 || navItems[index - 1].section != item.section);
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Section header
+                    if (showSection)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          left: 14, right: 14,
+                          top: index == 0 ? 0 : 16, bottom: 6),
+                        child: Text(
+                          item.section,
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.accent.withValues(alpha: 0.6),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                          ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: _sidebarExpanded
-                              ? MainAxisAlignment.start : MainAxisAlignment.center,
-                          children: [
-                            Icon(item.icon, size: 22,
-                                color: isSelected ? AppColors.accent
-                                    : (isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight)),
-                            if (_sidebarExpanded) ...[
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Text(item.label,
-                                    style: AppTypography.bodyMedium.copyWith(
-                                      color: isSelected
-                                          ? (isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight)
-                                          : (isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight),
-                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                    // Nav item
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => setState(() => _selectedIndex = index),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: _sidebarExpanded ? 14 : 0, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.primary.withValues(alpha: 0.15)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                              border: isSelected
+                                  ? Border.all(color: AppColors.primary.withValues(alpha: 0.3))
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: _sidebarExpanded
+                                  ? MainAxisAlignment.start : MainAxisAlignment.center,
+                              children: [
+                                Icon(item.icon, size: 20,
+                                    color: isSelected ? AppColors.accent
+                                        : (isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight)),
+                                if (_sidebarExpanded) ...[
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(item.label,
+                                        style: AppTypography.bodyMedium.copyWith(
+                                          color: isSelected
+                                              ? (isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight)
+                                              : (isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight),
+                                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                          fontSize: 13,
+                                        ),
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
+                                  if (item.shortcut.isNotEmpty)
+                                    Container(
+                                      padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? AppColors.accent.withValues(alpha: 0.2)
+                                            : (isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight).withValues(alpha: 0.5),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(item.shortcut,
+                                          style: AppTypography.monoSmall.copyWith(
+                                            color: isSelected ? AppColors.accent
+                                                : (isDark ? AppColors.textTertiary(context) : AppColors.textTertiaryLight),
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w600,
+                                          )),
                                     ),
-                                    overflow: TextOverflow.ellipsis),
-                              ),
-                              Container(
-                                padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? AppColors.accent.withValues(alpha: 0.2)
-                                      : (isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight).withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(item.shortcut,
-                                    style: AppTypography.monoSmall.copyWith(
-                                      color: isSelected ? AppColors.accent
-                                          : (isDark ? AppColors.textTertiary(context) : AppColors.textTertiaryLight),
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w600,
-                                    )),
-                              ),
-                            ],
-                          ],
+                                ],
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 );
               },
             ),
@@ -570,5 +622,6 @@ class _NavItem {
   final String label;
   final String shortcut;
   final bool adminOnly;
-  const _NavItem({required this.icon, required this.label, this.shortcut = '', this.adminOnly = false});
+  final String section;
+  const _NavItem({required this.icon, required this.label, this.shortcut = '', this.adminOnly = false, this.section = ''});
 }
