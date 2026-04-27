@@ -26,6 +26,8 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
   final _customerNameCtrl = TextEditingController();
   final _customerPhoneCtrl = TextEditingController();
   final _discountCtrl = TextEditingController(text: '0');
+  final _cashPaidCtrl = TextEditingController(text: '0');
+  final _upiPaidCtrl = TextEditingController(text: '0');
   String _searchQuery = '';
   String _selectedCategory = 'All';
 
@@ -35,6 +37,8 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
     _customerNameCtrl.dispose();
     _customerPhoneCtrl.dispose();
     _discountCtrl.dispose();
+    _cashPaidCtrl.dispose();
+    _upiPaidCtrl.dispose();
     super.dispose();
   }
 
@@ -138,6 +142,8 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       _customerNameCtrl.clear();
       _customerPhoneCtrl.clear();
       _discountCtrl.text = '0';
+      _cashPaidCtrl.text = '0';
+      _upiPaidCtrl.text = '0';
 
       // Success feedback
       _showSuccessDialog(sale);
@@ -327,7 +333,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
             onChanged: _onSearchChanged,
             style: TextStyle(color: AppColors.textPrimary(context)),
             decoration: InputDecoration(
-              hintText: 'Search by name, barcode, or brand...',
+              hintText: 'SCAN BARCODE or search by name, brand...',
               hintStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 13),
               prefixIcon: Icon(Icons.search_rounded, color: AppColors.textTertiary(context)),
               suffixIcon: _searchQuery.isNotEmpty
@@ -612,34 +618,19 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
           ),
           SizedBox(height: 8),
 
-          // ─── Payment Mode + Discount ───
+          // ─── Payment: Split Cash + UPI ───
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: sales.paymentMode,
-                  onChanged: (v) => sales.setPaymentMode(v!),
-                  dropdownColor: AppColors.card(context),
-                  style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
-                  decoration: InputDecoration(
-                    labelText: 'Payment',
-                    labelStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 12),
-                    filled: true,
-                    fillColor: AppColors.surface(context),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: AppColors.cardBorder(context)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: AppColors.cardBorder(context)),
-                    ),
-                  ),
-                  items: AppConstants.paymentModes.map((mode) {
-                    return DropdownMenuItem(value: mode, child: Text(mode));
-                  }).toList(),
-                ),
+                child: _miniField(_cashPaidCtrl, 'Cash Paid (₹)',
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (_) => setState(() {})),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _miniField(_upiPaidCtrl, 'UPI/Card Paid (₹)',
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (_) => setState(() {})),
               ),
               const SizedBox(width: 8),
               SizedBox(
@@ -654,28 +645,47 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
           ),
           const SizedBox(height: 12),
 
-          // ─── Totals ───
-          Container(
-            padding: EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.surface(context),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              children: [
-                _totalRow('Subtotal', Formatters.currency(sales.subtotal)),
-                if (sales.discountPercent > 0) ...[                  _totalRow(
-                    'Discount (${sales.discountPercent.toStringAsFixed(sales.discountPercent.truncateToDouble() == sales.discountPercent ? 0 : 1)}%)',
-                    '- ${Formatters.currency(sales.discountAmount)}',
-                    color: AppColors.error,
-                  ),
-                ],
-                Divider(color: AppColors.cardBorder(context), height: 16),
-                _totalRow('Total', Formatters.currency(sales.total),
-                    isBold: true, color: AppColors.accent),
-              ],
-            ),
+          // ─── Totals + Udhaar ───
+          Builder(
+            builder: (context) {
+              final cashPaid = double.tryParse(_cashPaidCtrl.text) ?? 0;
+              final upiPaid = double.tryParse(_upiPaidCtrl.text) ?? 0;
+              final totalPaid = cashPaid + upiPaid;
+              final pendingDue = (sales.total - totalPaid).clamp(0.0, double.infinity);
+
+              return Container(
+                padding: EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surface(context),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  children: [
+                    _totalRow('Subtotal', Formatters.currency(sales.subtotal)),
+                    if (sales.discountPercent > 0)
+                      _totalRow(
+                        'Discount (${sales.discountPercent.toStringAsFixed(sales.discountPercent.truncateToDouble() == sales.discountPercent ? 0 : 1)}%)',
+                        '- ${Formatters.currency(sales.discountAmount)}',
+                        color: AppColors.error,
+                      ),
+                    Divider(color: AppColors.cardBorder(context), height: 16),
+                    _totalRow('Total', Formatters.currency(sales.total),
+                        isBold: true, color: AppColors.accent),
+                    if (totalPaid > 0) ...[                      const SizedBox(height: 4),
+                      if (cashPaid > 0)
+                        _totalRow('Cash Paid', Formatters.currency(cashPaid), color: AppColors.success),
+                      if (upiPaid > 0)
+                        _totalRow('UPI/Card Paid', Formatters.currency(upiPaid), color: AppColors.success),
+                      if (pendingDue > 0) ...[                        Divider(color: AppColors.warning.withValues(alpha: 0.3), height: 12),
+                        _totalRow('Pending Udhaar', Formatters.currency(pendingDue),
+                            isBold: true, color: AppColors.warning),
+                      ],
+                    ],
+                  ],
+                ),
+              );
+            },
           ),
           const SizedBox(height: 12),
 
