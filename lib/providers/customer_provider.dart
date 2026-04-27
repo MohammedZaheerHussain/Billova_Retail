@@ -123,9 +123,11 @@ class CustomerProvider extends ChangeNotifier {
     final idx = _customers.indexWhere((c) => c.id == customerId);
     if (idx == -1) return;
 
+    final pointsEarned = (amount / 100).floor(); // 1 point per ₹100
     final updated = _customers[idx].copyWith(
       totalOrders: _customers[idx].totalOrders + 1,
       totalSpent: _customers[idx].totalSpent + amount,
+      loyaltyPoints: _customers[idx].loyaltyPoints + pointsEarned,
       lastPurchaseDate: DateTime.now(),
     );
     await _db.update('customers', updated.toMap(), updated.id);

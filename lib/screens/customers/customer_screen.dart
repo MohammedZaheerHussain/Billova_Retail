@@ -322,6 +322,8 @@ class _CustomerScreenState extends State<CustomerScreen> {
               const SizedBox(width: 10),
               _statBadge(Icons.currency_rupee_rounded, Formatters.currency(totalSpent), 'Spent'),
               const SizedBox(width: 10),
+              _statBadge(Icons.star_rounded, '${customer.loyaltyPoints}', 'Points'),
+              const SizedBox(width: 10),
               _statBadge(Icons.calendar_today_rounded, lastPurchase, 'Last'),
             ]),
           ],
