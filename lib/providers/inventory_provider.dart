@@ -186,6 +186,17 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
+  /// Restock items for returns
+  Future<void> restockItem(String itemId, int quantity) async {
+    try {
+      final item = _items.firstWhere((i) => i.id == itemId);
+      final newQty = item.quantity + quantity;
+      await updateItem(item.copyWith(quantity: newQty));
+    } catch (e) {
+      debugPrint('Restock failed for $itemId: $e');
+    }
+  }
+
   void clearError() {
     _error = '';
     notifyListeners();
