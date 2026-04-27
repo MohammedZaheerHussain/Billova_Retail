@@ -1,8 +1,10 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../data/models/item_model.dart';
+import '../../data/local/db_helper.dart';
 import '../../providers/inventory_provider.dart';
 
 class ItemFormDialog extends StatefulWidget {
@@ -28,6 +30,12 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   late TextEditingController _lowStockCtrl;
   bool _isLoading = false;
 
+  // Category system
+  List<Map<String, dynamic>> _categories = [];
+  String? _selectedCategory;
+  bool _showSize = true;
+  bool _showColor = true;
+
   bool get isEditing => widget.item != null;
 
   @override
@@ -44,6 +52,43 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     _costPriceCtrl = TextEditingController(text: widget.item?.costPrice.toString() ?? '0');
     _qtyCtrl = TextEditingController(text: widget.item?.quantity.toString() ?? '0');
     _lowStockCtrl = TextEditingController(text: widget.item?.lowStockThreshold.toString() ?? '5');
+    _selectedCategory = widget.item?.category;
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    final rows = await DBHelper.instance.getCategories();
+    if (mounted) {
+      setState(() {
+        _categories = rows;
+        // Set dynamic fields based on selected category
+        if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
+          _updateCategoryFields(_selectedCategory!);
+        }
+      });
+    }
+  }
+
+  void _updateCategoryFields(String categoryName) {
+    final match = _categories.where((c) => c['name'] == categoryName);
+    if (match.isNotEmpty) {
+      setState(() {
+        _showSize = match.first['requires_size'] == 1;
+        _showColor = match.first['requires_color'] == 1;
+      });
+    } else {
+      setState(() { _showSize = true; _showColor = true; });
+    }
+  }
+
+  void _generateBarcode() {
+    // Format: SKY-{CATEGORY_CODE}-{5_DIGIT_RANDOM}
+    final cat = _selectedCategory ?? _categoryCtrl.text.trim();
+    final code = cat.isNotEmpty
+        ? cat.substring(0, min(3, cat.length)).toUpperCase()
+        : 'GEN';
+    final num = (10000 + Random().nextInt(90000)).toString();
+    setState(() => _barcodeCtrl.text = 'SKY-$code-$num');
   }
 
   @override
@@ -174,29 +219,82 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                           Expanded(child: _field('Brand / Vendor', _vendorCtrl, 'e.g. Nike, Adidas',
                               icon: Icons.store_rounded)),
                           const SizedBox(width: 10),
-                          Expanded(child: _field('Category', _categoryCtrl, 'e.g. Shoes, Slippers',
-                              icon: Icons.category_rounded)),
+                          // Category dropdown from DB
+                          Expanded(
+                            child: _categories.isEmpty
+                                ? _field('Category', _categoryCtrl, 'e.g. Shoes',
+                                    icon: Icons.category_rounded)
+                                : DropdownButtonFormField<String>(
+                                    value: _selectedCategory != null && _categories.any((c) => c['name'] == _selectedCategory)
+                                        ? _selectedCategory : null,
+                                    items: _categories.map((c) => DropdownMenuItem(
+                                      value: c['name'] as String,
+                                      child: Text(c['name'] as String, style: TextStyle(fontSize: 13)),
+                                    )).toList(),
+                                    onChanged: (v) {
+                                      setState(() {
+                                        _selectedCategory = v;
+                                        _categoryCtrl.text = v ?? '';
+                                      });
+                                      if (v != null) _updateCategoryFields(v);
+                                    },
+                                    style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
+                                    dropdownColor: AppColors.card(context),
+                                    decoration: InputDecoration(
+                                      labelText: 'Category',
+                                      labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 12),
+                                      prefixIcon: Icon(Icons.category_rounded, size: 18, color: AppColors.textTertiary(context)),
+                                      filled: true,
+                                      fillColor: AppColors.surface(context),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                    ),
+                                  ),
+                          ),
                         ]),
                         const SizedBox(height: 12),
-                        Row(children: [
-                          Expanded(child: _field('Size', _sizeCtrl, 'e.g. 42, XL, 10',
-                              icon: Icons.straighten_rounded)),
-                          const SizedBox(width: 10),
-                          Expanded(child: _field('Color', _colorCtrl, 'e.g. Black, Red',
-                              icon: Icons.palette_rounded)),
-                        ]),
-                        const SizedBox(height: 16),
+                        // Dynamic Size/Color based on category
+                        if (_showSize || _showColor)
+                          Row(children: [
+                            if (_showSize)
+                              Expanded(child: _field('Size', _sizeCtrl, 'e.g. 42, XL, 10',
+                                  icon: Icons.straighten_rounded)),
+                            if (_showSize && _showColor) const SizedBox(width: 10),
+                            if (_showColor)
+                              Expanded(child: _field('Color', _colorCtrl, 'e.g. Black, Red',
+                                  icon: Icons.palette_rounded)),
+                          ]),
+                        if (_showSize || _showColor) const SizedBox(height: 16),
 
                         // ─── Section: Identification ───
                         _sectionLabel('Identification & Location'),
                         const SizedBox(height: 8),
                         Row(children: [
-                          Expanded(child: _field('Barcode / SKU', _barcodeCtrl, 'Scan or type barcode',
+                          Expanded(child: _field('Barcode / SKU', _barcodeCtrl, 'Auto-generated or manual',
                               icon: Icons.qr_code_scanner_rounded)),
-                          const SizedBox(width: 10),
-                          Expanded(child: _field('Storage Location', _locationCtrl, 'e.g. Rack A / Shelf 3',
-                              icon: Icons.location_on_rounded)),
+                          const SizedBox(width: 8),
+                          // Generate Barcode button
+                          SizedBox(
+                            height: 48,
+                            child: ElevatedButton.icon(
+                              onPressed: _generateBarcode,
+                              icon: Icon(Icons.qr_code_rounded, size: 16),
+                              label: Text('Generate', style: TextStyle(fontSize: 11)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.accent,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: EdgeInsets.symmetric(horizontal: 12),
+                              ),
+                            ),
+                          ),
                         ]),
+                        const SizedBox(height: 8),
+                        _field('Storage Location', _locationCtrl, 'e.g. Rack A / Shelf 3',
+                            icon: Icons.location_on_rounded),
                         const SizedBox(height: 16),
 
                         // ─── Section: Pricing ───
