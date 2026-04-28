@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -104,19 +105,40 @@ class _AppShellState extends State<AppShell> {
     SettingsScreen(),
   ];
 
+  Timer? _syncTimer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAllData();
       _focusNode.requestFocus();
+      _startAutoSync();
     });
   }
 
   @override
   void dispose() {
+    _syncTimer?.cancel();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  /// Auto-sync every 5 minutes — processes pending sync queue
+  void _startAutoSync() {
+    _syncTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
+      try {
+        final supabase = SupabaseService.instance;
+        if (supabase.isLoggedIn) {
+          final synced = await supabase.processSyncQueue();
+          if (synced > 0) {
+            debugPrint('🔄 Auto-sync: pushed $synced pending items to cloud');
+          }
+        }
+      } catch (e) {
+        debugPrint('🔄 Auto-sync skipped: $e');
+      }
+    });
   }
 
   /// Handle F-key shortcuts for instant navigation

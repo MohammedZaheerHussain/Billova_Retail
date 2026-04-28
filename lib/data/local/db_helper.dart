@@ -394,6 +394,8 @@ class DBHelper {
         phone TEXT DEFAULT '',
         total_orders INTEGER DEFAULT 0,
         total_spent REAL DEFAULT 0,
+        loyalty_points INTEGER DEFAULT 0,
+        last_purchase_date TEXT,
         is_deleted INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
@@ -489,6 +491,13 @@ class DBHelper {
       await db.execute("ALTER TABLE items ADD COLUMN size TEXT DEFAULT ''");
       await db.execute("ALTER TABLE items ADD COLUMN color TEXT DEFAULT ''");
       await db.execute("ALTER TABLE items ADD COLUMN storage_location TEXT DEFAULT ''");
+    }
+    // v7: Add loyalty_points + last_purchase_date to customers
+    if (oldVersion < 7) {
+      try {
+        await db.execute("ALTER TABLE customers ADD COLUMN loyalty_points INTEGER DEFAULT 0");
+        await db.execute("ALTER TABLE customers ADD COLUMN last_purchase_date TEXT");
+      } catch (_) {} // Column may already exist
     }
   }
   // ─── Generic CRUD ───

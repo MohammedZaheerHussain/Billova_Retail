@@ -12,6 +12,7 @@ import '../../providers/vendor_provider.dart';
 import '../../providers/purchase_provider.dart';
 import '../../providers/staff_provider.dart';
 import '../../providers/customer_provider.dart';
+import '../../providers/cash_till_provider.dart';
 import '../../data/local/db_helper.dart';
 import '../../data/remote/supabase_service.dart';
 
@@ -145,6 +146,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final expenses = context.read<ExpenseProvider>();
       for (final exp in expenses.expenses) {
         await supabase.syncRecord('expenses', exp.id, 'insert', exp.toMap());
+      }
+      if (!mounted) return;
+      setState(() => _backupStatus = 'Syncing cash till...');
+      final cashTill = context.read<CashTillProvider>();
+      if (cashTill.today != null) {
+        await supabase.syncRecord('cash_till', cashTill.today!.id, 'insert', cashTill.today!.toMap());
       }
       await supabase.processSyncQueue();
       if (!mounted) return;
