@@ -25,9 +25,9 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
   final _searchCtrl = TextEditingController();
   final _customerNameCtrl = TextEditingController();
   final _customerPhoneCtrl = TextEditingController();
-  final _discountCtrl = TextEditingController(text: '0');
-  final _cashPaidCtrl = TextEditingController(text: '0');
-  final _upiPaidCtrl = TextEditingController(text: '0');
+  final _discountCtrl = TextEditingController();
+  final _cashPaidCtrl = TextEditingController();
+  final _upiPaidCtrl = TextEditingController();
   String _searchQuery = '';
   String _selectedCategory = 'All';
 
@@ -141,9 +141,9 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       // Clear form
       _customerNameCtrl.clear();
       _customerPhoneCtrl.clear();
-      _discountCtrl.text = '0';
-      _cashPaidCtrl.text = '0';
-      _upiPaidCtrl.text = '0';
+      _discountCtrl.clear();
+      _cashPaidCtrl.clear();
+      _upiPaidCtrl.clear();
 
       // Success feedback
       _showSuccessDialog(sale);
@@ -616,32 +616,52 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
               ),
             ],
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 10),
 
-          // ─── Payment: Split Cash + UPI ───
-          Row(
-            children: [
-              Expanded(
-                child: _miniField(_cashPaidCtrl, 'Cash Paid (₹)',
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    onChanged: (_) => setState(() {})),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _miniField(_upiPaidCtrl, 'UPI/Card Paid (₹)',
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    onChanged: (_) => setState(() {})),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 110,
-                child: _miniField(_discountCtrl, 'Discount %',
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    onChanged: (v) {
-                      sales.setDiscount(double.tryParse(v) ?? 0);
-                    }),
-              ),
-            ],
+          // ─── Payment Split & Discount ───
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.surface(context),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.payments_rounded, size: 14, color: AppColors.accent),
+                  const SizedBox(width: 6),
+                  Text('Payment Split', style: TextStyle(
+                      color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.w700)),
+                ]),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _miniField(_cashPaidCtrl, 'Cash Paid (₹)',
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          onChanged: (_) => setState(() {})),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _miniField(_upiPaidCtrl, 'UPI/Card (₹)',
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          onChanged: (_) => setState(() {})),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 100,
+                      child: _miniField(_discountCtrl, 'Discount %',
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          onChanged: (v) {
+                            sales.setDiscount(double.tryParse(v) ?? 0);
+                          }),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
 
