@@ -291,6 +291,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
       ),
       child: ListTile(
         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        onTap: () => _showCustomerDetail(customer, totalOrders, totalSpent, lastPurchase),
         leading: Container(
           width: 44, height: 44,
           decoration: BoxDecoration(
@@ -379,6 +380,126 @@ class _CustomerScreenState extends State<CustomerScreen> {
               ),
       ),
     );
+  }
+
+  void _showCustomerDetail(CustomerModel customer, int totalOrders, double totalSpent, String lastPurchase) {
+    final sales = context.read<SalesProvider>().sales.where((s) =>
+        s.customerPhone == customer.phone ||
+        s.customerName.toLowerCase() == customer.name.toLowerCase()).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: AppColors.card(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480, maxHeight: 580),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              // Header
+              Row(children: [
+                Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(gradient: AppColors.primaryGradient, borderRadius: BorderRadius.circular(14)),
+                  child: Center(child: Text(
+                    customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?',
+                    style: AppTypography.h2.copyWith(color: Colors.white),
+                  )),
+                ),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(customer.name, style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context))),
+                  if (customer.phone.isNotEmpty)
+                    Row(children: [
+                      Icon(Icons.phone_rounded, size: 13, color: AppColors.textTertiary(context)),
+                      const SizedBox(width: 4),
+                      Text(customer.phone, style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
+                    ]),
+                ])),
+                IconButton(onPressed: () => Navigator.pop(ctx),
+                    icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context))),
+              ]),
+              const SizedBox(height: 16),
+
+              // Stats row
+              Row(children: [
+                _detailStat(context, '$totalOrders', 'Orders', Icons.receipt_rounded, AppColors.accent),
+                const SizedBox(width: 8),
+                _detailStat(context, Formatters.currency(totalSpent), 'Total Spent', Icons.currency_rupee_rounded, AppColors.success),
+                const SizedBox(width: 8),
+                _detailStat(context, '${customer.loyaltyPoints}', 'Points', Icons.star_rounded, AppColors.warning),
+                const SizedBox(width: 8),
+                _detailStat(context, lastPurchase, 'Last Visit', Icons.calendar_today_rounded, AppColors.primary),
+              ]),
+              const SizedBox(height: 16),
+
+              // Purchase history
+              Align(alignment: Alignment.centerLeft,
+                child: Text('Purchase History', style: AppTypography.labelMedium.copyWith(
+                    color: AppColors.accent, fontWeight: FontWeight.w600))),
+              const SizedBox(height: 8),
+              Expanded(
+                child: sales.isEmpty
+                  ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.receipt_long_rounded, size: 40, color: AppColors.textTertiary(context).withValues(alpha: 0.3)),
+                      const SizedBox(height: 8),
+                      Text('No purchases recorded', style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))),
+                    ]))
+                  : ListView.separated(
+                      itemCount: sales.length,
+                      separatorBuilder: (_, __) => Divider(color: AppColors.cardBorder(context), height: 1),
+                      itemBuilder: (_, i) {
+                        final sale = sales[i];
+                        final date = '${sale.createdAt.day}/${sale.createdAt.month}/${sale.createdAt.year}';
+                        final time = '${sale.createdAt.hour.toString().padLeft(2,'0')}:${sale.createdAt.minute.toString().padLeft(2,'0')}';
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
+                              child: Icon(Icons.receipt_rounded, size: 18, color: AppColors.accent),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(sale.invoiceNumber, style: TextStyle(
+                                  color: AppColors.textPrimary(context), fontWeight: FontWeight.w600, fontSize: 13,
+                                  fontFamily: 'Courier')),
+                              Text('${sale.items.length} item${sale.items.length != 1 ? 's' : ''} • $date $time',
+                                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
+                              if (sale.items.isNotEmpty)
+                                Text(sale.items.map((it) => it.name).take(3).join(', ') + (sale.items.length > 3 ? '…' : ''),
+                                    style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context)),
+                                    overflow: TextOverflow.ellipsis),
+                            ])),
+                            Text(Formatters.currency(sale.total), style: AppTypography.mono.copyWith(
+                                color: AppColors.success, fontWeight: FontWeight.w700, fontSize: 14)),
+                          ]),
+                        );
+                      }),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailStat(BuildContext context, String value, String label, IconData icon, Color color) {
+    return Expanded(child: Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.2))),
+      child: Column(children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(height: 4),
+        Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12), textAlign: TextAlign.center),
+        Text(label, style: TextStyle(color: AppColors.textTertiary(context), fontSize: 9)),
+      ]),
+    ));
   }
 
   // ─── Offer Broadcast Dialog ───
