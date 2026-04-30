@@ -26,6 +26,9 @@ class _ReturnExchangeScreenState extends State<ReturnExchangeScreen> {
   final List<_ExchangeItem> _exchangeItems = [];
   final _exchSearchCtrl = TextEditingController();
   String _exchSearch = '';
+  // Live search suggestions
+  List<SaleModel> _filteredSales = [];
+  bool _showSuggestions = false;
 
   static const _reasons = ['Defective', 'Wrong Size', 'Wrong Item', 'Changed Mind', 'Other'];
   static const _refundMethods = ['Cash', 'UPI', 'Store Credit'];
@@ -57,6 +60,34 @@ class _ReturnExchangeScreenState extends State<ReturnExchangeScreen> {
 
   double get _netSettlement => _exchangeTotal - _returnTotal;
 
+  void _onSearchChanged(String q) {
+    if (q.trim().isEmpty) {
+      setState(() { _filteredSales = []; _showSuggestions = false; });
+      return;
+    }
+    final sales = context.read<SalesProvider>();
+    final upper = q.trim().toUpperCase();
+    final lower = q.trim().toLowerCase();
+    final matches = sales.allSales.where((s) =>
+      s.invoiceNumber.toUpperCase().contains(upper) ||
+      s.customerPhone.contains(q.trim()) ||
+      s.customerName.toLowerCase().contains(lower)
+    ).toList();
+    setState(() { _filteredSales = matches; _showSuggestions = true; });
+  }
+
+  void _selectSale(SaleModel sale) {
+    _searchCtrl.text = sale.invoiceNumber;
+    setState(() {
+      _foundSale = sale;
+      _returnQty.clear();
+      _exchangeItems.clear();
+      _showSuggestions = false;
+      _filteredSales = [];
+      _status = _isExpired ? 'EXPIRED' : 'FOUND';
+    });
+  }
+
   void _lookupInvoice() {
     final sales = context.read<SalesProvider>();
     final q = _searchCtrl.text.trim();
@@ -73,6 +104,8 @@ class _ReturnExchangeScreenState extends State<ReturnExchangeScreen> {
     setState(() {
       _returnQty.clear();
       _exchangeItems.clear();
+      _showSuggestions = false;
+      _filteredSales = [];
       if (match.isEmpty) {
         _foundSale = null;
         _status = 'No invoice found for "$q"';
@@ -198,6 +231,7 @@ class _ReturnExchangeScreenState extends State<ReturnExchangeScreen> {
                     borderSide: BorderSide(color: AppColors.cardBorder(context))),
               ),
               onSubmitted: (_) => _lookupInvoice(),
+              onChanged: _onSearchChanged,
             )),
             const SizedBox(width: 10),
             SizedBox(height: 48, child: ElevatedButton.icon(
@@ -209,16 +243,74 @@ class _ReturnExchangeScreenState extends State<ReturnExchangeScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             )),
           ]),
-          if (_status.isNotEmpty && _foundSale == null) ...[
+          if (_status.isNotEmpty && _foundSale == null && !_showSuggestions) ...[
             const SizedBox(height: 8),
             Text(_status, style: AppTypography.labelSmall.copyWith(
                 color: AppColors.error, fontWeight: FontWeight.w600)),
           ],
           const SizedBox(height: 16),
-          // Content
-          Expanded(child: _foundSale == null ? _buildEmptyState() : _buildInvoiceView(isDark)),
+          // Content — show suggestions, invoice, or empty state
+          Expanded(child: _showSuggestions && _foundSale == null
+              ? _buildSuggestionsList(isDark)
+              : _foundSale == null
+                  ? _buildEmptyState()
+                  : _buildInvoiceView(isDark)),
         ]),
       ),
+    );
+  }
+
+  Widget _buildSuggestionsList(bool isDark) {
+    if (_filteredSales.isEmpty) {
+      return Center(child: Text('No invoices match your search',
+          style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))));
+    }
+    return ListView.builder(
+      itemCount: _filteredSales.length,
+      itemBuilder: (ctx, i) {
+        final sale = _filteredSales[i];
+        final days = DateTime.now().difference(sale.createdAt).inDays;
+        final eligible = days <= _returnWindowDays;
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: eligible
+                ? AppColors.success.withValues(alpha: 0.3)
+                : AppColors.error.withValues(alpha: 0.2)),
+          ),
+          child: ListTile(
+            onTap: () => _selectSale(sale),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            leading: Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10)),
+              child: Icon(Icons.receipt_rounded, color: AppColors.primary, size: 20),
+            ),
+            title: Row(children: [
+              Text(sale.invoiceNumber, style: AppTypography.mono.copyWith(
+                  color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w700)),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: eligible ? AppColors.successBg : AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4)),
+                child: Text(eligible ? '${_returnWindowDays - days}d left' : 'Expired',
+                    style: TextStyle(color: eligible ? AppColors.success : AppColors.error,
+                        fontSize: 10, fontWeight: FontWeight.w700)),
+              ),
+            ]),
+            subtitle: Text(
+              '${sale.customerName.isNotEmpty ? sale.customerName : "Walk-in"} • ${sale.items.length} items • ${Formatters.currency(sale.total)}',
+              style: TextStyle(color: AppColors.textTertiary(context), fontSize: 12)),
+            trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary(context)),
+          ),
+        );
+      },
     );
   }
 
