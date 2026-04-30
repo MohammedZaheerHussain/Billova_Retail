@@ -76,7 +76,7 @@ class _AppShellState extends State<AppShell> {
     _NavItem(icon: Icons.badge_rounded, label: 'Staff & Attendance', shortcut: 'F10', adminOnly: true, section: 'DIRECTORY'),
     // FINANCE & ANALYTICS
     _NavItem(icon: Icons.money_off_rounded, label: 'Expenses', shortcut: 'F11', adminOnly: true, section: 'FINANCE & ANALYTICS'),
-    _NavItem(icon: Icons.account_balance_rounded, label: 'Loans & Chits', shortcut: '', adminOnly: true, section: 'FINANCE & ANALYTICS'),
+    _NavItem(icon: Icons.receipt_long_rounded, label: 'Bill History', shortcut: '', adminOnly: true, section: 'FINANCE & ANALYTICS'),
     _NavItem(icon: Icons.analytics_rounded, label: 'CRM Reports', shortcut: '', adminOnly: true, section: 'FINANCE & ANALYTICS'),
     // SYSTEM
     _NavItem(icon: Icons.settings_rounded, label: 'Settings & Backup', shortcut: '', adminOnly: true, section: 'SYSTEM'),
@@ -99,7 +99,7 @@ class _AppShellState extends State<AppShell> {
     StaffScreen(),
     // FINANCE & ANALYTICS
     ExpensesScreen(),
-    LoansChitsScreen(),
+    BillHistoryScreen(),
     CrmReportsScreen(),
     // SYSTEM
     SettingsScreen(),
