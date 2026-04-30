@@ -640,20 +640,12 @@ class DBHelper {
     final yy = (now.year % 100).toString().padLeft(2, '0');
     final todayKey = '$dd$mm$yy'; // e.g. "300426"
 
-    // Get stored date + sequence
-    final lastDate = await getSetting('last_invoice_date') ?? '';
+    // Get stored GLOBAL sequence (never resets across days)
     final lastSeq = await getSetting('last_invoice_seq') ?? '0';
+    int seq = int.parse(lastSeq) + 1;
 
-    int seq;
-    if (lastDate == todayKey) {
-      seq = int.parse(lastSeq) + 1;
-    } else {
-      seq = 1; // Reset for new day
-    }
-
-    // Double-check: scan today's sales for highest sequence
+    // Double-check: scan ALL sales for highest sequence number
     try {
-      final prefix = 'SKY-$todayKey-';
       List<Map<String, dynamic>> rows;
       if (kIsWeb) {
         final web = await _web;
@@ -664,18 +656,17 @@ class DBHelper {
       }
       for (final row in rows) {
         final inv = row['invoice_number'] as String? ?? '';
-        if (inv.startsWith(prefix)) {
+        if (inv.startsWith('SKY-')) {
           final parts = inv.split('-');
           if (parts.length == 3) {
             final dbSeq = int.tryParse(parts[2]) ?? 0;
             if (dbSeq >= seq) seq = dbSeq + 1;
           }
-          break; // Only need highest
+          break; // Only need the latest
         }
       }
     } catch (_) {}
 
-    await setSetting('last_invoice_date', todayKey);
     await setSetting('last_invoice_seq', seq.toString());
     return 'SKY-$todayKey-${seq.toString().padLeft(4, '0')}';
   }

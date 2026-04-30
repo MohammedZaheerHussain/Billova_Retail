@@ -38,6 +38,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _requiresColor = false;
   List<Map<String, dynamic>> _categories = [];
 
+  // Printer Config
+  final _shopNameCtrl = TextEditingController();
+  final _shopPhoneCtrl = TextEditingController();
+  final _shopAddressCtrl = TextEditingController();
+  final _shopLogoCtrl = TextEditingController();
+  final _receiptFooterCtrl = TextEditingController();
+  bool _autoPrint = false;
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +59,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _addressCtrl.dispose();
     _receiptTermsCtrl.dispose();
     _categoryNameCtrl.dispose();
+    _shopNameCtrl.dispose();
+    _shopPhoneCtrl.dispose();
+    _shopAddressCtrl.dispose();
+    _shopLogoCtrl.dispose();
+    _receiptFooterCtrl.dispose();
     super.dispose();
   }
 
@@ -59,6 +72,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _storeNameCtrl.text = await db.getSetting('store_name') ?? '';
     _addressCtrl.text = await db.getSetting('store_address') ?? '';
     _receiptTermsCtrl.text = await db.getSetting('receipt_terms') ?? 'Thank you for your business!\nGoods once sold cannot be returned.';
+    // Printer settings
+    _shopNameCtrl.text = await db.getSetting('shop_name') ?? '';
+    _shopPhoneCtrl.text = await db.getSetting('shop_phone') ?? '';
+    _shopAddressCtrl.text = await db.getSetting('shop_address') ?? '';
+    _shopLogoCtrl.text = await db.getSetting('shop_logo') ?? '';
+    _receiptFooterCtrl.text = await db.getSetting('receipt_footer') ?? 'Thank you! Visit again';
+    _autoPrint = (await db.getSetting('auto_print') ?? 'false') == 'true';
     if (mounted) setState(() {});
   }
 
@@ -227,7 +247,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
             const SizedBox(height: 16),
 
-            // ─── Category Manager ───
+            // ─── Thermal Printer Config ───
+            _buildSection(isDark, 'Thermal Printer (80mm)', Icons.print_rounded, [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: Row(children: [
+                  Expanded(child: Text('Auto-Print on Sale', style: AppTypography.bodyMedium.copyWith(
+                      color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight))),
+                  Switch(
+                    value: _autoPrint,
+                    activeColor: AppColors.success,
+                    onChanged: (v) async {
+                      setState(() => _autoPrint = v);
+                      await DBHelper.instance.setSetting('auto_print', v.toString());
+                    },
+                  ),
+                ]),
+              ),
+              _buildTextField('Shop Name (on receipt)', _shopNameCtrl, isDark),
+              _buildTextField('Shop Address', _shopAddressCtrl, isDark),
+              _buildTextField('Shop Phone', _shopPhoneCtrl, isDark),
+              _buildTextField('Logo URL (optional)', _shopLogoCtrl, isDark),
+              _buildTextField('Receipt Footer', _receiptFooterCtrl, isDark),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: SizedBox(
+                  width: double.infinity, height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final db = DBHelper.instance;
+                      await db.setSetting('shop_name', _shopNameCtrl.text.trim());
+                      await db.setSetting('shop_address', _shopAddressCtrl.text.trim());
+                      await db.setSetting('shop_phone', _shopPhoneCtrl.text.trim());
+                      await db.setSetting('shop_logo', _shopLogoCtrl.text.trim());
+                      await db.setSetting('receipt_footer', _receiptFooterCtrl.text.trim());
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: const Text('Printer settings saved'),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ));
+                      }
+                    },
+                    icon: const Icon(Icons.save_rounded, size: 18),
+                    label: Text('Save Printer Settings', style: AppTypography.button.copyWith(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 16),
             _buildSection(isDark, 'Category Manager', Icons.category_rounded, [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),

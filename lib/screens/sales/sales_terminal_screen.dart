@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/whatsapp_helper.dart';
+import '../../core/utils/receipt_printer.dart';
 import '../../core/constants.dart';
 import '../../data/models/item_model.dart';
 import '../../data/models/sale_model.dart';
@@ -138,6 +139,10 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
         );
       }
 
+      // Capture payment values before clearing
+      final cashPaid = double.tryParse(_cashPaidCtrl.text) ?? 0;
+      final upiPaid = double.tryParse(_upiPaidCtrl.text) ?? 0;
+
       // Clear form
       _customerNameCtrl.clear();
       _customerPhoneCtrl.clear();
@@ -145,12 +150,15 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       _cashPaidCtrl.clear();
       _upiPaidCtrl.clear();
 
+      // Auto-print receipt (if enabled in settings)
+      ReceiptPrinter.printReceipt(sale, cashPaid: cashPaid, upiPaid: upiPaid);
+
       // Success feedback
-      _showSuccessDialog(sale);
+      _showSuccessDialog(sale, cashPaid: cashPaid, upiPaid: upiPaid);
     }
   }
 
-  void _showSuccessDialog(SaleModel sale) {
+  void _showSuccessDialog(SaleModel sale, {double cashPaid = 0, double upiPaid = 0}) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -215,7 +223,20 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    ReceiptPrinter.manualPrint(sale, cashPaid: cashPaid, upiPaid: upiPaid);
+                  },
+                  icon: Icon(Icons.print_rounded, size: 18, color: AppColors.accent),
+                  label: const Text('Print'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.accent,
+                    side: BorderSide(color: AppColors.accent),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(width: 10),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(ctx),
                   style: ElevatedButton.styleFrom(
