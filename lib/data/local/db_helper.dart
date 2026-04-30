@@ -633,32 +633,51 @@ class DBHelper {
   // ─── Invoice Number ───
 
   Future<String> nextInvoiceNumber() async {
-    // Get stored counter
-    final lastStr = await getSetting('last_invoice_number') ?? '0';
-    int next = int.parse(lastStr) + 1;
+    // Date in DDMMYY format (Indian-friendly)
+    final now = DateTime.now();
+    final dd = now.day.toString().padLeft(2, '0');
+    final mm = now.month.toString().padLeft(2, '0');
+    final yy = (now.year % 100).toString().padLeft(2, '0');
+    final todayKey = '$dd$mm$yy'; // e.g. "300426"
 
-    // Double-check uniqueness: scan existing sales for highest number
+    // Get stored date + sequence
+    final lastDate = await getSetting('last_invoice_date') ?? '';
+    final lastSeq = await getSetting('last_invoice_seq') ?? '0';
+
+    int seq;
+    if (lastDate == todayKey) {
+      seq = int.parse(lastSeq) + 1;
+    } else {
+      seq = 1; // Reset for new day
+    }
+
+    // Double-check: scan today's sales for highest sequence
     try {
+      final prefix = 'SKY-$todayKey-';
       List<Map<String, dynamic>> rows;
       if (kIsWeb) {
         final web = await _web;
-        rows = await web.query('sales', orderBy: 'created_at DESC', limit: 1);
+        rows = await web.query('sales', orderBy: 'created_at DESC');
       } else {
         final db = await database;
-        rows = await db.query('sales', orderBy: 'created_at DESC', limit: 1);
+        rows = await db.query('sales', orderBy: 'created_at DESC');
       }
-      if (rows.isNotEmpty) {
-        final lastInv = rows.first['invoice_number'] as String? ?? '';
-        final match = RegExp(r'(\d+)$').firstMatch(lastInv);
-        if (match != null) {
-          final dbMax = int.parse(match.group(1)!);
-          if (dbMax >= next) next = dbMax + 1;
+      for (final row in rows) {
+        final inv = row['invoice_number'] as String? ?? '';
+        if (inv.startsWith(prefix)) {
+          final parts = inv.split('-');
+          if (parts.length == 3) {
+            final dbSeq = int.tryParse(parts[2]) ?? 0;
+            if (dbSeq >= seq) seq = dbSeq + 1;
+          }
+          break; // Only need highest
         }
       }
     } catch (_) {}
 
-    await setSetting('last_invoice_number', next.toString());
-    return 'SKY-${next.toString().padLeft(4, '0')}';
+    await setSetting('last_invoice_date', todayKey);
+    await setSetting('last_invoice_seq', seq.toString());
+    return 'SKY-$todayKey-${seq.toString().padLeft(4, '0')}';
   }
 
   // ─── Categories CRUD ───
