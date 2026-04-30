@@ -33,6 +33,30 @@
   </style>
 </head>
 <body>
+  <!-- JsBarcode for commercial barcode rendering (Code128) -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script>
+    // Generate barcode as base64 PNG for Flutter
+    function generateBarcodeDataUrl(text, width, height) {
+      var canvas = document.createElement('canvas');
+      try {
+        JsBarcode(canvas, text, {
+          format: 'CODE128',
+          width: width || 2,
+          height: height || 60,
+          displayValue: true,
+          fontSize: 14,
+          fontOptions: 'bold',
+          margin: 8,
+          background: '#ffffff',
+          lineColor: '#000000'
+        });
+        return canvas.toDataURL('image/png');
+      } catch(e) {
+        return '';
+      }
+    }
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:js' as js;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -313,24 +314,26 @@ class InventoryScreen extends StatelessWidget {
                       border: Border.all(color: Colors.grey.shade300),
                     ),
                     child: Column(children: [
-                      // Barcode visual representation
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(children: [
-                          // Barcode bars simulation
-                          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            Icon(Icons.qr_code_2_rounded, size: 48, color: Colors.black87),
-                          ]),
-                          const SizedBox(height: 6),
+                      // Real Code128 barcode via JsBarcode
+                      Builder(builder: (_) {
+                        final dataUrl = js.context.callMethod('generateBarcodeDataUrl', [item.barcode, 2, 50]);
+                        final url = dataUrl?.toString() ?? '';
+                        if (url.isNotEmpty && url.startsWith('data:image')) {
+                          return Image.memory(
+                            base64Decode(url.split(',').last),
+                            height: 80,
+                            fit: BoxFit.contain,
+                          );
+                        }
+                        // Fallback if JsBarcode not loaded
+                        return Column(children: [
+                          Icon(Icons.view_week_rounded, size: 48, color: Colors.black87),
+                          const SizedBox(height: 4),
                           Text(item.barcode, style: const TextStyle(
-                              fontFamily: 'Courier', fontSize: 16, fontWeight: FontWeight.w700,
+                              fontFamily: 'Courier', fontSize: 14, fontWeight: FontWeight.w700,
                               color: Colors.black, letterSpacing: 2)),
-                        ]),
-                      ),
+                        ]);
+                      }),
                       const SizedBox(height: 8),
                       SizedBox(width: double.infinity, height: 36, child: ElevatedButton.icon(
                         onPressed: () => _printBarcode(item),
@@ -424,24 +427,36 @@ class InventoryScreen extends StatelessWidget {
   }
 
   void _printBarcode(ItemModel item) {
-    final html = '''
-<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Barcode</title>
-<style>
-  @page { size: 50mm 25mm; margin: 0; }
-  @media print { body { margin: 0; } }
-  body { font-family: 'Courier New', monospace; text-align: center; padding: 4mm; }
-  .name { font-size: 10px; font-weight: bold; margin-bottom: 2px; }
-  .barcode { font-size: 18px; font-weight: bold; letter-spacing: 3px; margin: 4px 0; }
-  .price { font-size: 10px; }
-</style></head><body>
-  <div class="name">${item.name}</div>
-  <div class="barcode">${item.barcode}</div>
-  <div class="price">${Formatters.currency(item.price)}</div>
-</body></html>
-''';
-    final escaped = html.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('\n', '\\n');
+    // Use JsBarcode in the print popup for real Code128 barcode
+    final name = item.name.replaceAll("'", "\\'");
+    final barcode = item.barcode.replaceAll("'", "\\'");
+    final price = Formatters.currency(item.price).replaceAll("'", "\\'");
     js.context.callMethod('eval', [
-      "var w=window.open('','_blank','width=300,height=200');if(w){w.document.write('$escaped');w.document.close();setTimeout(function(){w.print();},500);setTimeout(function(){w.close();},2000);}"
+      '''
+      var w = window.open('', '_blank', 'width=400,height=300');
+      if (w) {
+        w.document.write('<html><head><title>Barcode Label</title>');
+        w.document.write('<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>');
+        w.document.write('<style>');
+        w.document.write('@page { size: 50mm 30mm; margin: 0; }');
+        w.document.write('@media print { body { margin: 0; } }');
+        w.document.write('body { font-family: Arial, sans-serif; text-align: center; padding: 4mm; background: #fff; }');
+        w.document.write('.name { font-size: 10px; font-weight: bold; margin-bottom: 2px; }');
+        w.document.write('.price { font-size: 10px; margin-top: 2px; }');
+        w.document.write('canvas { max-width: 100%; }');
+        w.document.write('</style></head><body>');
+        w.document.write('<div class="name">$name</div>');
+        w.document.write('<canvas id="bc"></canvas>');
+        w.document.write('<div class="price">$price</div>');
+        w.document.write('<script>');
+        w.document.write('JsBarcode("#bc", "$barcode", { format: "CODE128", width: 2, height: 50, displayValue: true, fontSize: 12, fontOptions: "bold", margin: 4 });');
+        w.document.write('<\/script>');
+        w.document.write('</body></html>');
+        w.document.close();
+        setTimeout(function() { w.print(); }, 700);
+        setTimeout(function() { w.close(); }, 3000);
+      }
+      '''
     ]);
   }
 
