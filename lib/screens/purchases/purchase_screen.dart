@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -127,48 +128,157 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
 
   void _showQuickAddItem() {
     final nameCtrl = TextEditingController();
-    final priceCtrl = TextEditingController();
+    final vendorCtrl = TextEditingController(text: _selectedVendor?.name ?? '');
+    final barcodeCtrl = TextEditingController();
+    final categoryCtrl = TextEditingController();
+    final sizeCtrl = TextEditingController();
+    final colorCtrl = TextEditingController();
+    final locationCtrl = TextEditingController();
+    final costPriceCtrl = TextEditingController();
+    final sellingPriceCtrl = TextEditingController();
+    final qtyCtrl = TextEditingController(text: '1');
+    bool autoBarcode = true;
+
+    void generateBarcode() {
+      final cat = categoryCtrl.text.trim();
+      final code = cat.isNotEmpty
+          ? cat.substring(0, cat.length < 3 ? cat.length : 3).toUpperCase()
+          : 'GEN';
+      final num = (10000 + Random().nextInt(90000)).toString();
+      barcodeCtrl.text = 'SKY-$code-$num';
+    }
+
+    // Auto-generate on open
+    generateBarcode();
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card(context),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [
-          Icon(Icons.add_circle_rounded, color: AppColors.accent, size: 20),
-          SizedBox(width: 8),
-          Text('Quick Add Item', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
-        ]),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          _dialogField(nameCtrl, 'Item Name', 'e.g. Nike Air Max'),
-          const SizedBox(height: 12),
-          _dialogField(priceCtrl, 'Cost Price (₹)', '0', keyboardType: TextInputType.number),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty) return;
-              final inv = context.read<InventoryProvider>();
-              await inv.addItem(
-                name: nameCtrl.text.trim(),
-                price: double.tryParse(priceCtrl.text) ?? 0,
-                costPrice: double.tryParse(priceCtrl.text) ?? 0,
-                quantity: 0,
-                vendor: _selectedVendor?.name ?? '',
-              );
-              if (ctx.mounted) Navigator.pop(ctx);
-              // Add the newly created item to entries
-              await inv.loadItems();
-              final newItem = inv.items.firstWhere(
-                (i) => i.name == nameCtrl.text.trim(),
-                orElse: () => ItemModel(id: '', name: '', price: 0),
-              );
-              if (newItem.id.isNotEmpty) _addItemToEntries(newItem);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('Add', style: TextStyle(color: Colors.white)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => Dialog(
+          backgroundColor: AppColors.card(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520, maxHeight: 620),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                // Header
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(gradient: AppColors.primaryGradient, borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.add_shopping_cart_rounded, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Text('Add Purchase Item', style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context))),
+                  const Spacer(),
+                  IconButton(onPressed: () => Navigator.pop(ctx), icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context))),
+                ]),
+                const SizedBox(height: 16),
+                // Form
+                Flexible(child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  // Basic
+                  _purchaseField(ctx, 'Item Name *', nameCtrl, 'e.g. Nike Air Max 90', Icons.inventory_2_rounded),
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    Expanded(child: _purchaseField(ctx, 'Brand / Vendor', vendorCtrl, 'e.g. Nike', Icons.store_rounded)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _purchaseField(ctx, 'Category', categoryCtrl, 'e.g. Shoes', Icons.category_rounded)),
+                  ]),
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    Expanded(child: _purchaseField(ctx, 'Size', sizeCtrl, 'e.g. 42, XL', Icons.straighten_rounded)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _purchaseField(ctx, 'Color', colorCtrl, 'e.g. Black', Icons.palette_rounded)),
+                  ]),
+                  const SizedBox(height: 10),
+                  // Barcode
+                  Row(children: [
+                    Checkbox(value: autoBarcode, activeColor: AppColors.accent, onChanged: (v) {
+                      setDialogState(() => autoBarcode = v ?? false);
+                      if (v == true) generateBarcode();
+                    }),
+                    Text('Auto Barcode', style: TextStyle(color: AppColors.textSecondary(context), fontSize: 12)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _purchaseField(ctx, 'Barcode / SKU', barcodeCtrl,
+                        autoBarcode ? 'Auto-generated' : 'Enter barcode', Icons.qr_code_scanner_rounded,
+                        enabled: !autoBarcode)),
+                  ]),
+                  const SizedBox(height: 10),
+                  _purchaseField(ctx, 'Storage Location', locationCtrl, 'e.g. Rack A / Shelf 3', Icons.location_on_rounded),
+                  const SizedBox(height: 10),
+                  // Pricing
+                  Row(children: [
+                    Expanded(child: _purchaseField(ctx, 'Cost Price (₹) *', costPriceCtrl, '0.00', Icons.payments_rounded, isNumber: true)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _purchaseField(ctx, 'Selling Price (₹)', sellingPriceCtrl, '0.00', Icons.sell_rounded, isNumber: true)),
+                    const SizedBox(width: 8),
+                    SizedBox(width: 80, child: _purchaseField(ctx, 'Qty', qtyCtrl, '1', Icons.inventory_rounded, isNumber: true)),
+                  ]),
+                ]))),
+                const SizedBox(height: 16),
+                // Actions
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      if (nameCtrl.text.trim().isEmpty) return;
+                      if (autoBarcode && barcodeCtrl.text.isEmpty) generateBarcode();
+                      final inv = context.read<InventoryProvider>();
+                      await inv.addItem(
+                        name: nameCtrl.text.trim(),
+                        vendor: vendorCtrl.text.trim(),
+                        barcode: barcodeCtrl.text.trim(),
+                        category: categoryCtrl.text.trim(),
+                        size: sizeCtrl.text.trim(),
+                        color: colorCtrl.text.trim(),
+                        storageLocation: locationCtrl.text.trim(),
+                        price: double.tryParse(sellingPriceCtrl.text) ?? double.tryParse(costPriceCtrl.text) ?? 0,
+                        costPrice: double.tryParse(costPriceCtrl.text) ?? 0,
+                        quantity: int.tryParse(qtyCtrl.text) ?? 0,
+                      );
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      await inv.loadItems();
+                      final newItem = inv.items.firstWhere(
+                        (i) => i.name == nameCtrl.text.trim(),
+                        orElse: () => ItemModel(id: '', name: '', price: 0),
+                      );
+                      if (newItem.id.isNotEmpty) _addItemToEntries(newItem);
+                    },
+                    icon: const Icon(Icons.check_rounded, size: 18),
+                    label: const Text('Add to Purchase'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  ),
+                ]),
+              ]),
+            ),
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _purchaseField(BuildContext ctx, String label, TextEditingController ctrl, String hint, IconData icon,
+      {bool isNumber = false, bool enabled = true}) {
+    return TextField(
+      controller: ctrl,
+      enabled: enabled,
+      keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : null,
+      style: TextStyle(color: enabled ? AppColors.textPrimary(context) : AppColors.textTertiary(context), fontSize: 13),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 12),
+        hintStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 12),
+        prefixIcon: Icon(icon, size: 18, color: AppColors.textTertiary(context)),
+        filled: true,
+        fillColor: enabled ? AppColors.surface(context) : AppColors.surface(context).withValues(alpha: 0.5),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.cardBorder(context))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.cardBorder(context))),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
     );
   }

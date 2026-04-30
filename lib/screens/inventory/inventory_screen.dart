@@ -1,3 +1,4 @@
+import 'dart:js' as js;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -237,6 +238,7 @@ class InventoryScreen extends StatelessWidget {
             ),
           ],
         ),
+        onTap: () => _showItemDetail(context, item),
         trailing: PopupMenuButton(
           icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary(context)),
           color: AppColors.card(context),
@@ -266,6 +268,181 @@ class InventoryScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _showItemDetail(BuildContext context, ItemModel item) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: AppColors.card(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480, maxHeight: 580),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              // Header
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(gradient: AppColors.primaryGradient, borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.inventory_2_rounded, color: Colors.white, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(item.name, style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context)),
+                      overflow: TextOverflow.ellipsis),
+                  if (item.vendor.isNotEmpty)
+                    Text(item.vendor, style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.textTertiary(context), fontStyle: FontStyle.italic)),
+                ])),
+                IconButton(onPressed: () => Navigator.pop(ctx),
+                    icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context))),
+              ]),
+              const SizedBox(height: 16),
+              // Details
+              Flexible(child: SingleChildScrollView(child: Column(children: [
+                // Barcode section
+                if (item.barcode.isNotEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Column(children: [
+                      // Barcode visual representation
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(children: [
+                          // Barcode bars simulation
+                          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Icon(Icons.qr_code_2_rounded, size: 48, color: Colors.black87),
+                          ]),
+                          const SizedBox(height: 6),
+                          Text(item.barcode, style: const TextStyle(
+                              fontFamily: 'Courier', fontSize: 16, fontWeight: FontWeight.w700,
+                              color: Colors.black, letterSpacing: 2)),
+                        ]),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(width: double.infinity, height: 36, child: ElevatedButton.icon(
+                        onPressed: () => _printBarcode(item),
+                        icon: const Icon(Icons.print_rounded, size: 16),
+                        label: const Text('Print Barcode Label', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accent, foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                      )),
+                    ]),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                // Info grid
+                _detailRow(context, 'Category', item.category, Icons.category_rounded),
+                _detailRow(context, 'Size', item.size, Icons.straighten_rounded),
+                _detailRow(context, 'Color', item.color, Icons.palette_rounded),
+                _detailRow(context, 'Location', item.storageLocation, Icons.location_on_rounded),
+                _detailRow(context, 'Barcode / SKU', item.barcode, Icons.qr_code_scanner_rounded),
+                const Divider(height: 20),
+                // Pricing
+                Row(children: [
+                  Expanded(child: _detailCard(context, 'Selling Price', Formatters.currency(item.price), AppColors.accent)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _detailCard(context, 'Cost Price', Formatters.currency(item.costPrice), AppColors.primary)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _detailCard(context, 'Profit', Formatters.currency(item.profit),
+                      item.profit > 0 ? AppColors.success : AppColors.error)),
+                ]),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(child: _detailCard(context, 'In Stock', '${item.quantity}',
+                      item.isOutOfStock ? AppColors.error : item.isLowStock ? AppColors.warning : AppColors.success)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _detailCard(context, 'Stock Value', Formatters.currency(item.stockValue), AppColors.accent)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _detailCard(context, 'Margin', '${item.profitMargin.toStringAsFixed(1)}%',
+                      item.profitMargin > 0 ? AppColors.success : AppColors.error)),
+                ]),
+              ]))),
+              const SizedBox(height: 12),
+              // Actions
+              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                OutlinedButton.icon(
+                  onPressed: () { Navigator.pop(ctx); _showItemForm(context, item: item); },
+                  icon: Icon(Icons.edit_rounded, size: 16, color: AppColors.accent),
+                  label: Text('Edit', style: TextStyle(color: AppColors.accent)),
+                  style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.accent),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  child: const Text('Close', style: TextStyle(color: Colors.white))),
+              ]),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(BuildContext context, String label, String value, IconData icon) {
+    if (value.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(children: [
+        Icon(icon, size: 16, color: AppColors.textTertiary(context)),
+        const SizedBox(width: 8),
+        Text('$label: ', style: TextStyle(color: AppColors.textTertiary(context), fontSize: 12)),
+        Expanded(child: Text(value, style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13, fontWeight: FontWeight.w500))),
+      ]),
+    );
+  }
+
+  Widget _detailCard(BuildContext context, String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(children: [
+        Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 14)),
+        const SizedBox(height: 2),
+        Text(label, style: TextStyle(color: AppColors.textTertiary(context), fontSize: 10)),
+      ]),
+    );
+  }
+
+  void _printBarcode(ItemModel item) {
+    final html = '''
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Barcode</title>
+<style>
+  @page { size: 50mm 25mm; margin: 0; }
+  @media print { body { margin: 0; } }
+  body { font-family: 'Courier New', monospace; text-align: center; padding: 4mm; }
+  .name { font-size: 10px; font-weight: bold; margin-bottom: 2px; }
+  .barcode { font-size: 18px; font-weight: bold; letter-spacing: 3px; margin: 4px 0; }
+  .price { font-size: 10px; }
+</style></head><body>
+  <div class="name">${item.name}</div>
+  <div class="barcode">${item.barcode}</div>
+  <div class="price">${Formatters.currency(item.price)}</div>
+</body></html>
+''';
+    final escaped = html.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('\n', '\\n');
+    js.context.callMethod('eval', [
+      "var w=window.open('','_blank','width=300,height=200');if(w){w.document.write('$escaped');w.document.close();setTimeout(function(){w.print();},500);setTimeout(function(){w.close();},2000);}"
+    ]);
   }
 
   void _showItemForm(BuildContext context, {ItemModel? item}) {

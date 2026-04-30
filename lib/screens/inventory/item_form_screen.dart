@@ -29,6 +29,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   late TextEditingController _qtyCtrl;
   late TextEditingController _lowStockCtrl;
   bool _isLoading = false;
+  bool _autoBarcode = false;
 
   // Category system
   List<Map<String, dynamic>> _categories = [];
@@ -44,6 +45,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     _vendorCtrl = TextEditingController(text: widget.item?.vendor ?? '');
     _nameCtrl = TextEditingController(text: widget.item?.name ?? '');
     _barcodeCtrl = TextEditingController(text: widget.item?.barcode ?? '');
+    _autoBarcode = widget.item?.barcode.isEmpty ?? true;
     _categoryCtrl = TextEditingController(text: widget.item?.category ?? '');
     _sizeCtrl = TextEditingController(text: widget.item?.size ?? '');
     _colorCtrl = TextEditingController(text: widget.item?.color ?? '');
@@ -273,24 +275,39 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                         _sectionLabel('Identification & Location'),
                         const SizedBox(height: 8),
                         Row(children: [
-                          Expanded(child: _field('Barcode / SKU', _barcodeCtrl, 'Auto-generated or manual',
-                              icon: Icons.qr_code_scanner_rounded)),
+                          // Auto-generate checkbox
+                          Checkbox(
+                            value: _autoBarcode,
+                            activeColor: AppColors.accent,
+                            onChanged: (v) {
+                              setState(() => _autoBarcode = v ?? false);
+                              if (v == true) _generateBarcode();
+                            },
+                          ),
+                          Text('Auto Barcode', style: TextStyle(
+                              color: AppColors.textSecondary(context), fontSize: 12)),
                           const SizedBox(width: 8),
-                          // Generate Barcode button
-                          SizedBox(
-                            height: 48,
-                            child: ElevatedButton.icon(
-                              onPressed: _generateBarcode,
-                              icon: Icon(Icons.qr_code_rounded, size: 16),
-                              label: Text('Generate', style: TextStyle(fontSize: 11)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.accent,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                padding: EdgeInsets.symmetric(horizontal: 12),
+                          Expanded(child: _field('Barcode / SKU', _barcodeCtrl,
+                              _autoBarcode ? 'Will be auto-generated' : 'Enter existing barcode',
+                              icon: Icons.qr_code_scanner_rounded,
+                              enabled: !_autoBarcode)),
+                          if (!_autoBarcode) ...[
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                onPressed: _generateBarcode,
+                                icon: Icon(Icons.qr_code_rounded, size: 16),
+                                label: Text('Generate', style: TextStyle(fontSize: 11)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.accent,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: EdgeInsets.symmetric(horizontal: 12),
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ]),
                         const SizedBox(height: 8),
                         _field('Storage Location', _locationCtrl, 'e.g. Rack A / Shelf 3',
@@ -385,11 +402,13 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     IconData? icon,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
+    bool enabled = true,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
-      style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
+      enabled: enabled,
+      style: TextStyle(color: enabled ? AppColors.textPrimary(context) : AppColors.textTertiary(context), fontSize: 13),
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
@@ -398,7 +417,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
         hintStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 12),
         prefixIcon: icon != null ? Icon(icon, size: 18, color: AppColors.textTertiary(context)) : null,
         filled: true,
-        fillColor: AppColors.surface(context),
+        fillColor: enabled ? AppColors.surface(context) : AppColors.surface(context).withValues(alpha: 0.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: AppColors.cardBorder(context)),
