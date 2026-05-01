@@ -119,11 +119,11 @@ class CustomerProvider extends ChangeNotifier {
   }
 
   /// Increment order count + spending for a customer (called after sale)
-  Future<void> recordSale(String customerId, double amount) async {
+  Future<void> recordSale(String customerId, double amount, {int earnRate = 1}) async {
     final idx = _customers.indexWhere((c) => c.id == customerId);
     if (idx == -1) return;
 
-    final pointsEarned = (amount / 100).floor(); // 1 point per ₹100
+    final pointsEarned = (amount / 100 * earnRate).floor();
     final updated = _customers[idx].copyWith(
       totalOrders: _customers[idx].totalOrders + 1,
       totalSpent: _customers[idx].totalSpent + amount,
@@ -141,7 +141,7 @@ class CustomerProvider extends ChangeNotifier {
   }
 
   /// Record sale by customer name (finds or creates, then updates stats)
-  Future<void> recordSaleByName(String name, String phone, double amount) async {
+  Future<void> recordSaleByName(String name, String phone, double amount, {int earnRate = 1}) async {
     if (name.isEmpty || name == 'Walk-in Customer') return;
 
     // Find existing customer
@@ -163,8 +163,27 @@ class CustomerProvider extends ChangeNotifier {
     }
 
     // Update stats
-    await recordSale(customer.id, amount);
-    debugPrint('📊 Customer "${customer.name}" stats updated: +₹$amount');
+    await recordSale(customer.id, amount, earnRate: earnRate);
+    debugPrint('📊 Customer "${customer.name}" stats updated: +₹$amount (+${(amount / 100 * earnRate).floor()} pts)');
+  }
+
+  /// Redeem loyalty points for a customer
+  Future<void> redeemPoints(String customerId, int pointsUsed) async {
+    final idx = _customers.indexWhere((c) => c.id == customerId);
+    if (idx == -1) return;
+
+    final current = _customers[idx].loyaltyPoints;
+    final newPoints = (current - pointsUsed).clamp(0, current);
+    final updated = _customers[idx].copyWith(loyaltyPoints: newPoints);
+    await _db.update('customers', updated.toMap(), updated.id);
+    if (kIsWeb) {
+      await _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
+    } else {
+      _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
+    }
+    _customers[idx] = updated;
+    notifyListeners();
+    debugPrint('⭐ Redeemed $pointsUsed pts for "${updated.name}" (remaining: $newPoints)');
   }
 
   /// Find or create customer by phone
@@ -172,6 +191,18 @@ class CustomerProvider extends ChangeNotifier {
     if (phone.isEmpty) return null;
     try {
       return _customers.firstWhere((c) => c.phone == phone);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Find customer by name
+  CustomerModel? findByName(String name) {
+    if (name.isEmpty) return null;
+    try {
+      return _customers.firstWhere(
+        (c) => c.name.toLowerCase().trim() == name.toLowerCase().trim(),
+      );
     } catch (_) {
       return null;
     }

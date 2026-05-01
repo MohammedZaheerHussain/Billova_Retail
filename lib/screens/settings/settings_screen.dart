@@ -13,6 +13,7 @@ import '../../providers/purchase_provider.dart';
 import '../../providers/staff_provider.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/cash_till_provider.dart';
+import '../../providers/loyalty_settings_provider.dart';
 import '../../data/local/db_helper.dart';
 import '../../data/remote/supabase_service.dart';
 
@@ -389,6 +390,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
             const SizedBox(height: 16),
 
+            // ─── Loyalty Program ───
+            _buildLoyaltySection(isDark),
+            const SizedBox(height: 16),
+
             // ─── Bulletproof Data Security ───
             _buildSection(isDark, 'Bulletproof Data Security', Icons.shield_rounded, [
               // Cloud backup
@@ -571,6 +576,117 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  // ─── Loyalty Program Section ───
+
+  Widget _buildLoyaltySection(bool isDark) {
+    final loyalty = context.watch<LoyaltySettingsProvider>();
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.card(context) : AppColors.cardLight,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Header
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12)),
+              child: Icon(Icons.star_rounded, color: AppColors.warning, size: 22)),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Loyalty Program', style: AppTypography.h4.copyWith(
+                  color: AppColors.textPrimary(context), fontWeight: FontWeight.w600)),
+              Text('Reward customers with points on every purchase',
+                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
+            ])),
+          ]),
+        ),
+        // Master toggle
+        _SettingsTile(
+          icon: Icons.toggle_on_rounded,
+          title: 'Enable Loyalty Points',
+          subtitle: loyalty.isEnabled
+              ? 'Customers earn points on purchases'
+              : 'Loyalty program is disabled',
+          isDark: isDark,
+          trailing: Switch.adaptive(
+            value: loyalty.isEnabled,
+            onChanged: (v) => loyalty.setEnabled(v),
+            activeColor: AppColors.warning,
+            activeTrackColor: AppColors.warning.withValues(alpha: 0.4),
+          ),
+        ),
+        // Config fields (only visible when enabled)
+        if (loyalty.isEnabled) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.warning.withValues(alpha: 0.15))),
+              child: Column(children: [
+                _loyaltyField('Earn Rate', '${loyalty.earnRate}',
+                    'points per \u20b9100 spent', Icons.trending_up_rounded,
+                    onChanged: (v) {
+                      final val = int.tryParse(v);
+                      if (val != null && val > 0) loyalty.setEarnRate(val);
+                    }),
+                const SizedBox(height: 12),
+                _loyaltyField('Redeem Value', '${loyalty.redeemValue.toStringAsFixed(0)}',
+                    '\u20b9 per point', Icons.currency_rupee_rounded,
+                    onChanged: (v) {
+                      final val = double.tryParse(v);
+                      if (val != null && val > 0) loyalty.setRedeemValue(val);
+                    }),
+                const SizedBox(height: 12),
+                _loyaltyField('Min. Redeem', '${loyalty.minRedeem}',
+                    'minimum points to redeem', Icons.low_priority_rounded,
+                    onChanged: (v) {
+                      final val = int.tryParse(v);
+                      if (val != null && val >= 0) loyalty.setMinRedeem(val);
+                    }),
+              ]),
+            ),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  Widget _loyaltyField(String label, String value, String suffix, IconData icon,
+      {required ValueChanged<String> onChanged}) {
+    return Row(children: [
+      Icon(icon, size: 18, color: AppColors.warning),
+      const SizedBox(width: 10),
+      Expanded(child: Text(label, style: TextStyle(
+          color: AppColors.textPrimary(context), fontSize: 13, fontWeight: FontWeight.w500))),
+      SizedBox(
+        width: 60,
+        child: TextField(
+          controller: TextEditingController(text: value),
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.w700, fontSize: 14),
+          onSubmitted: onChanged,
+          decoration: InputDecoration(
+            filled: true, fillColor: AppColors.surface(context),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppColors.cardBorder(context))),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6)),
+        ),
+      ),
+      const SizedBox(width: 8),
+      Text(suffix, style: TextStyle(color: AppColors.textTertiary(context), fontSize: 11)),
+    ]);
   }
 
   // ─── Helpers ───

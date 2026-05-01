@@ -14,6 +14,7 @@ import '../../providers/inventory_provider.dart';
 import '../../providers/cash_till_provider.dart';
 import '../../providers/staff_provider.dart';
 import '../../providers/customer_provider.dart';
+import '../../providers/loyalty_settings_provider.dart';
 
 class SalesTerminalScreen extends StatefulWidget {
   const SalesTerminalScreen({super.key});
@@ -31,6 +32,9 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
   final _upiPaidCtrl = TextEditingController();
   String _searchQuery = '';
   String _selectedCategory = 'All';
+  bool _usePoints = false;
+  int _availablePoints = 0;
+  String _matchedCustomerId = '';
 
   @override
   void dispose() {
@@ -129,13 +133,26 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       // Refresh cash till
       context.read<CashTillProvider>().refresh();
 
-      // Auto-save customer + track purchase stats
+      // Auto-save customer + track purchase stats + loyalty
       if (sale.customerName.isNotEmpty && sale.customerName != 'Walk-in Customer') {
         final customerProvider = context.read<CustomerProvider>();
+        final loyalty = context.read<LoyaltySettingsProvider>();
+        final earnRate = loyalty.isEnabled ? loyalty.earnRate : 0;
+
+        // Redeem points first (if used)
+        if (_usePoints && _matchedCustomerId.isNotEmpty && _availablePoints > 0) {
+          final loyaltyDiscount = loyalty.valueOfPoints(_availablePoints);
+          final pointsToUse = loyaltyDiscount > sale.total
+              ? (sale.total / loyalty.redeemValue).floor()
+              : _availablePoints;
+          await customerProvider.redeemPoints(_matchedCustomerId, pointsToUse);
+        }
+
         await customerProvider.recordSaleByName(
           sale.customerName,
           sale.customerPhone,
           sale.total,
+          earnRate: earnRate,
         );
       }
 
@@ -149,6 +166,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       _discountCtrl.clear();
       _cashPaidCtrl.clear();
       _upiPaidCtrl.clear();
+      setState(() { _usePoints = false; _availablePoints = 0; _matchedCustomerId = ''; });
 
       // Auto-print receipt (if enabled in settings)
       ReceiptPrinter.printReceipt(sale, cashPaid: cashPaid, upiPaid: upiPaid);
@@ -633,10 +651,14 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _miniField(_customerPhoneCtrl, 'Phone (optional)', keyboardType: TextInputType.phone),
+                child: _miniField(_customerPhoneCtrl, 'Phone (optional)',
+                    keyboardType: TextInputType.phone,
+                    onChanged: (_) => setState(() {})),
               ),
             ],
           ),
+          // ─── Loyalty Points Badge ───
+          _buildLoyaltyBadge(),
           const SizedBox(height: 10),
 
           // ─── Payment Split & Discount ───
@@ -713,6 +735,16 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                     Divider(color: AppColors.cardBorder(context), height: 16),
                     _totalRow('Total', Formatters.currency(sales.total),
                         isBold: true, color: AppColors.accent),
+                    // Loyalty points discount line
+                    if (_usePoints && _availablePoints > 0) ...[
+                      Builder(builder: (_) {
+                        final loyalty = context.read<LoyaltySettingsProvider>();
+                        final discount = loyalty.valueOfPoints(_availablePoints).clamp(0.0, sales.total);
+                        return _totalRow('⭐ Points Redeemed ($_availablePoints pts)',
+                            '- ${Formatters.currency(discount)}',
+                            color: AppColors.warning);
+                      }),
+                    ],
                     if (totalPaid > 0) ...[                      const SizedBox(height: 4),
                       if (cashPaid > 0)
                         _totalRow('Cash Paid', Formatters.currency(cashPaid), color: AppColors.success),
@@ -766,6 +798,77 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
         ),
         child: Icon(icon, size: 16, color: AppColors.accent),
       ),
+    );
+  }
+  Widget _buildLoyaltyBadge() {
+    final loyalty = context.watch<LoyaltySettingsProvider>();
+    if (!loyalty.isEnabled) return const SizedBox.shrink();
+
+    final customers = context.read<CustomerProvider>();
+    final phone = _customerPhoneCtrl.text.trim();
+    final name = _customerNameCtrl.text.trim();
+
+    // Try to find customer
+    final customer = phone.isNotEmpty
+        ? customers.findByPhone(phone)
+        : customers.findByName(name);
+
+    if (customer == null || customer.loyaltyPoints <= 0) {
+      // Update state if needed
+      if (_matchedCustomerId.isNotEmpty) {
+        Future.microtask(() => setState(() {
+          _matchedCustomerId = '';
+          _availablePoints = 0;
+          _usePoints = false;
+        }));
+      }
+      return const SizedBox.shrink();
+    }
+
+    // Update matched customer
+    if (_matchedCustomerId != customer.id) {
+      Future.microtask(() => setState(() {
+        _matchedCustomerId = customer.id;
+        _availablePoints = customer.loyaltyPoints;
+      }));
+    }
+
+    final canRedeem = customer.loyaltyPoints >= loyalty.minRedeem;
+    final pointsValue = loyalty.valueOfPoints(customer.loyaltyPoints);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.25)),
+      ),
+      child: Row(children: [
+        Icon(Icons.star_rounded, color: AppColors.warning, size: 20),
+        const SizedBox(width: 8),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('${customer.loyaltyPoints} points (${Formatters.currency(pointsValue)} value)',
+              style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.w600, fontSize: 12)),
+          if (!canRedeem)
+            Text('Min ${loyalty.minRedeem} pts to redeem',
+                style: TextStyle(color: AppColors.textTertiary(context), fontSize: 10)),
+        ])),
+        if (canRedeem)
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Text('Use', style: TextStyle(color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.w500)),
+            const SizedBox(width: 4),
+            SizedBox(
+              height: 24,
+              child: Switch.adaptive(
+                value: _usePoints,
+                onChanged: (v) => setState(() => _usePoints = v),
+                activeColor: AppColors.warning,
+                activeTrackColor: AppColors.warning.withValues(alpha: 0.4),
+              ),
+            ),
+          ]),
+      ]),
     );
   }
 
