@@ -31,7 +31,15 @@ class CustomerProvider extends ChangeNotifier {
         where: 'is_deleted = 0',
         orderBy: 'name ASC',
       );
-      _customers = maps.map((m) => CustomerModel.fromMap(m)).toList();
+      final parsed = <CustomerModel>[];
+      for (int i = 0; i < maps.length; i++) {
+        try {
+          parsed.add(CustomerModel.fromMap(maps[i]));
+        } catch (e) {
+          debugPrint('⚠️ CustomerProvider: failed to parse customer[$i]: $e');
+        }
+      }
+      _customers = parsed;
       debugPrint('📋 CustomerProvider: loaded ${_customers.length} customers from DB');
     } catch (e) {
       debugPrint('❌ Failed to load customers: $e');

@@ -274,11 +274,24 @@ class SalesProvider extends ChangeNotifier {
 
     try {
       final maps = await _db.getAll('sales', orderBy: 'created_at DESC');
-      _allSales = maps.map((m) => SaleModel.fromMap(m)).toList();
+      debugPrint('📋 SalesProvider: got ${maps.length} raw records from DB');
+      
+      // Parse each record individually — one bad record shouldn't kill the list
+      final parsed = <SaleModel>[];
+      for (int i = 0; i < maps.length; i++) {
+        try {
+          parsed.add(SaleModel.fromMap(maps[i]));
+        } catch (e) {
+          debugPrint('⚠️ SalesProvider: failed to parse sale[$i]: $e');
+          debugPrint('   Raw data: ${maps[i]}');
+        }
+      }
+      _allSales = parsed;
       _applyFilter();
-      debugPrint('📋 SalesProvider: loaded ${_allSales.length} sales');
+      debugPrint('📋 SalesProvider: loaded ${_allSales.length} sales, filtered to ${_filteredSales.length}');
     } catch (e) {
       _error = 'Failed to load sales: $e';
+      debugPrint('❌ SalesProvider: $e');
     }
 
     _isLoading = false;
