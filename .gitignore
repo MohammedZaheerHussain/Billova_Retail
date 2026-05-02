@@ -17,6 +17,7 @@ skills-lock.json
 .pub/
 build/
 !build/web/
+!build/web/**
 *.g.dart
 *.freezed.dart
 
