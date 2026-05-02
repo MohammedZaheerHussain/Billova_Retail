@@ -34,6 +34,9 @@ import '../reports/crm_reports_screen.dart';
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
+  /// Incremented after every Supabase data pull so screens can reload.
+  static final ValueNotifier<int> dataVersion = ValueNotifier<int>(0);
+
   @override
   State<AppShell> createState() => _AppShellState();
 }
@@ -219,6 +222,10 @@ class _AppShellState extends State<AppShell> {
         await supabase.processSyncQueue();
       }
     } catch (_) {}
+
+    // ─── STEP 5: Signal screens to reload with fresh data ───
+    AppShell.dataVersion.value++;
+    debugPrint('📢 dataVersion bumped to ${AppShell.dataVersion.value}');
   }
 
   /// Get filtered nav items based on staff role

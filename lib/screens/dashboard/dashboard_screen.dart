@@ -14,6 +14,7 @@ import '../../providers/customer_provider.dart';
 import '../../providers/vendor_provider.dart';
 import '../../providers/purchase_provider.dart';
 import '../../data/models/vendor_model.dart';
+import '../shell/app_shell.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -50,6 +51,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _loadDashboardData();
+    // Re-load when Supabase data pull completes (web: in-memory DB starts empty)
+    AppShell.dataVersion.addListener(_onDataReady);
+  }
+
+  void _onDataReady() {
+    if (mounted) _loadDashboardData();
+  }
+
+  @override
+  void dispose() {
+    AppShell.dataVersion.removeListener(_onDataReady);
+    super.dispose();
   }
 
   Future<void> _loadDashboardData() async {
