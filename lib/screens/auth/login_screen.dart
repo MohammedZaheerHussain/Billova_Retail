@@ -1,11 +1,12 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/staff_provider.dart';
-import '../../widgets/animated_login_background.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,9 +17,6 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-
-  // Animation controller for floating icons overlay
-  late final AnimationController _floatIconController;
 
   // Admin fields
   final _emailController = TextEditingController();
@@ -33,19 +31,50 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   // Tab state: 0 = Admin, 1 = Staff
   int _loginMode = 0;
   bool _isSubmitting = false;
+  bool _rememberMe = false;
+
+  // Slideshow
+  late final PageController _pageController;
+  late final Timer _slideshowTimer;
+  int _currentSlide = 0;
+  bool _isPaused = false;
+
+  static const _slideImages = [
+    'assets/images/login/slide_1.png',
+    'assets/images/login/slide_2.png',
+    'assets/images/login/slide_3.png',
+    'assets/images/login/slide_4.png',
+  ];
+
+  static const _slideTexts = [
+    {'title': 'Step into Style', 'sub': 'Premium footwear crafted for comfort, made for you.'},
+    {'title': 'Elevate Every Step', 'sub': 'Engineered for performance, designed for excellence.'},
+    {'title': 'Walk the Future', 'sub': 'Innovation meets craftsmanship in every pair.'},
+    {'title': 'Born to Move', 'sub': 'Precision engineering for the modern athlete.'},
+  ];
 
   @override
   void initState() {
     super.initState();
-    _floatIconController = AnimationController(
-      duration: const Duration(seconds: 20),
-      vsync: this,
-    )..repeat();
+    _pageController = PageController();
+    _slideshowTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted || _isPaused) return;
+      _currentSlide = (_currentSlide + 1) % _slideImages.length;
+      if (_pageController.hasClients) {
+        _pageController.animateToPage(
+          _currentSlide,
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOut,
+        );
+      }
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
-    _floatIconController.dispose();
+    _slideshowTimer.cancel();
+    _pageController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _usernameController.dispose();
@@ -109,343 +138,599 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWide = screenWidth > 900;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF060612),
-      body: Stack(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: Row(
         children: [
-          // Animated background
-          const Positioned.fill(
-            child: AnimatedLoginBackground(),
-          ),
+          // ─── Left Panel: Image Slideshow (hidden on narrow screens) ───
+          if (isWide)
+            Expanded(
+              flex: 5,
+              child: _buildLeftPanel(),
+            ),
 
-          // Floating billing icons overlay
-          AnimatedBuilder(
-            animation: _floatIconController,
-            builder: (context, _) => FloatingIconsOverlay(
-              progress: _floatIconController.value,
+          // ─── Right Panel: Login Form ───
+          Expanded(
+            flex: isWide ? 5 : 1,
+            child: _buildRightPanel(auth),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // LEFT PANEL — Image slideshow with SKYWALK branding
+  // ═══════════════════════════════════════════════════════════════
+  Widget _buildLeftPanel() {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Slideshow images
+        PageView.builder(
+          controller: _pageController,
+          onPageChanged: (i) => setState(() => _currentSlide = i),
+          itemCount: _slideImages.length,
+          itemBuilder: (context, index) {
+            return Image.asset(
+              _slideImages[index],
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                color: const Color(0xFF060D1B),
+                child: const Center(
+                  child: Icon(Icons.image_outlined, color: Colors.white24, size: 64),
+                ),
+              ),
+            );
+          },
+        ),
+
+        // Dark gradient overlay
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.4),
+                  Colors.black.withValues(alpha: 0.15),
+                  Colors.black.withValues(alpha: 0.6),
+                  Colors.black.withValues(alpha: 0.85),
+                ],
+                stops: const [0.0, 0.3, 0.7, 1.0],
+              ),
+            ),
+          ),
+        ),
+
+        // SKYWALK Logo — top left
+        Positioned(
+          top: 40,
+          left: 40,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Logo icon
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.flight_takeoff_rounded, color: Colors.white, size: 22),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'SKYWALK',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 5,
+                ),
+              ),
+              const Text(
+                '~ ELEVATE EVERY STEP ~',
+                style: TextStyle(
+                  color: Colors.white60,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 3,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Slide text — bottom left
+        Positioned(
+          bottom: 80,
+          left: 40,
+          right: 40,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 600),
+            child: Column(
+              key: ValueKey(_currentSlide),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _slideTexts[_currentSlide]['title']!,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    fontStyle: FontStyle.italic,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _slideTexts[_currentSlide]['sub']!,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Slide indicators + pause button — bottom
+        Positioned(
+          bottom: 30,
+          left: 40,
+          right: 40,
+          child: Row(
+            children: [
+              ...List.generate(_slideImages.length, (i) {
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.only(right: 8),
+                  width: _currentSlide == i ? 32 : 10,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(2),
+                    color: _currentSlide == i
+                        ? AppColors.primary
+                        : Colors.white.withValues(alpha: 0.3),
+                  ),
+                );
+              }),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => setState(() => _isPaused = !_isPaused),
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.15),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                    ),
+                    child: Icon(
+                      _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                      color: Colors.white.withValues(alpha: 0.7),
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RIGHT PANEL — Login form
+  // ═══════════════════════════════════════════════════════════════
+  Widget _buildRightPanel(AuthProvider auth) {
+    return Container(
+      color: const Color(0xFFF5F7FA),
+      child: Stack(
+        children: [
+          // "Secure Access" badge — top right
+          Positioned(
+            top: 24,
+            right: 24,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.verified_user_outlined, size: 14, color: AppColors.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Secure Access',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
-          // Login form (centered, glassmorphism card)
+          // Centered form
           Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
+                constraints: const BoxConstraints(maxWidth: 400),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                // ─── Logo ───
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.3),
-                        blurRadius: 24,
-                        spreadRadius: 4,
+                    // Welcome heading
+                    const Text(
+                      'Welcome Back!',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.receipt_long_rounded,
-                    size: 40,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                ShaderMask(
-                  shaderCallback: (bounds) =>
-                      AppColors.primaryGradient.createShader(bounds),
-                  child: Text(
-                    'SKYWALK',
-                    style: AppTypography.h1.copyWith(
-                      color: Colors.white,
-                      letterSpacing: 6,
                     ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _loginMode == 0 ? 'Admin Login' : 'Staff Login',
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: AppColors.textSecondaryDark,
-                  ),
-                ),
-
-                const SizedBox(height: 28),
-
-                // ─── Login Mode Toggle ───
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceDark,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.cardBorderDark),
-                  ),
-                  child: Row(
-                    children: [
-                      _modeTab(0, '👑  Admin', Icons.admin_panel_settings_rounded),
-                      _modeTab(1, '👨‍💼  Staff', Icons.badge_rounded),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // ─── Form Card (glassmorphism) ───
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardDark.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppColors.cardBorderDark.withValues(alpha: 0.5),
+                    const SizedBox(height: 6),
+                    Text(
+                      _loginMode == 0
+                          ? 'Sign in to your Skywalk account'
+                          : 'Clock in with your staff credentials',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.08),
-                        blurRadius: 40,
-                        spreadRadius: 2,
+                    const SizedBox(height: 32),
+
+                    // ─── Login Mode Toggle ───
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8EDF2),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (_loginMode == 0) ...[
-                          // ─── ADMIN: Email + Password ───
-                          TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            style: TextStyle(color: AppColors.textPrimaryDark),
-                            decoration: _inputDecoration(
-                              label: 'Email',
-                              icon: Icons.email_outlined,
-                            ),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) return 'Enter your email';
-                              if (!v.contains('@')) return 'Enter a valid email';
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            style: TextStyle(color: AppColors.textPrimaryDark),
-                            decoration: _inputDecoration(
-                              label: 'Password',
-                              icon: Icons.lock_outlined,
-                              suffix: IconButton(
-                                icon: Icon(
-                                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                                  color: AppColors.textTertiaryDark,
-                                ),
-                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                              ),
-                            ),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) return 'Enter your password';
-                              if (v.length < 6) return 'Password must be at least 6 characters';
-                              return null;
-                            },
-                          ),
-                        ] else ...[
-                          // ─── STAFF: Username + PIN ───
-                          TextFormField(
-                            controller: _usernameController,
-                            style: TextStyle(color: AppColors.textPrimaryDark),
-                            decoration: _inputDecoration(
-                              label: 'Username',
-                              icon: Icons.person_outline_rounded,
-                            ),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) return 'Enter your username';
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _pinController,
-                            obscureText: _obscurePin,
-                            keyboardType: TextInputType.number,
-                            maxLength: 6,
-                            style: TextStyle(
-                              color: AppColors.textPrimaryDark,
-                              letterSpacing: _obscurePin ? 8 : 4,
-                              fontSize: 18,
-                            ),
-                            decoration: _inputDecoration(
-                              label: 'PIN',
-                              icon: Icons.pin_rounded,
-                              suffix: IconButton(
-                                icon: Icon(
-                                  _obscurePin ? Icons.visibility_off : Icons.visibility,
-                                  color: AppColors.textTertiaryDark,
-                                ),
-                                onPressed: () => setState(() => _obscurePin = !_obscurePin),
-                              ),
-                            ),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) return 'Enter your PIN';
-                              if (v.length < 4) return 'PIN must be 4-6 digits';
-                              return null;
-                            },
-                          ),
+                      child: Row(
+                        children: [
+                          _modeTab(0, 'Admin', Icons.admin_panel_settings_rounded),
+                          _modeTab(1, 'Staff', Icons.badge_rounded),
                         ],
+                      ),
+                    ),
+                    const SizedBox(height: 28),
 
-                        // Error Message
-                        if (auth.errorMessage.isNotEmpty) ...[
-                          const SizedBox(height: 16),
+                    // ─── Form ───
+                    Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (_loginMode == 0) ...[
+                            // ─── ADMIN: Email + Password ───
+                            _buildLabel('Your Email'),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              style: const TextStyle(color: Color(0xFF0F172A), fontSize: 14),
+                              decoration: _lightInputDecoration(
+                                hint: 'admin@skywalk.com',
+                                icon: Icons.email_outlined,
+                              ),
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return 'Enter your email';
+                                if (!v.contains('@')) return 'Enter a valid email';
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            _buildLabel('Password'),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _passwordController,
+                              obscureText: _obscurePassword,
+                              style: const TextStyle(color: Color(0xFF0F172A), fontSize: 14),
+                              decoration: _lightInputDecoration(
+                                hint: '••••••••',
+                                icon: Icons.lock_outlined,
+                                suffix: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                    color: const Color(0xFF94A3B8),
+                                    size: 20,
+                                  ),
+                                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                ),
+                              ),
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return 'Enter your password';
+                                if (v.length < 6) return 'Password must be at least 6 characters';
+                                return null;
+                              },
+                            ),
+                          ] else ...[
+                            // ─── STAFF: Username + PIN ───
+                            _buildLabel('Username'),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _usernameController,
+                              style: const TextStyle(color: Color(0xFF0F172A), fontSize: 14),
+                              decoration: _lightInputDecoration(
+                                hint: 'Enter your username',
+                                icon: Icons.person_outline_rounded,
+                              ),
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return 'Enter your username';
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            _buildLabel('PIN'),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _pinController,
+                              obscureText: _obscurePin,
+                              keyboardType: TextInputType.number,
+                              maxLength: 6,
+                              style: TextStyle(
+                                color: const Color(0xFF0F172A),
+                                letterSpacing: _obscurePin ? 8 : 4,
+                                fontSize: 18,
+                              ),
+                              decoration: _lightInputDecoration(
+                                hint: '••••',
+                                icon: Icons.pin_rounded,
+                                suffix: IconButton(
+                                  icon: Icon(
+                                    _obscurePin ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                    color: const Color(0xFF94A3B8),
+                                    size: 20,
+                                  ),
+                                  onPressed: () => setState(() => _obscurePin = !_obscurePin),
+                                ),
+                              ),
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return 'Enter your PIN';
+                                if (v.length < 4) return 'PIN must be 4-6 digits';
+                                return null;
+                              },
+                            ),
+                          ],
+
+                          // Remember me + Forgot
+                          if (_loginMode == 0) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: Checkbox(
+                                    value: _rememberMe,
+                                    onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                                    activeColor: AppColors.primary,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Remember Me',
+                                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                                ),
+                                const Spacer(),
+                                TextButton(
+                                  onPressed: () {},
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Forgot Password?',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+
+                          // Error Message
+                          if (auth.errorMessage.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.error_outline, color: AppColors.error, size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      auth.errorMessage,
+                                      style: TextStyle(
+                                        color: AppColors.error,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 24),
+
+                          // Submit Button
+                          SizedBox(
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : (_loginMode == 0 ? _submitAdmin : _submitStaff),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0F172A),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: _isSubmitting
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(
+                                      _loginMode == 0 ? 'Login' : 'Clock In & Start',
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // ─── Developed by Barakah Tech ───
+                          MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: GestureDetector(
+                              onTap: () => launchUrl(
+                                Uri.parse('https://www.barakahtechnologies.com/'),
+                                mode: LaunchMode.externalApplication,
+                              ),
+                              child: Opacity(
+                                opacity: 0.7,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Text(
+                                      'Developed by',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF94A3B8),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Image.asset(
+                                        'assets/images/barakah_logo.png',
+                                        width: 20,
+                                        height: 20,
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Text(
+                                      'BARAKAH TECH',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF334155),
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Restricted notice
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppColors.errorBg,
+                              color: const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.error_outline, color: AppColors.error, size: 18),
-                                const SizedBox(width: 8),
+                                Icon(Icons.info_outline_rounded, size: 16, color: const Color(0xFF64748B)),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
-                                    auth.errorMessage,
-                                    style: AppTypography.bodySmall.copyWith(color: AppColors.error),
+                                    _loginMode == 0
+                                        ? 'This system is restricted to authorized Skywalk personnel only. Unauthorized access is prohibited.'
+                                        : 'Enter the username and PIN provided by your admin. You will be automatically clocked in.',
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      color: Color(0xFF64748B),
+                                      height: 1.4,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ],
-
-                        const SizedBox(height: 24),
-
-                        // Submit Button
-                        SizedBox(
-                          height: 52,
-                          child: ElevatedButton(
-                            onPressed: _isSubmitting
-                                ? null
-                                : (_loginMode == 0 ? _submitAdmin : _submitStaff),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _loginMode == 0
-                                  ? AppColors.primary
-                                  : AppColors.accent,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: _isSubmitting
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : Text(
-                                    _loginMode == 0 ? 'Sign In' : 'Clock In & Start',
-                                    style: AppTypography.button.copyWith(
-                                      color: Colors.white,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // ─── Staff hint ───
-                if (_loginMode == 1)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.infoBg,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.info.withValues(alpha: 0.2)),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline_rounded, color: AppColors.info, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Enter the username and PIN provided by your admin. You will be automatically clocked in.',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.info,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                const SizedBox(height: 32),
-
-                // ─── Powered by Barakah Tech ───
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Powered by',
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textTertiaryDark,
-                        fontSize: 10,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: Image.asset(
-                        'assets/images/barakah_logo.png',
-                        width: 18,
-                        height: 18,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Barakah Tech',
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textSecondaryDark,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                      ),
-                    ),
+
+
                   ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
-      ],
-    ),
     );
   }
 
+  // ─── Label ───
+  Widget _buildLabel(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: Color(0xFF334155),
+      ),
+    );
+  }
+
+  // ─── Mode Tab ───
   Widget _modeTab(int index, String label, IconData icon) {
     final isActive = _loginMode == index;
     return Expanded(
@@ -456,31 +741,32 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isActive
-                ? (index == 0 ? AppColors.primary : AppColors.accent).withValues(alpha: 0.15)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            border: isActive
-                ? Border.all(color: index == 0 ? AppColors.primary : AppColors.accent, width: 1.5)
+            color: isActive ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
                 : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 18,
-                  color: isActive
-                      ? (index == 0 ? AppColors.primary : AppColors.accent)
-                      : AppColors.textTertiaryDark),
-              const SizedBox(width: 8),
+              Icon(icon, size: 16,
+                  color: isActive ? AppColors.primary : const Color(0xFF94A3B8)),
+              const SizedBox(width: 6),
               Text(
                 label,
-                style: AppTypography.labelMedium.copyWith(
-                  color: isActive
-                      ? (index == 0 ? AppColors.primary : AppColors.accent)
-                      : AppColors.textTertiaryDark,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isActive ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),
             ],
@@ -490,30 +776,36 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  InputDecoration _inputDecoration({
-    required String label,
+  // ─── Light Theme Input Decoration ───
+  InputDecoration _lightInputDecoration({
+    required String hint,
     required IconData icon,
     Widget? suffix,
   }) {
     return InputDecoration(
-      labelText: label,
-      labelStyle: TextStyle(color: AppColors.textSecondaryDark),
-      prefixIcon: Icon(icon, color: AppColors.textTertiaryDark),
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFFB0BEC5), fontSize: 14),
+      prefixIcon: Icon(icon, color: const Color(0xFF94A3B8), size: 20),
       suffixIcon: suffix,
       filled: true,
-      fillColor: AppColors.surfaceDark,
+      fillColor: Colors.white,
       counterText: '',
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.cardBorderDark),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.cardBorderDark),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: _loginMode == 0 ? AppColors.primary : AppColors.accent),
+        borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
       ),
     );
   }

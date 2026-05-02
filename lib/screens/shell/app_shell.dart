@@ -291,7 +291,7 @@ class _AppShellState extends State<AppShell> {
         color: isDark ? AppColors.sidebarDark : AppColors.sidebarLight,
         border: Border(
           right: BorderSide(
-            color: (isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight).withValues(alpha: 0.3),
+            color: AppColors.cardBorderDark.withValues(alpha: 0.3),
           ),
         ),
       ),
@@ -387,15 +387,15 @@ class _AppShellState extends State<AppShell> {
                               children: [
                                 Icon(item.icon, size: 20,
                                     color: isSelected ? AppColors.accent
-                                        : (isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight)),
+                                        : AppColors.textSecondaryDark),
                                 if (_sidebarExpanded) ...[
                                   SizedBox(width: 12),
                                   Expanded(
                                     child: Text(item.label,
                                         style: AppTypography.bodyMedium.copyWith(
                                           color: isSelected
-                                              ? (isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight)
-                                              : (isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight),
+                                              ? AppColors.textPrimaryDark
+                                              : AppColors.textSecondaryDark,
                                           fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                                           fontSize: 13,
                                         ),
@@ -407,13 +407,13 @@ class _AppShellState extends State<AppShell> {
                                       decoration: BoxDecoration(
                                         color: isSelected
                                             ? AppColors.accent.withValues(alpha: 0.2)
-                                            : (isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight).withValues(alpha: 0.5),
+                                            : AppColors.cardBorderDark.withValues(alpha: 0.5),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(item.shortcut,
                                           style: AppTypography.monoSmall.copyWith(
                                             color: isSelected ? AppColors.accent
-                                                : (isDark ? AppColors.textTertiary(context) : AppColors.textTertiaryLight),
+                                                : AppColors.textTertiaryDark,
                                             fontSize: 9,
                                             fontWeight: FontWeight.w600,
                                           )),
@@ -460,7 +460,7 @@ class _AppShellState extends State<AppShell> {
                           children: [
                             Text(staffProvider.currentStaffName,
                                 style: AppTypography.labelSmall.copyWith(
-                                    color: AppColors.textPrimary(context), fontWeight: FontWeight.w600),
+                                    color: AppColors.textPrimaryDark, fontWeight: FontWeight.w600),
                                 overflow: TextOverflow.ellipsis),
                             Text(staffProvider.currentStaffRole,
                                 style: AppTypography.labelSmall.copyWith(
@@ -518,7 +518,7 @@ class _AppShellState extends State<AppShell> {
                 padding: EdgeInsets.all(16),
                 child: Icon(
                   _sidebarExpanded ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
-                  color: isDark ? AppColors.textTertiary(context) : AppColors.textTertiaryLight,
+                  color: AppColors.textTertiaryDark,
                   size: 22,
                 ),
               ),
@@ -539,7 +539,7 @@ class _AppShellState extends State<AppShell> {
                       if (_sidebarExpanded) ...[
                         SizedBox(width: 8),
                         Text('Syncing...',
-                            style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
+                            style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiaryDark)),
                       ],
                     ],
                   ),
@@ -585,18 +585,23 @@ class _AppShellState extends State<AppShell> {
                     ),
                   );
                   if (confirm == true && mounted) {
+                    // Cancel sync timer before navigating away
+                    _syncTimer?.cancel();
+
+                    // Capture navigator before any async work that may unmount us
+                    final navigator = Navigator.of(context);
+
                     if (isStaffSession) {
-                      // Staff logout: clockOut → clear session → back to login
+                      // Staff logout: clockOut → clear session
                       await staffProv.logoutStaff();
-                      if (mounted) {
-                        await auth.signOut();
-                        Navigator.of(context).pushReplacementNamed('/login');
-                      }
-                    } else {
-                      // Admin logout: full Supabase sign out
-                      await auth.signOut();
-                      if (mounted) Navigator.of(context).pushReplacementNamed('/login');
                     }
+
+                    // Navigate FIRST — removes this widget tree so Consumer
+                    // dependents are gone before notifyListeners fires.
+                    navigator.pushNamedAndRemoveUntil('/login', (_) => false);
+
+                    // Now safe to update provider state (no mounted dependents)
+                    auth.signOut();
                   }
                 },
                 child: Container(
@@ -607,7 +612,7 @@ class _AppShellState extends State<AppShell> {
                       Icon(
                         isStaffSession ? Icons.timer_off_rounded : Icons.logout_rounded,
                         size: 20,
-                        color: isStaffSession ? AppColors.warning : AppColors.textTertiary(context),
+                        color: isStaffSession ? AppColors.warning : AppColors.textTertiaryDark,
                       ),
                       if (_sidebarExpanded) ...[
                         SizedBox(width: 12),
@@ -616,11 +621,11 @@ class _AppShellState extends State<AppShell> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(displayName,
-                                  style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context)),
+                                  style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondaryDark),
                                   overflow: TextOverflow.ellipsis),
                               Text(roleLabel,
                                   style: AppTypography.labelSmall.copyWith(
-                                      color: isStaffSession ? AppColors.accent : AppColors.textTertiary(context),
+                                      color: isStaffSession ? AppColors.accent : AppColors.textTertiaryDark,
                                       fontSize: 9)),
                             ],
                           ),

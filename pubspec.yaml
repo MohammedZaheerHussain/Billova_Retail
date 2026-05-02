@@ -60,3 +60,7 @@ flutter:
   assets:
     - .env
     - assets/images/barakah_logo.png
+    - assets/images/login/slide_1.png
+    - assets/images/login/slide_2.png
+    - assets/images/login/slide_3.png
+    - assets/images/login/slide_4.png

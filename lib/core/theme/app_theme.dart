@@ -134,6 +134,45 @@ class AppTheme {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       behavior: SnackBarBehavior.floating,
     ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: AppColors.cardDark,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: AppColors.cardDark,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AppColors.cardBorderDark),
+      ),
+    ),
+    dropdownMenuTheme: DropdownMenuThemeData(
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.surfaceDark,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.cardBorderDark),
+        ),
+      ),
+    ),
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.cardBorderDark),
+      ),
+      textStyle: const TextStyle(color: AppColors.textPrimaryDark, fontSize: 12),
+    ),
+    tabBarTheme: TabBarThemeData(
+      labelColor: AppColors.primary,
+      unselectedLabelColor: AppColors.textTertiaryDark,
+      indicatorColor: AppColors.primary,
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: AppColors.surfaceDark,
+      side: const BorderSide(color: AppColors.cardBorderDark),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    ),
   );
 
   // ─── Light Theme ───
@@ -201,8 +240,8 @@ class AppTheme {
     ),
     cardTheme: CardThemeData(
       color: AppColors.cardLight,
-      elevation: 1,
-      shadowColor: const Color(0x1A0F172A),
+      elevation: 0,
+      shadowColor: const Color(0x0D0F172A),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: AppColors.cardBorderLight, width: 1),
@@ -249,6 +288,44 @@ class AppTheme {
     dividerTheme: const DividerThemeData(
       color: AppColors.cardBorderLight,
       thickness: 1,
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: AppColors.cardLight,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: AppColors.cardLight,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AppColors.cardBorderLight),
+      ),
+    ),
+    dropdownMenuTheme: DropdownMenuThemeData(
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.surfaceLight,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.cardBorderLight),
+        ),
+      ),
+    ),
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: AppColors.textPrimaryLight,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      textStyle: const TextStyle(color: Colors.white, fontSize: 12),
+    ),
+    tabBarTheme: TabBarThemeData(
+      labelColor: AppColors.primary,
+      unselectedLabelColor: AppColors.textTertiaryLight,
+      indicatorColor: AppColors.primary,
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: AppColors.surfaceLight,
+      side: const BorderSide(color: AppColors.cardBorderLight),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     ),
   );
 }
