@@ -108067,7 +108067,7 @@ if(m.Q)p=B.agd
 else p=A.m(m.z===0?"Login":"Clock In & Start",l,l,l,B.aiI,l,l,l)
 s.push(A.a7(A.i6(!1,p,l,l,l,l,l,l,r,l,q),50,l))
 s.push(B.bJ)
-s.push(A.jD(A.f2(l,A.yU(A.X(A.b([B.alV,B.a0,A.Ds(A.y(4),A.aVA("assets/images/barakah_logo.png",l,B.mu,20,20),B.co),B.ck,B.alP],h),B.l,B.cF,B.i,0),0.7),B.S,!1,l,l,l,l,l,l,l,l,l,l,l,l,l,l,l,l,l,new A.aIv(),l,l,l,l,l,l,!1,B.ba),B.cJ,l,l,l,l))
+s.push(A.jD(A.f2(l,A.yU(A.X(A.b([B.alV,B.a0,A.Ds(A.y(4),A.aVA("assets/images/barakah_logo.jpg",l,B.mu,20,20),B.co),B.ck,B.alP],h),B.l,B.cF,B.i,0),0.7),B.S,!1,l,l,l,l,l,l,l,l,l,l,l,l,l,l,l,l,l,new A.aIv(),l,l,l,l,l,l,!1,B.ba),B.cJ,l,l,l,l))
 s.push(B.bJ)
 q=A.y(10)
 r=A.bf(B.x,1)

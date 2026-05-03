@@ -652,7 +652,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(4),
                                       child: Image.asset(
-                                        'assets/images/barakah_logo.png',
+                                        'assets/images/barakah_logo.jpg',
                                         width: 20,
                                         height: 20,
                                         fit: BoxFit.contain,
