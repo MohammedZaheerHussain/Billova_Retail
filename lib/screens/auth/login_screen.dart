@@ -40,10 +40,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   bool _isPaused = false;
 
   static const _slideImages = [
-    'assets/images/login/slide_1.png',
-    'assets/images/login/slide_2.png',
-    'assets/images/login/slide_3.png',
-    'assets/images/login/slide_4.png',
+    'assets/images/login/slide_1.jpg',
+    'assets/images/login/slide_2.jpg',
+    'assets/images/login/slide_3.jpg',
+    'assets/images/login/slide_4.jpg',
   ];
 
   static const _slideTexts = [
