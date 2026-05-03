@@ -3,7 +3,7 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"flutter_bootstrap.js": "7604b07a139254d78556377691582e6a",
+const RESOURCES = {"flutter_bootstrap.js": "9d99a3b086c556d7c93669f660941bfb",
 "version.json": "f0c576039f5239de1e2c64e73375b95d",
 "index.html": "60b562793e35bfc55eb90b4839308af8",
 "/": "60b562793e35bfc55eb90b4839308af8",
@@ -25,10 +25,10 @@ const RESOURCES = {"flutter_bootstrap.js": "7604b07a139254d78556377691582e6a",
 "assets/AssetManifest.bin": "261d57f2b598d2b3d517df4e207a0e14",
 "assets/fonts/MaterialIcons-Regular.otf": "cf5f0df4522c89659fb84293a3624bb9",
 "assets/assets/images/barakah_logo.png": "fa2f6e0042104ab904a8276e25103a88",
-"assets/assets/images/login/slide_1.png": "12ed6d96df933cf2f64af60c54443ec4",
-"assets/assets/images/login/slide_3.png": "1bbc316ebd2b5ec6e71e6b59dd671ba7",
-"assets/assets/images/login/slide_2.png": "13454d102eefe3a2f88dae8a470e46f5",
-"assets/assets/images/login/slide_4.png": "51a3a0c9f2ca34364a51b838f5e08cb0",
+"assets/assets/images/login/slide_1.png": "a272917bb5c1547075b3752d24f46488",
+"assets/assets/images/login/slide_3.png": "01dd53e2997d65c8a5bce0db7b9d1178",
+"assets/assets/images/login/slide_2.png": "ddcab739a05eaa7bd5f98756ff7230d1",
+"assets/assets/images/login/slide_4.png": "189f08a64bb5477e493ad07756732aba",
 "canvaskit/skwasm.js": "8060d46e9a4901ca9991edd3a26be4f0",
 "canvaskit/skwasm_heavy.js": "740d43a6b8240ef9e23eed8c48840da4",
 "canvaskit/skwasm.js.symbols": "3a4aadf4e8141f284bd524976b1d6bdc",
