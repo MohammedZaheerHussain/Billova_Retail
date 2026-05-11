@@ -69,4 +69,48 @@ class WhatsAppHelper {
       'message': '*Weekend Special - SKYWALK*\n\nBuy 2 pairs, get *Rs.500 OFF*!\n\nThis Saturday & Sunday only!\n\nSee you there!',
     },
   ];
+
+  /// Format vendor purchase invoice for WhatsApp sharing
+  static String vendorInvoiceMessage({
+    required String vendorName,
+    required String invoiceNumber,
+    required double totalAmount,
+    required double paidAmount,
+    required double pendingAmount,
+    required String paymentStatus,
+    required List<Map<String, dynamic>> purchases,
+    String companyName = 'SKYWALK',
+  }) {
+    final buf = StringBuffer();
+    buf.writeln('*$companyName — VENDOR INVOICE*');
+    buf.writeln('━━━━━━━━━━━━━━━━━━━━');
+    buf.writeln('');
+    buf.writeln('Hello *$vendorName*,');
+    buf.writeln('Please find your updated purchase ledger.');
+    buf.writeln('');
+    buf.writeln('📋 Invoice No: *$invoiceNumber*');
+    buf.writeln('📅 Date: ${DateTime.now().toIso8601String().substring(0, 10)}');
+    buf.writeln('');
+    buf.writeln('*Purchase Summary:*');
+
+    for (final p in purchases) {
+      final date = (p['date'] as String?) ?? '';
+      final amount = Formatters.currency((p['amount'] as num?)?.toDouble() ?? 0);
+      final paid = Formatters.currency((p['paid'] as num?)?.toDouble() ?? 0);
+      final status = (p['status'] as String?) ?? '';
+      buf.writeln('  📦 $date — $amount (Paid: $paid) $status');
+    }
+
+    buf.writeln('');
+    buf.writeln('━━━━━━━━━━━━━━━━━━━━');
+    buf.writeln('💰 Total Amount  : *${Formatters.currency(totalAmount)}*');
+    buf.writeln('✅ Paid Amount   : *${Formatters.currency(paidAmount)}*');
+    buf.writeln('⚠️ Pending       : *${Formatters.currency(pendingAmount)}*');
+    buf.writeln('📊 Status        : *$paymentStatus*');
+    buf.writeln('━━━━━━━━━━━━━━━━━━━━');
+    buf.writeln('');
+    buf.writeln('Thank you for doing business with us!');
+    buf.writeln('— Team $companyName');
+    return buf.toString();
+  }
 }

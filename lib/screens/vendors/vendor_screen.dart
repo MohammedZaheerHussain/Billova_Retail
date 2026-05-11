@@ -5,6 +5,7 @@ import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/vendor_provider.dart';
 import '../../providers/purchase_provider.dart';
+import '../../core/utils/whatsapp_helper.dart';
 import '../../data/models/vendor_model.dart';
 import 'vendor_detail_screen.dart';
 
@@ -18,6 +19,7 @@ class VendorScreen extends StatefulWidget {
 class _VendorScreenState extends State<VendorScreen> {
   final _searchCtrl = TextEditingController();
   String _search = '';
+  String _filter = 'All'; // All, Paid, Pending, Partial
 
   @override
   void initState() {
@@ -263,7 +265,33 @@ class _VendorScreenState extends State<VendorScreen> {
                     ),
                   ),
                 ),
-                SizedBox(height: 16),
+                SizedBox(height: 10),
+
+                // Filter Chips
+                SizedBox(
+                  height: 34,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: ['All', 'Pending', 'Partial', 'Paid'].map((f) {
+                      final isActive = _filter == f;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: Text(f, style: TextStyle(fontSize: 11,
+                            color: isActive ? Colors.white : AppColors.textSecondary(context))),
+                          selected: isActive,
+                          selectedColor: AppColors.primary,
+                          backgroundColor: AppColors.card(context),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(color: isActive ? AppColors.primary : AppColors.cardBorder(context))),
+                          onSelected: (_) => setState(() => _filter = f),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                SizedBox(height: 12),
 
                 // List
                 Expanded(
@@ -283,9 +311,30 @@ class _VendorScreenState extends State<VendorScreen> {
                               ),
                             )
                           : ListView.separated(
-                              itemCount: filtered.length,
+                              itemCount: filtered.where((v) {
+                                if (_filter == 'All') return true;
+                                final s = summaries[v.id];
+                                final p = (s?['pending'] as double?) ?? v.balance;
+                                final pd = (s?['totalPaid'] as double?) ?? 0;
+                                if (_filter == 'Paid') return p <= 0 && pd > 0;
+                                if (_filter == 'Pending') return p > 0;
+                                if (_filter == 'Partial') return p > 0 && pd > 0;
+                                return true;
+                              }).length,
                               separatorBuilder: (_, __) => const SizedBox(height: 8),
-                              itemBuilder: (context, i) => _vendorTile(filtered[i], provider, summaries),
+                              itemBuilder: (context, i) {
+                                final list = filtered.where((v) {
+                                  if (_filter == 'All') return true;
+                                  final s = summaries[v.id];
+                                  final p = (s?['pending'] as double?) ?? v.balance;
+                                  final pd = (s?['totalPaid'] as double?) ?? 0;
+                                  if (_filter == 'Paid') return p <= 0 && pd > 0;
+                                  if (_filter == 'Pending') return p > 0;
+                                  if (_filter == 'Partial') return p > 0 && pd > 0;
+                                  return true;
+                                }).toList();
+                                return _vendorTile(list[i], provider, summaries, purchaseProvider);
+                              },
                             ),
                 ),
               ],
@@ -296,7 +345,7 @@ class _VendorScreenState extends State<VendorScreen> {
     );
   }
 
-  Widget _vendorTile(VendorModel vendor, VendorProvider provider, Map<String, Map<String, dynamic>> summaries) {
+  Widget _vendorTile(VendorModel vendor, VendorProvider provider, Map<String, Map<String, dynamic>> summaries, PurchaseProvider pp) {
     final s = summaries[vendor.id];
     final totalPurchase = (s?['totalPurchase'] as double?) ?? 0;
     final totalItems = (s?['totalItems'] as int?) ?? 0;
@@ -386,7 +435,28 @@ class _VendorScreenState extends State<VendorScreen> {
               ),
             ),
 
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
+            // WhatsApp quick-send
+            if (vendor.phone.isNotEmpty && totalPurchase > 0)
+              IconButton(
+                tooltip: 'Send Invoice via WhatsApp',
+                icon: const Icon(Icons.chat_rounded, size: 18, color: Color(0xFF25D366)),
+                onPressed: () {
+                  final summary = pp.getVendorSummary(vendor.id);
+                  final msg = WhatsAppHelper.vendorInvoiceMessage(
+                    vendorName: vendor.name,
+                    invoiceNumber: pp.generateVendorInvoiceNumber(vendor.id),
+                    totalAmount: summary['totalPurchase'] as double,
+                    paidAmount: summary['totalPaid'] as double,
+                    pendingAmount: summary['pending'] as double,
+                    paymentStatus: pp.getVendorPaymentStatus(vendor.id),
+                    purchases: pp.getVendorPurchasesList(vendor.id),
+                  );
+                  WhatsAppHelper.send(phone: vendor.phone, message: msg);
+                },
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(6),
+              ),
             // Menu
             PopupMenuButton(
               icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary(context), size: 20),
