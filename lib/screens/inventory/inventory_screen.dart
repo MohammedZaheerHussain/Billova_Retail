@@ -493,46 +493,50 @@ class InventoryScreen extends StatelessWidget {
     );
   }
 
-  /// Generate and print N barcode labels
+  /// Generate and print N barcode labels in a grid layout
   void _doPrintLabels(ItemModel item, int count) {
     final name = item.name.replaceAll("'", "\\'").replaceAll('"', '\\"');
     final barcode = item.barcode.replaceAll("'", "\\'").replaceAll('"', '\\"');
     final price = Formatters.currency(item.price).replaceAll("'", "\\'").replaceAll('"', '\\"');
+    final size = item.size.replaceAll("'", "\\'").replaceAll('"', '\\"');
 
     // Build label divs
     final labelsHtml = StringBuffer();
     for (int i = 0; i < count; i++) {
-      labelsHtml.write('<div class="label"><div class="name">$name</div><canvas id="bc$i"></canvas><div class="price">$price</div></div>');
+      labelsHtml.write('<div class="label"><div class="shop">SKYWALK</div>');
+      if (size.isNotEmpty) labelsHtml.write('<div class="size">$size</div>');
+      labelsHtml.write('<canvas id="bc$i"></canvas><div class="price">MRP: $price</div></div>');
     }
 
     // Build barcode init calls
     final barcodeJs = StringBuffer();
     for (int i = 0; i < count; i++) {
-      barcodeJs.write('JsBarcode("#bc$i","$barcode",{format:"CODE128",width:2,height:50,displayValue:true,fontSize:12,fontOptions:"bold",margin:4});');
+      barcodeJs.write('JsBarcode("#bc$i","$barcode",{format:"CODE128",width:1.5,height:35,displayValue:true,fontSize:9,fontOptions:"bold",margin:2});');
     }
 
     js.context.callMethod('eval', [
       '''
-      var w = window.open('', '_blank', 'width=450,height=600');
+      var w = window.open('', '_blank', 'width=800,height=900');
       if (w) {
-        var html = '<html><head><title>Barcode Labels ($count)</title>';
+        var html = '<html><head><title>$count Labels - $name</title>';
         html += '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\\/script>';
         html += '<style>';
-        html += '@page{size:50mm 30mm;margin:0}';
-        html += '@media print{body{margin:0}.label{page-break-after:always}.label:last-child{page-break-after:auto}.no-print{display:none!important}}';
-        html += 'body{font-family:Arial,sans-serif;text-align:center;background:#fff;margin:0;padding:0}';
-        html += '.label{padding:4mm;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:28mm;box-sizing:border-box}';
-        html += '@media screen{.label{border-bottom:1px dashed #ccc;padding:12px 8px}}';
-        html += '.name{font-size:10px;font-weight:bold;margin-bottom:2px}';
-        html += '.price{font-size:10px;margin-top:2px}';
-        html += 'canvas{max-width:100%}';
-        html += '.no-print{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:10;display:flex;gap:8px;align-items:center}';
-        html += '.print-btn{background:#00BCD4;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:bold;cursor:pointer}';
+        html += '@page{size:A4;margin:8mm}';
+        html += 'body{font-family:Arial,sans-serif;margin:0;padding:0;background:#fff}';
+        html += '.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0}';
+        html += '.label{border:1px solid #ccc;padding:6px 4px;text-align:center;box-sizing:border-box;min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center}';
+        html += '.shop{font-size:9px;font-weight:bold;letter-spacing:1px;margin-bottom:1px}';
+        html += '.size{font-size:8px;margin-bottom:1px}';
+        html += '.price{font-size:9px;font-weight:bold;margin-top:1px}';
+        html += 'canvas{max-width:95%;height:35px}';
+        html += '.no-print{text-align:center;padding:12px;background:#f5f5f5;border-bottom:1px solid #ddd;display:flex;justify-content:center;gap:10px;align-items:center}';
+        html += '.print-btn{background:#00BCD4;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:bold;cursor:pointer}';
         html += '.print-btn:hover{background:#00ACC1}';
-        html += '.count-badge{background:#333;color:#fff;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:bold}';
+        html += '.badge{background:#333;color:#fff;padding:5px 12px;border-radius:12px;font-size:12px;font-weight:bold}';
+        html += '@media print{.no-print{display:none!important}}';
         html += '</style></head><body>';
-        html += '<div class="no-print"><span class="count-badge">$count labels</span><button class="print-btn" onclick="window.print()">🖨 Print All Labels</button></div>';
-        html += '<div style="padding-top:40px">';
+        html += '<div class="no-print"><span class="badge">$count labels</span><button class="print-btn" onclick="window.print()">🖨 Print All Labels</button></div>';
+        html += '<div class="grid">';
         html += '${labelsHtml.toString().replaceAll("'", "\\'")}';
         html += '</div>';
         html += '<script>';
