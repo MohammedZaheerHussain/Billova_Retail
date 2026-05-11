@@ -578,6 +578,97 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // ─── Backfill Loyalty Points ───
+
+  Future<void> _backfillLoyaltyPoints(LoyaltySettingsProvider loyalty) async {
+    // Confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(children: [
+          Icon(Icons.star_rounded, color: AppColors.warning),
+          const SizedBox(width: 8),
+          Text('Backfill Points?', style: TextStyle(color: AppColors.textPrimary(context))),
+        ]),
+        content: Text(
+          'This will award loyalty points to all existing customers based on their total spending history.\n\n'
+          'Rate: ${loyalty.earnRate} point(s) per ₹100 spent.\n\n'
+          'Existing points will be preserved (only adds new points).',
+          style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: AppColors.textTertiary(context))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Award Points', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final customerProvider = context.read<CustomerProvider>();
+    final salesProvider = context.read<SalesProvider>();
+
+    int customersUpdated = 0;
+    int totalPointsAwarded = 0;
+
+    // Get customer summaries from sales data
+    final summaries = salesProvider.getCustomerSummaries();
+
+    for (final customer in customerProvider.customers) {
+      // Match by phone first, then name
+      final key = customer.phone.isNotEmpty
+          ? customer.phone
+          : customer.name.toLowerCase().trim();
+      final summary = summaries[key];
+
+      if (summary == null) continue;
+
+      final totalSpent = (summary['totalSpent'] as double?) ?? 0;
+      if (totalSpent <= 0) continue;
+
+      // Calculate points they should have earned
+      final shouldHaveEarned = loyalty.pointsForAmount(totalSpent);
+      final currentPoints = customer.loyaltyPoints;
+
+      // Only add if they're missing points
+      if (shouldHaveEarned > currentPoints) {
+        final pointsToAdd = shouldHaveEarned - currentPoints;
+        final updated = customer.copyWith(loyaltyPoints: shouldHaveEarned);
+        await customerProvider.updateCustomer(updated);
+        customersUpdated++;
+        totalPointsAwarded += pointsToAdd;
+      }
+    }
+
+    if (!mounted) return;
+
+    // Show result
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(children: [
+        Icon(Icons.star_rounded, color: Colors.white, size: 20),
+        const SizedBox(width: 8),
+        Text(customersUpdated > 0
+            ? 'Awarded $totalPointsAwarded points to $customersUpdated customers!'
+            : 'All customers already have correct points.'),
+      ]),
+      backgroundColor: customersUpdated > 0 ? AppColors.warning : AppColors.accent,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
+  }
+
   // ─── Loyalty Program Section ───
 
   Widget _buildLoyaltySection(bool isDark) {
@@ -654,6 +745,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       final val = int.tryParse(v);
                       if (val != null && val >= 0) loyalty.setMinRedeem(val);
                     }),
+                const SizedBox(height: 16),
+                // ─── Backfill Button ───
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _backfillLoyaltyPoints(loyalty),
+                    icon: Icon(Icons.history_rounded, size: 18, color: AppColors.warning),
+                    label: Text('Award Points for Past Purchases',
+                        style: TextStyle(color: AppColors.warning, fontSize: 12, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: AppColors.warning.withValues(alpha: 0.4)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
               ]),
             ),
           ),
