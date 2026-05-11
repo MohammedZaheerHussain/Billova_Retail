@@ -336,7 +336,7 @@ class InventoryScreen extends StatelessWidget {
                       }),
                       const SizedBox(height: 8),
                       SizedBox(width: double.infinity, height: 36, child: ElevatedButton.icon(
-                        onPressed: () => _printBarcode(item),
+                        onPressed: () => _printBarcode(context, item),
                         icon: const Icon(Icons.print_rounded, size: 16),
                         label: const Text('Print Barcode Label', style: TextStyle(fontSize: 12)),
                         style: ElevatedButton.styleFrom(
@@ -426,35 +426,125 @@ class InventoryScreen extends StatelessWidget {
     );
   }
 
-  void _printBarcode(ItemModel item) {
-    // Use JsBarcode in the print popup for real Code128 barcode
+  void _printBarcode(BuildContext context, ItemModel item) {
+    // Show quantity dialog first
+    final qtyCtrl = TextEditingController(text: '${item.quantity}');
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AppColors.card(dialogCtx),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(children: [
+          Icon(Icons.print_rounded, color: AppColors.accent, size: 22),
+          const SizedBox(width: 8),
+          Text('Print Labels', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(dialogCtx))),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('How many barcode labels to print?',
+              style: TextStyle(color: AppColors.textSecondary(dialogCtx), fontSize: 13)),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: qtyCtrl,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 18),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: AppColors.surface(dialogCtx),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.cardBorder(dialogCtx)),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text('labels', style: TextStyle(color: AppColors.textTertiary(dialogCtx), fontSize: 13)),
+          ]),
+          const SizedBox(height: 8),
+          Text('Stock quantity: ${item.quantity}',
+              style: TextStyle(color: AppColors.textTertiary(dialogCtx), fontSize: 11)),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text('Cancel', style: TextStyle(color: AppColors.textTertiary(dialogCtx))),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              final qty = int.tryParse(qtyCtrl.text) ?? item.quantity;
+              _doPrintLabels(item, qty.clamp(1, 500));
+            },
+            icon: const Icon(Icons.print_rounded, size: 16),
+            label: const Text('Print'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Generate and print N barcode labels
+  void _doPrintLabels(ItemModel item, int count) {
     final name = item.name.replaceAll("'", "\\'");
     final barcode = item.barcode.replaceAll("'", "\\'");
     final price = Formatters.currency(item.price).replaceAll("'", "\\'");
+
+    // Build label HTML for each copy
+    final labelsHtml = StringBuffer();
+    for (int i = 0; i < count; i++) {
+      labelsHtml.write('''
+        <div class="label">
+          <div class="name">$name</div>
+          <canvas id="bc$i"></canvas>
+          <div class="price">$price</div>
+        </div>
+      ''');
+    }
+
+    // Build barcode init JS for each canvas
+    final barcodeJs = StringBuffer();
+    for (int i = 0; i < count; i++) {
+      barcodeJs.write('''
+        JsBarcode("#bc$i", "$barcode", { format: "CODE128", width: 2, height: 50, displayValue: true, fontSize: 12, fontOptions: "bold", margin: 4 });
+      ''');
+    }
+
     js.context.callMethod('eval', [
       '''
-      var w = window.open('', '_blank', 'width=400,height=300');
+      var w = window.open('', '_blank', 'width=450,height=600');
       if (w) {
-        w.document.write('<html><head><title>Barcode Label</title>');
-        w.document.write('<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>');
+        w.document.write('<html><head><title>Barcode Labels ($count)</title>');
+        w.document.write('<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\\/script>');
         w.document.write('<style>');
         w.document.write('@page { size: 50mm 30mm; margin: 0; }');
-        w.document.write('@media print { body { margin: 0; } }');
-        w.document.write('body { font-family: Arial, sans-serif; text-align: center; padding: 4mm; background: #fff; }');
+        w.document.write('@media print { body { margin: 0; } .label { page-break-after: always; } .label:last-child { page-break-after: auto; } }');
+        w.document.write('body { font-family: Arial, sans-serif; text-align: center; background: #fff; margin: 0; padding: 0; }');
+        w.document.write('.label { padding: 4mm; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 28mm; box-sizing: border-box; }');
+        w.document.write('@media screen { .label { border-bottom: 1px dashed #ccc; padding: 12px 8px; } }');
         w.document.write('.name { font-size: 10px; font-weight: bold; margin-bottom: 2px; }');
         w.document.write('.price { font-size: 10px; margin-top: 2px; }');
         w.document.write('canvas { max-width: 100%; }');
+        w.document.write('.count-badge { position: fixed; top: 8px; right: 8px; background: #00BCD4; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; z-index: 10; }');
+        w.document.write('@media print { .count-badge { display: none; } }');
         w.document.write('</style></head><body>');
-        w.document.write('<div class="name">$name</div>');
-        w.document.write('<canvas id="bc"></canvas>');
-        w.document.write('<div class="price">$price</div>');
+        w.document.write('<div class="count-badge">$count labels</div>');
+        w.document.write('${labelsHtml.toString().replaceAll("'", "\\'")}');
         w.document.write('<script>');
-        w.document.write('JsBarcode("#bc", "$barcode", { format: "CODE128", width: 2, height: 50, displayValue: true, fontSize: 12, fontOptions: "bold", margin: 4 });');
-        w.document.write('<\/script>');
+        w.document.write('${barcodeJs.toString().replaceAll("'", "\\'")}');
+        w.document.write('<\\/script>');
         w.document.write('</body></html>');
         w.document.close();
         setTimeout(function() { w.print(); }, 700);
-        setTimeout(function() { w.close(); }, 3000);
       }
       '''
     ]);
