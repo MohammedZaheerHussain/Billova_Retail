@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="SKYWALK - Smart Billing & Inventory Management System for Retail Businesses. Fast POS, Staff Management, Date-Based Reports.">
+  <meta name="theme-color" content="#7B61FF">
+  <meta name="color-scheme" content="dark">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SKYWALK">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>SKYWALK Billing</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Splash screen styling -->
+  <style>
+    body {
+      margin: 0;
+      background-color: #0A0E1A;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <!-- JsBarcode for commercial barcode rendering (Code128) -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script>
+    // Generate barcode as base64 PNG for Flutter
+    function generateBarcodeDataUrl(text, width, height) {
+      var canvas = document.createElement('canvas');
+      try {
+        JsBarcode(canvas, text, {
+          format: 'CODE128',
+          width: width || 2,
+          height: height || 60,
+          displayValue: true,
+          fontSize: 14,
+          fontOptions: 'bold',
+          margin: 8,
+          background: '#ffffff',
+          lineColor: '#000000'
+        });
+        return canvas.toDataURL('image/png');
+      } catch(e) {
+        return '';
+      }
+    }
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
