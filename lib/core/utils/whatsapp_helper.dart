@@ -81,7 +81,6 @@ class WhatsAppHelper {
     required List<Map<String, dynamic>> purchases,
     String companyName = 'SKYWALK',
   }) {
-    // Determine readable status
     String status;
     if (pendingAmount <= 0) {
       status = 'Fully Paid';
@@ -94,17 +93,16 @@ class WhatsAppHelper {
     final date = DateTime.now().toIso8601String().substring(0, 10);
     final buf = StringBuffer();
 
-    buf.writeln('*$companyName*');
-    buf.writeln('VENDOR INVOICE');
-    buf.writeln('─────────────────────────');
+    buf.writeln('*$companyName - VENDOR INVOICE*');
     buf.writeln('');
-    buf.writeln('To: *$vendorName*');
+    buf.writeln('Hello *$vendorName*,');
+    buf.writeln('Please find your updated purchase ledger.');
+    buf.writeln('');
     buf.writeln('Invoice No: *$invoiceNumber*');
-    buf.writeln('Date: $date');
+    buf.writeln('Date: *$date*');
     buf.writeln('');
-    buf.writeln('─────────────────────────');
-    buf.writeln('*PURCHASE SUMMARY*');
-    buf.writeln('─────────────────────────');
+    buf.writeln('*Purchase Summary*');
+    buf.writeln('');
 
     int index = 1;
     for (final p in purchases) {
@@ -112,24 +110,21 @@ class WhatsAppHelper {
       final amount = Formatters.currency((p['amount'] as num?)?.toDouble() ?? 0);
       final paid = Formatters.currency((p['paid'] as num?)?.toDouble() ?? 0);
       buf.writeln('$index. $pDate');
-      buf.writeln('   Amount: $amount | Paid: $paid');
+      buf.writeln('   Amount: $amount');
+      buf.writeln('   Paid: $paid');
+      buf.writeln('');
       index++;
     }
 
+    buf.writeln('*Payment Details*');
     buf.writeln('');
-    buf.writeln('─────────────────────────');
-    buf.writeln('*PAYMENT DETAILS*');
-    buf.writeln('─────────────────────────');
-    buf.writeln('Total Amount   : *${Formatters.currency(totalAmount)}*');
-    buf.writeln('Paid Amount    : *${Formatters.currency(paidAmount)}*');
+    buf.writeln('Total Amount: *${Formatters.currency(totalAmount)}*');
+    buf.writeln('Paid Amount: *${Formatters.currency(paidAmount)}*');
     buf.writeln('Pending Balance: *${Formatters.currency(pendingAmount)}*');
-    buf.writeln('Status         : *$status*');
-    buf.writeln('─────────────────────────');
+    buf.writeln('Status: *$status*');
     buf.writeln('');
-    buf.writeln('Thank you for your continued business.');
-    buf.writeln('For queries, contact us directly.');
-    buf.writeln('');
-    buf.writeln('_$companyName — Professional Billing_');
+    buf.writeln('Thank you for your business.');
+    buf.writeln('- Team $companyName');
     return buf.toString();
   }
 }
