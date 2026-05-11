@@ -15,6 +15,7 @@ import 'providers/staff_provider.dart';
 import 'providers/customer_provider.dart';
 import 'providers/loyalty_settings_provider.dart';
 import 'providers/category_provider.dart';
+import 'providers/clearance_provider.dart';
 import 'app.dart';
 
 void main() async {
@@ -43,6 +44,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => CustomerProvider()),
         ChangeNotifierProvider(create: (_) => LoyaltySettingsProvider()),
         ChangeNotifierProvider(create: (_) => CategoryProvider()),
+        ChangeNotifierProvider(create: (_) => ClearanceProvider()),
       ],
       child: const SkywalkApp(),
     ),
