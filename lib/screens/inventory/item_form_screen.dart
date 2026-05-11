@@ -4,8 +4,9 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../data/models/item_model.dart';
-import '../../data/local/db_helper.dart';
 import '../../providers/inventory_provider.dart';
+import '../../providers/category_provider.dart';
+import '../../data/models/category_model.dart';
 
 class ItemFormDialog extends StatefulWidget {
   final ItemModel? item;
@@ -32,7 +33,6 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   bool _autoBarcode = false;
 
   // Category system
-  List<Map<String, dynamic>> _categories = [];
   String? _selectedCategory;
   bool _showSize = true;
   bool _showColor = true;
@@ -55,36 +55,39 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     _qtyCtrl = TextEditingController(text: widget.item?.quantity.toString() ?? '0');
     _lowStockCtrl = TextEditingController(text: widget.item?.lowStockThreshold.toString() ?? '5');
     _selectedCategory = widget.item?.category;
-    _loadCategories();
+
+    // Ensure categories are loaded, then set dynamic fields
+    Future.microtask(() {
+      final catProvider = context.read<CategoryProvider>();
+      if (catProvider.categories.isEmpty) {
+        catProvider.loadCategories().then((_) => _initCategoryFields());
+      } else {
+        _initCategoryFields();
+      }
+    });
   }
 
-  Future<void> _loadCategories() async {
-    final rows = await DBHelper.instance.getCategories();
-    if (mounted) {
-      setState(() {
-        _categories = rows;
-        // Set dynamic fields based on selected category
-        if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
-          _updateCategoryFields(_selectedCategory!);
-        }
-      });
+  void _initCategoryFields() {
+    if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
+      _updateCategoryFields(_selectedCategory!);
     }
   }
 
   void _updateCategoryFields(String categoryName) {
-    final match = _categories.where((c) => c['name'] == categoryName);
-    if (match.isNotEmpty) {
+    final catProvider = context.read<CategoryProvider>();
+    final match = catProvider.getCategoryByName(categoryName);
+    if (match != null) {
       setState(() {
-        _showSize = match.first['requires_size'] == 1;
-        _showColor = match.first['requires_color'] == 1;
+        _showSize = match.requiresSize;
+        _showColor = match.requiresColor;
       });
     } else {
+      // If category not found in DB, show both fields (fallback)
       setState(() { _showSize = true; _showColor = true; });
     }
   }
 
   void _generateBarcode() {
-    // Format: SKY-{CATEGORY_CODE}-{5_DIGIT_RANDOM}
     final cat = _selectedCategory ?? _categoryCtrl.text.trim();
     final code = cat.isNotEmpty
         ? cat.substring(0, min(3, cat.length)).toUpperCase()
@@ -115,6 +118,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     setState(() => _isLoading = true);
 
     final provider = context.read<InventoryProvider>();
+    final category = _selectedCategory ?? _categoryCtrl.text.trim();
     bool success;
 
     if (isEditing) {
@@ -122,9 +126,9 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
         name: _nameCtrl.text.trim(),
         vendor: _vendorCtrl.text.trim(),
         barcode: _barcodeCtrl.text.trim(),
-        category: _categoryCtrl.text.trim(),
-        size: _sizeCtrl.text.trim(),
-        color: _colorCtrl.text.trim(),
+        category: category,
+        size: _showSize ? _sizeCtrl.text.trim() : '',
+        color: _showColor ? _colorCtrl.text.trim() : '',
         storageLocation: _locationCtrl.text.trim(),
         price: double.parse(_priceCtrl.text.trim()),
         costPrice: double.tryParse(_costPriceCtrl.text.trim()) ?? 0,
@@ -136,9 +140,9 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
         name: _nameCtrl.text.trim(),
         vendor: _vendorCtrl.text.trim(),
         barcode: _barcodeCtrl.text.trim(),
-        category: _categoryCtrl.text.trim(),
-        size: _sizeCtrl.text.trim(),
-        color: _colorCtrl.text.trim(),
+        category: category,
+        size: _showSize ? _sizeCtrl.text.trim() : '',
+        color: _showColor ? _colorCtrl.text.trim() : '',
         storageLocation: _locationCtrl.text.trim(),
         price: double.parse(_priceCtrl.text.trim()),
         costPrice: double.tryParse(_costPriceCtrl.text.trim()) ?? 0,
@@ -154,7 +158,9 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(isEditing ? 'Item updated' : 'Item added'),
-          backgroundColor: AppColors.card(context),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
     }
@@ -221,44 +227,55 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                           Expanded(child: _field('Brand / Vendor', _vendorCtrl, 'e.g. Nike, Adidas',
                               icon: Icons.store_rounded)),
                           const SizedBox(width: 10),
-                          // Category dropdown from DB
+                          // Dynamic category dropdown from CategoryProvider
                           Expanded(
-                            child: _categories.isEmpty
-                                ? _field('Category', _categoryCtrl, 'e.g. Shoes',
-                                    icon: Icons.category_rounded)
-                                : DropdownButtonFormField<String>(
-                                    value: _selectedCategory != null && _categories.any((c) => c['name'] == _selectedCategory)
-                                        ? _selectedCategory : null,
-                                    items: _categories.map((c) => DropdownMenuItem(
-                                      value: c['name'] as String,
-                                      child: Text(c['name'] as String, style: TextStyle(fontSize: 13)),
-                                    )).toList(),
-                                    onChanged: (v) {
-                                      setState(() {
-                                        _selectedCategory = v;
-                                        _categoryCtrl.text = v ?? '';
-                                      });
-                                      if (v != null) _updateCategoryFields(v);
-                                    },
-                                    style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
-                                    dropdownColor: AppColors.card(context),
-                                    decoration: InputDecoration(
-                                      labelText: 'Category',
-                                      labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 12),
-                                      prefixIcon: Icon(Icons.category_rounded, size: 18, color: AppColors.textTertiary(context)),
-                                      filled: true,
-                                      fillColor: AppColors.surface(context),
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
-                                        borderSide: BorderSide(color: AppColors.cardBorder(context))),
-                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
-                                        borderSide: BorderSide(color: AppColors.cardBorder(context))),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                    ),
+                            child: Consumer<CategoryProvider>(
+                              builder: (context, catProvider, _) {
+                                final categories = catProvider.categories;
+                                if (categories.isEmpty) {
+                                  return _field('Category', _categoryCtrl, 'e.g. Shoes',
+                                      icon: Icons.category_rounded);
+                                }
+                                return DropdownButtonFormField<String>(
+                                  value: _selectedCategory != null &&
+                                      categories.any((c) => c.name == _selectedCategory)
+                                      ? _selectedCategory : null,
+                                  items: categories.map((c) => DropdownMenuItem(
+                                    value: c.name,
+                                    child: Text(c.name, style: TextStyle(fontSize: 13)),
+                                  )).toList(),
+                                  onChanged: (v) {
+                                    setState(() {
+                                      _selectedCategory = v;
+                                      _categoryCtrl.text = v ?? '';
+                                    });
+                                    if (v != null) _updateCategoryFields(v);
+                                    // Regenerate barcode with new category prefix
+                                    if (_autoBarcode) _generateBarcode();
+                                  },
+                                  style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
+                                  dropdownColor: AppColors.card(context),
+                                  decoration: InputDecoration(
+                                    labelText: 'Category',
+                                    labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 12),
+                                    prefixIcon: Icon(Icons.category_rounded, size: 18, color: AppColors.textTertiary(context)),
+                                    filled: true,
+                                    fillColor: AppColors.surface(context),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(color: AppColors.primary, width: 1.5)),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                   ),
+                                );
+                              },
+                            ),
                           ),
                         ]),
                         const SizedBox(height: 12),
-                        // Dynamic Size/Color based on category
+                        // Dynamic Size/Color based on selected category
                         if (_showSize || _showColor)
                           Row(children: [
                             if (_showSize)
@@ -275,7 +292,6 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                         _sectionLabel('Identification & Location'),
                         const SizedBox(height: 8),
                         Row(children: [
-                          // Auto-generate checkbox
                           Checkbox(
                             value: _autoBarcode,
                             activeColor: AppColors.accent,

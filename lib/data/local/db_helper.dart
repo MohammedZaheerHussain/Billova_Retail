@@ -297,7 +297,9 @@ class DBHelper {
         name TEXT NOT NULL,
         requires_size INTEGER DEFAULT 0,
         requires_color INTEGER DEFAULT 0,
-        created_at TEXT NOT NULL
+        is_deleted INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       )
     ''');
 
@@ -537,6 +539,14 @@ class DBHelper {
       ''');
       await db.execute('CREATE INDEX IF NOT EXISTS idx_loyalty_tx_customer ON loyalty_transactions(customer_id)');
     }
+
+    // v9: Add updated_at + is_deleted to categories for sync support
+    if (oldVersion < 9) {
+      try {
+        await db.execute("ALTER TABLE categories ADD COLUMN updated_at TEXT DEFAULT ''");
+        await db.execute("ALTER TABLE categories ADD COLUMN is_deleted INTEGER DEFAULT 0");
+      } catch (_) {} // Columns may already exist
+    }
   }
 
   // ─── Generic CRUD ───
@@ -715,10 +725,11 @@ class DBHelper {
   Future<List<Map<String, dynamic>>> getCategories() async {
     if (kIsWeb) {
       final web = await _web;
-      return await web.query('categories', orderBy: 'name ASC');
+      final rows = await web.query('categories', orderBy: 'name ASC');
+      return rows.where((r) => r['is_deleted'] != 1 && r['is_deleted'] != true).toList();
     }
     final db = await database;
-    return await db.query('categories', orderBy: 'name ASC');
+    return await db.query('categories', where: 'is_deleted = ?', whereArgs: [0], orderBy: 'name ASC');
   }
 
   Future<void> insertCategory(Map<String, dynamic> data) async {
@@ -731,14 +742,30 @@ class DBHelper {
     await db.insert('categories', data, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  Future<void> deleteCategory(String id) async {
+  Future<void> updateCategory(Map<String, dynamic> data, String id) async {
+    data['updated_at'] = DateTime.now().toIso8601String();
     if (kIsWeb) {
       final web = await _web;
-      await web.delete('categories', where: 'id = ?', whereArgs: [id]);
+      await web.update('categories', data, where: 'id = ?', whereArgs: [id]);
       return;
     }
     final db = await database;
-    await db.delete('categories', where: 'id = ?', whereArgs: [id]);
+    await db.update('categories', data, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> deleteCategory(String id) async {
+    // Soft delete for sync support
+    final data = {
+      'is_deleted': 1,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    if (kIsWeb) {
+      final web = await _web;
+      await web.update('categories', data, where: 'id = ?', whereArgs: [id]);
+      return;
+    }
+    final db = await database;
+    await db.update('categories', data, where: 'id = ?', whereArgs: [id]);
   }
 
   // ─── Sync Queue ───

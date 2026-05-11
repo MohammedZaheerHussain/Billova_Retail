@@ -14,6 +14,8 @@ import '../../providers/staff_provider.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/cash_till_provider.dart';
 import '../../providers/loyalty_settings_provider.dart';
+import '../../providers/category_provider.dart';
+import '../../data/models/category_model.dart';
 import '../../data/local/db_helper.dart';
 import '../../data/remote/supabase_service.dart';
 
@@ -37,7 +39,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _categoryNameCtrl = TextEditingController();
   bool _requiresSize = false;
   bool _requiresColor = false;
-  List<Map<String, dynamic>> _categories = [];
 
   // Printer Config
   final _shopNameCtrl = TextEditingController();
@@ -51,7 +52,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadSettings();
-    _loadCategories();
+    // Load categories via provider
+    Future.microtask(() => context.read<CategoryProvider>().loadCategories());
   }
 
   @override
@@ -83,11 +85,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _loadCategories() async {
-    final rows = await DBHelper.instance.getCategories();
-    if (mounted) setState(() => _categories = rows);
-  }
-
   Future<void> _saveSettings() async {
     final db = DBHelper.instance;
     await db.setSetting('store_name', _storeNameCtrl.text.trim());
@@ -103,24 +100,131 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _addCategory() async {
-    final name = _categoryNameCtrl.text.trim();
-    if (name.isEmpty) return;
-    await DBHelper.instance.insertCategory({
-      'id': const Uuid().v4(),
-      'name': name,
-      'requires_size': _requiresSize ? 1 : 0,
-      'requires_color': _requiresColor ? 1 : 0,
-      'created_at': DateTime.now().toIso8601String(),
-    });
-    _categoryNameCtrl.clear();
-    setState(() { _requiresSize = false; _requiresColor = false; });
-    await _loadCategories();
+  void _showToast(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      backgroundColor: isError ? AppColors.error : AppColors.success,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
   }
 
-  Future<void> _deleteCategory(String id) async {
-    await DBHelper.instance.deleteCategory(id);
-    await _loadCategories();
+  Future<void> _addCategory() async {
+    final name = _categoryNameCtrl.text.trim();
+    if (name.isEmpty) {
+      _showToast('Category name cannot be empty', isError: true);
+      return;
+    }
+    final provider = context.read<CategoryProvider>();
+    final success = await provider.addCategory(
+      name: name,
+      requiresSize: _requiresSize,
+      requiresColor: _requiresColor,
+    );
+    if (success) {
+      _categoryNameCtrl.clear();
+      setState(() { _requiresSize = false; _requiresColor = false; });
+      _showToast('Category "$name" added successfully');
+    } else {
+      _showToast(provider.error, isError: true);
+    }
+  }
+
+  Future<void> _deleteCategory(CategoryModel cat) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete Category', style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context))),
+        content: Text('Delete "${cat.name}"? Items using this category won\'t be affected.',
+          style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary(context))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final success = await context.read<CategoryProvider>().deleteCategory(cat.id);
+    if (success) {
+      _showToast('Category "${cat.name}" deleted');
+    }
+  }
+
+  Future<void> _showEditDialog(CategoryModel cat) async {
+    final nameCtrl = TextEditingController(text: cat.name);
+    bool reqSize = cat.requiresSize;
+    bool reqColor = cat.requiresColor;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final isDark = Theme.of(ctx).brightness == Brightness.dark;
+          return AlertDialog(
+            backgroundColor: AppColors.card(context),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(children: [
+              Icon(Icons.edit_rounded, color: AppColors.accent, size: 20),
+              const SizedBox(width: 8),
+              Text('Edit Category', style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context))),
+            ]),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: nameCtrl,
+                style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary(context)),
+                decoration: InputDecoration(
+                  labelText: 'Category Name',
+                  labelStyle: TextStyle(color: AppColors.textSecondary(context)),
+                  filled: true,
+                  fillColor: isDark ? AppColors.sidebarDark.withValues(alpha: 0.5) : Colors.grey.shade50,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.primary, width: 1.5)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(children: [
+                Checkbox(value: reqSize, activeColor: AppColors.primary,
+                  onChanged: (v) => setDialogState(() => reqSize = v!)),
+                Text('Requires Size?', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary(context))),
+                const SizedBox(width: 16),
+                Checkbox(value: reqColor, activeColor: AppColors.primary,
+                  onChanged: (v) => setDialogState(() => reqColor = v!)),
+                Text('Requires Color?', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary(context))),
+              ]),
+            ]),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                child: const Text('Save', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    final editedName = nameCtrl.text;
+    nameCtrl.dispose();
+
+    if (result != true) return;
+    final success = await context.read<CategoryProvider>().updateCategory(cat,
+      name: editedName, requiresSize: reqSize, requiresColor: reqColor);
+    if (success) {
+      _showToast('Category updated');
+    } else {
+      _showToast(context.read<CategoryProvider>().error, isError: true);
+    }
   }
 
   Future<void> _performManualBackup() async {
@@ -173,6 +277,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final cashTill = context.read<CashTillProvider>();
       if (cashTill.today != null) {
         await supabase.syncRecord('cash_till', cashTill.today!.id, 'insert', cashTill.today!.toMap());
+      }
+      if (!mounted) return;
+      setState(() => _backupStatus = 'Syncing categories...');
+      final catProvider = context.read<CategoryProvider>();
+      for (final cat in catProvider.categories) {
+        await supabase.syncRecord('categories', cat.id, 'insert', cat.toMap());
       }
       await supabase.processSyncQueue();
       if (!mounted) return;
@@ -332,43 +442,108 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                 child: SizedBox(
                   width: double.infinity, height: 48,
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
                     onPressed: _addCategory,
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: Text('Add Category', style: AppTypography.button.copyWith(color: Colors.white)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? AppColors.card(context) : Colors.black87,
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: Text('Add Category', style: AppTypography.button.copyWith(color: Colors.white)),
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-              // List existing categories
-              ..._categories.map((cat) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-                child: Row(children: [
-                  Expanded(
-                    child: RichText(text: TextSpan(
-                      style: AppTypography.bodyMedium.copyWith(
-                        color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight),
+              const SizedBox(height: 12),
+              // Category list from provider
+              Consumer<CategoryProvider>(
+                builder: (context, catProvider, _) {
+                  if (catProvider.categories.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.03),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.cardBorder(context).withValues(alpha: 0.5)),
+                        ),
+                        child: Column(children: [
+                          Icon(Icons.category_outlined, size: 36, color: AppColors.textTertiary(context).withValues(alpha: 0.4)),
+                          const SizedBox(height: 8),
+                          Text('No categories yet', style: AppTypography.bodyMedium.copyWith(
+                            color: AppColors.textTertiary(context))),
+                          const SizedBox(height: 4),
+                          Text('Add your first category above', style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.textTertiary(context).withValues(alpha: 0.7))),
+                        ]),
+                      ),
+                    );
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        TextSpan(text: cat['name'] as String, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        TextSpan(
-                          text: '  ${[
-                            if (cat['requires_size'] == 1) 'Size',
-                            if (cat['requires_color'] == 1) 'Color',
-                          ].join(', ')}',
-                          style: TextStyle(fontSize: 11, color: AppColors.accent)),
+                        Text('${catProvider.categories.length} Categories', style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.textTertiary(context), fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                        const SizedBox(height: 8),
+                        ...catProvider.categories.map((cat) => Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.cardBorder(context).withValues(alpha: 0.5)),
+                          ),
+                          child: Row(children: [
+                            Container(
+                              width: 32, height: 32,
+                              decoration: BoxDecoration(
+                                gradient: AppColors.primaryGradient,
+                                borderRadius: BorderRadius.circular(8)),
+                              child: Center(child: Text(
+                                cat.name.isNotEmpty ? cat.name[0].toUpperCase() : '?',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14))),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(cat.name, style: AppTypography.bodyMedium.copyWith(
+                                  color: AppColors.textPrimary(context), fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 2),
+                                Row(children: [
+                                  if (cat.requiresSize) _tagChip('Size', AppColors.accent),
+                                  if (cat.requiresSize && cat.requiresColor) const SizedBox(width: 6),
+                                  if (cat.requiresColor) _tagChip('Color', AppColors.warning),
+                                  if (!cat.requiresSize && !cat.requiresColor)
+                                    Text('No variants', style: AppTypography.labelSmall.copyWith(
+                                      color: AppColors.textTertiary(context), fontStyle: FontStyle.italic)),
+                                ]),
+                              ],
+                            )),
+                            IconButton(
+                              icon: Icon(Icons.edit_rounded, size: 18, color: AppColors.accent),
+                              tooltip: 'Edit',
+                              onPressed: () => _showEditDialog(cat),
+                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                              padding: EdgeInsets.zero,
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.delete_rounded, size: 18, color: AppColors.error),
+                              tooltip: 'Delete',
+                              onPressed: () => _deleteCategory(cat),
+                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                              padding: EdgeInsets.zero,
+                            ),
+                          ]),
+                        )),
                       ],
-                    )),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.close, size: 18, color: AppColors.error),
-                    onPressed: () => _deleteCategory(cat['id'] as String),
-                  ),
-                ]),
-              )),
+                    ),
+                  );
+                },
+              ),
               const SizedBox(height: 8),
             ]),
             const SizedBox(height: 16),
@@ -797,6 +972,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // ─── Helpers ───
+
+  Widget _tagChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+    );
+  }
 
   Widget _buildSection(bool isDark, String title, IconData icon, List<Widget> children) {
     return Container(

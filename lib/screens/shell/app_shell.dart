@@ -14,6 +14,7 @@ import '../../providers/staff_provider.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/vendor_provider.dart';
 import '../../providers/purchase_provider.dart';
+import '../../providers/category_provider.dart';
 import '../../data/remote/supabase_service.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../inventory/inventory_screen.dart';
@@ -199,6 +200,7 @@ class _AppShellState extends State<AppShell> {
     final customerProvider = context.read<CustomerProvider>();
     final vendorProvider = context.read<VendorProvider>();
     final purchaseProvider = context.read<PurchaseProvider>();
+    final categoryProvider = context.read<CategoryProvider>();
 
     await Future.wait([
       inventory.loadItems(),
@@ -210,6 +212,7 @@ class _AppShellState extends State<AppShell> {
       customerProvider.loadCustomers(),
       vendorProvider.loadVendors(),
       purchaseProvider.loadPurchases(),
+      categoryProvider.loadCategories(),
     ]);
 
     // ─── STEP 3: Restore staff session if applicable ───

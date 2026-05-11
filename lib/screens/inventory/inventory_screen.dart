@@ -6,16 +6,52 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/inventory_provider.dart';
+import '../../providers/category_provider.dart';
 import '../../data/models/item_model.dart';
 import 'item_form_screen.dart';
 
-class InventoryScreen extends StatelessWidget {
+class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
+
+  @override
+  State<InventoryScreen> createState() => _InventoryScreenState();
+}
+
+class _InventoryScreenState extends State<InventoryScreen> {
+  final Set<String> _collapsedCategories = {};
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      final catProvider = context.read<CategoryProvider>();
+      if (catProvider.categories.isEmpty) catProvider.loadCategories();
+    });
+  }
+
+  /// Group items by category name. Uncategorized items go to "Uncategorized".
+  Map<String, List<ItemModel>> _groupByCategory(List<ItemModel> items) {
+    final Map<String, List<ItemModel>> grouped = {};
+    for (final item in items) {
+      final cat = item.category.isNotEmpty ? item.category : 'Uncategorized';
+      grouped.putIfAbsent(cat, () => []).add(item);
+    }
+    // Sort keys alphabetically, but put Uncategorized last
+    final sorted = Map<String, List<ItemModel>>.fromEntries(
+      grouped.entries.toList()..sort((a, b) {
+        if (a.key == 'Uncategorized') return 1;
+        if (b.key == 'Uncategorized') return -1;
+        return a.key.toLowerCase().compareTo(b.key.toLowerCase());
+      }),
+    );
+    return sorted;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<InventoryProvider>(
       builder: (context, provider, _) {
+        final grouped = _groupByCategory(provider.items);
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: Padding(
@@ -24,50 +60,38 @@ class InventoryScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ─── Header ───
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Inventory',
-                        style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context)),
-                      ),
+                Row(children: [
+                  Expanded(child: Text('Inventory',
+                    style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context)))),
+                  _statChip('${provider.totalItems}', 'Items', AppColors.primary),
+                  const SizedBox(width: 8),
+                  if (provider.lowStockCount > 0)
+                    _statChip('${provider.lowStockCount}', 'Low', AppColors.warning),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => _showItemForm(context),
+                    icon: Icon(Icons.add_rounded, size: 20),
+                    label: const Text('Add Item'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    // Stats
-                    _statChip('${provider.totalItems}', 'Items', AppColors.primary),
-                    const SizedBox(width: 8),
-                    if (provider.lowStockCount > 0)
-                      _statChip('${provider.lowStockCount}', 'Low', AppColors.warning),
-                    const SizedBox(width: 16),
-                    ElevatedButton.icon(
-                      onPressed: () => _showItemForm(context),
-                      icon: Icon(Icons.add_rounded, size: 20),
-                      label: const Text('Add Item'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ]),
                 SizedBox(height: 16),
 
                 // ─── Search ───
                 Container(
                   decoration: BoxDecoration(
-                    color: AppColors.card(context),
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.card(context), borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppColors.cardBorder(context)),
                   ),
                   child: TextField(
                     onChanged: provider.search,
                     style: TextStyle(color: AppColors.textPrimary(context)),
                     decoration: InputDecoration(
-                      hintText: 'Search items...',
-                      hintStyle: TextStyle(color: AppColors.textTertiary(context)),
+                      hintText: 'Search items...', hintStyle: TextStyle(color: AppColors.textTertiary(context)),
                       prefixIcon: Icon(Icons.search_rounded, color: AppColors.textTertiary(context)),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -76,20 +100,21 @@ class InventoryScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // ─── Error ───
-                if (provider.error.isNotEmpty)
-                  _errorBanner(context, provider),
+                if (provider.error.isNotEmpty) _errorBanner(context, provider),
 
-                // ─── Items List ───
+                // ─── Grouped Items List ───
                 Expanded(
                   child: provider.isLoading
                       ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
                       : provider.items.isEmpty
                           ? _emptyState(context)
                           : ListView.builder(
-                              itemCount: provider.items.length,
+                              itemCount: grouped.length,
                               itemBuilder: (context, index) {
-                                return _itemCard(context, provider.items[index], provider);
+                                final category = grouped.keys.elementAt(index);
+                                final items = grouped[category]!;
+                                final isCollapsed = _collapsedCategories.contains(category);
+                                return _categorySection(context, category, items, isCollapsed, provider);
                               },
                             ),
                 ),
@@ -101,174 +126,162 @@ class InventoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _statChip(String value, String label, Color color) {
+  Widget _categorySection(BuildContext context, String category, List<ItemModel> items, bool isCollapsed, InventoryProvider provider) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(value, style: AppTypography.mono.copyWith(color: color, fontWeight: FontWeight.w700, fontSize: 13)),
-          const SizedBox(width: 4),
-          Text(label, style: AppTypography.labelSmall.copyWith(color: color.withValues(alpha: 0.8))),
-        ],
-      ),
-    );
-  }
-
-  Widget _errorBanner(BuildContext context, InventoryProvider provider) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.errorBg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline, color: AppColors.error, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(provider.error, style: AppTypography.bodySmall.copyWith(color: AppColors.error)),
-          ),
-          IconButton(
-            icon: Icon(Icons.close, size: 16, color: AppColors.error),
-            onPressed: provider.clearError,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _emptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textTertiary(context).withValues(alpha: 0.3)),
-          SizedBox(height: 16),
-          Text('No items yet', style: AppTypography.h3.copyWith(color: AppColors.textSecondary(context))),
-          SizedBox(height: 8),
-          Text('Add your first product to get started', style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))),
-        ],
-      ),
-    );
-  }
-
-  Widget _itemCard(BuildContext context, ItemModel item, InventoryProvider provider) {
-    Color stockColor = AppColors.success;
-    String stockLabel = '${item.quantity} in stock';
-    if (item.isOutOfStock) {
-      stockColor = AppColors.error;
-      stockLabel = 'Out of stock';
-    } else if (item.isLowStock) {
-      stockColor = AppColors.warning;
-      stockLabel = '${item.quantity} left (low)';
-    }
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.cardBorder(context)),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Center(
-            child: Text(
-              item.name.isNotEmpty ? item.name[0].toUpperCase() : '?',
-              style: AppTypography.h3.copyWith(color: AppColors.accent),
-            ),
-          ),
-        ),
-        title: Text(
-          item.name,
-          style: AppTypography.bodyLarge.copyWith(
-            color: AppColors.textPrimary(context),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (item.vendor.isNotEmpty)
-              Padding(
-                padding: EdgeInsets.only(bottom: 2),
-                child: Text(
-                  item.vendor,
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.textTertiary(context),
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
+      child: Column(children: [
+        // Category header
+        InkWell(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+          onTap: () => setState(() {
+            isCollapsed ? _collapsedCategories.remove(category) : _collapsedCategories.add(category);
+          }),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(children: [
+              Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  gradient: category == 'Uncategorized'
+                      ? LinearGradient(colors: [Colors.grey.shade500, Colors.grey.shade600])
+                      : AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(10)),
+                child: Center(child: Text(
+                  category.isNotEmpty ? category[0].toUpperCase() : '?',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16))),
               ),
-            Row(
-              children: [
-                Text(
-                  Formatters.currency(item.price),
-                  style: AppTypography.mono.copyWith(color: AppColors.accent, fontSize: 13),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: stockColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    stockLabel,
-                    style: AppTypography.labelSmall.copyWith(color: stockColor),
-                  ),
-                ),
-              ],
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(category, style: AppTypography.h4.copyWith(
+                  color: AppColors.textPrimary(context), fontWeight: FontWeight.w600)),
+                Text('${items.length} item${items.length != 1 ? 's' : ''}',
+                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
+              ])),
+              _statChip('${items.length}', '', AppColors.accent),
+              const SizedBox(width: 8),
+              AnimatedRotation(
+                turns: isCollapsed ? -0.25 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textTertiary(context)),
+              ),
+            ]),
+          ),
         ),
-        onTap: () => _showItemDetail(context, item),
-        trailing: PopupMenuButton(
-          icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary(context)),
-          color: AppColors.card(context),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          itemBuilder: (ctx) => [
-            PopupMenuItem(
-              onTap: () => Future.microtask(() => _showItemForm(context, item: item)),
-              child: Row(
-                children: [
+        // Items (collapsible)
+        if (!isCollapsed) ...[
+          Divider(height: 1, color: AppColors.cardBorder(context).withValues(alpha: 0.5)),
+          ...items.map((item) => _itemTile(context, item, provider)),
+        ],
+      ]),
+    );
+  }
+
+  Widget _itemTile(BuildContext context, ItemModel item, InventoryProvider provider) {
+    Color stockColor = AppColors.success;
+    String stockLabel = '${item.quantity} in stock';
+    if (item.isOutOfStock) { stockColor = AppColors.error; stockLabel = 'Out of stock'; }
+    else if (item.isLowStock) { stockColor = AppColors.warning; stockLabel = '${item.quantity} left (low)'; }
+
+    return InkWell(
+      onTap: () => _showItemDetail(context, item),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)),
+            child: Center(child: Text(item.name.isNotEmpty ? item.name[0].toUpperCase() : '?',
+              style: AppTypography.h4.copyWith(color: AppColors.accent))),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(item.name, style: AppTypography.bodyLarge.copyWith(
+              color: AppColors.textPrimary(context), fontWeight: FontWeight.w600)),
+            if (item.vendor.isNotEmpty)
+              Text(item.vendor, style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textTertiary(context), fontStyle: FontStyle.italic)),
+            Row(children: [
+              Text(Formatters.currency(item.price), style: AppTypography.mono.copyWith(color: AppColors.accent, fontSize: 13)),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(color: stockColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                child: Text(stockLabel, style: AppTypography.labelSmall.copyWith(color: stockColor)),
+              ),
+            ]),
+          ])),
+          PopupMenuButton(
+            icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary(context)),
+            color: AppColors.card(context),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            itemBuilder: (ctx) => [
+              PopupMenuItem(
+                onTap: () => Future.microtask(() => _showItemForm(context, item: item)),
+                child: Row(children: [
                   Icon(Icons.edit_rounded, size: 18, color: AppColors.textSecondary(context)),
                   SizedBox(width: 8),
                   Text('Edit', style: TextStyle(color: AppColors.textPrimary(context))),
-                ],
+                ]),
               ),
-            ),
-            PopupMenuItem(
-              onTap: () => _confirmDelete(context, provider, item),
-              child: const Row(
-                children: [
+              PopupMenuItem(
+                onTap: () => _confirmDelete(context, provider, item),
+                child: const Row(children: [
                   Icon(Icons.delete_rounded, size: 18, color: AppColors.error),
                   SizedBox(width: 8),
                   Text('Delete', style: TextStyle(color: AppColors.error)),
-                ],
+                ]),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ]),
       ),
     );
+  }
+
+  Widget _statChip(String value, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(value, style: AppTypography.mono.copyWith(color: color, fontWeight: FontWeight.w700, fontSize: 13)),
+        if (label.isNotEmpty) ...[const SizedBox(width: 4),
+          Text(label, style: AppTypography.labelSmall.copyWith(color: color.withValues(alpha: 0.8)))],
+      ]),
+    );
+  }
+
+  Widget _errorBanner(BuildContext context, InventoryProvider provider) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: AppColors.errorBg, borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3))),
+      child: Row(children: [
+        Icon(Icons.error_outline, color: AppColors.error, size: 18), const SizedBox(width: 8),
+        Expanded(child: Text(provider.error, style: AppTypography.bodySmall.copyWith(color: AppColors.error))),
+        IconButton(icon: Icon(Icons.close, size: 16, color: AppColors.error),
+          onPressed: provider.clearError, padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+      ]),
+    );
+  }
+
+  Widget _emptyState(BuildContext context) {
+    return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textTertiary(context).withValues(alpha: 0.3)),
+      SizedBox(height: 16),
+      Text('No items yet', style: AppTypography.h3.copyWith(color: AppColors.textSecondary(context))),
+      SizedBox(height: 8),
+      Text('Add your first product to get started', style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))),
+    ]));
   }
 
   void _showItemDetail(BuildContext context, ItemModel item) {
@@ -282,56 +295,37 @@ class InventoryScreen extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              // Header
               Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
+                Container(padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(gradient: AppColors.primaryGradient, borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.inventory_2_rounded, color: Colors.white, size: 22),
-                ),
+                  child: const Icon(Icons.inventory_2_rounded, color: Colors.white, size: 22)),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(item.name, style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context)),
-                      overflow: TextOverflow.ellipsis),
-                  if (item.vendor.isNotEmpty)
-                    Text(item.vendor, style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textTertiary(context), fontStyle: FontStyle.italic)),
+                  Text(item.name, style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context)), overflow: TextOverflow.ellipsis),
+                  if (item.vendor.isNotEmpty) Text(item.vendor, style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.textTertiary(context), fontStyle: FontStyle.italic)),
                 ])),
                 IconButton(onPressed: () => Navigator.pop(ctx),
-                    icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context))),
+                  icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context))),
               ]),
               const SizedBox(height: 16),
-              // Details
               Flexible(child: SingleChildScrollView(child: Column(children: [
-                // Barcode section
                 if (item.barcode.isNotEmpty) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
+                  Container(width: double.infinity, padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300)),
                     child: Column(children: [
-                      // Real Code128 barcode via JsBarcode
                       Builder(builder: (_) {
                         final dataUrl = js.context.callMethod('generateBarcodeDataUrl', [item.barcode, 2, 50]);
                         final url = dataUrl?.toString() ?? '';
                         if (url.isNotEmpty && url.startsWith('data:image')) {
-                          return Image.memory(
-                            base64Decode(url.split(',').last),
-                            height: 80,
-                            fit: BoxFit.contain,
-                          );
+                          return Image.memory(base64Decode(url.split(',').last), height: 80, fit: BoxFit.contain);
                         }
-                        // Fallback if JsBarcode not loaded
                         return Column(children: [
                           Icon(Icons.view_week_rounded, size: 48, color: Colors.black87),
                           const SizedBox(height: 4),
-                          Text(item.barcode, style: const TextStyle(
-                              fontFamily: 'Courier', fontSize: 14, fontWeight: FontWeight.w700,
-                              color: Colors.black, letterSpacing: 2)),
+                          Text(item.barcode, style: const TextStyle(fontFamily: 'Courier', fontSize: 14,
+                            fontWeight: FontWeight.w700, color: Colors.black, letterSpacing: 2)),
                         ]);
                       }),
                       const SizedBox(height: 8),
@@ -339,55 +333,50 @@ class InventoryScreen extends StatelessWidget {
                         onPressed: () => _printBarcode(context, item),
                         icon: const Icon(Icons.print_rounded, size: 16),
                         label: const Text('Print Barcode Label', style: TextStyle(fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accent, foregroundColor: Colors.white,
+                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                       )),
-                    ]),
-                  ),
+                    ])),
                   const SizedBox(height: 12),
                 ],
-                // Info grid
                 _detailRow(context, 'Category', item.category, Icons.category_rounded),
                 _detailRow(context, 'Size', item.size, Icons.straighten_rounded),
                 _detailRow(context, 'Color', item.color, Icons.palette_rounded),
                 _detailRow(context, 'Location', item.storageLocation, Icons.location_on_rounded),
                 _detailRow(context, 'Barcode / SKU', item.barcode, Icons.qr_code_scanner_rounded),
                 const Divider(height: 20),
-                // Pricing
                 Row(children: [
                   Expanded(child: _detailCard(context, 'Selling Price', Formatters.currency(item.price), AppColors.accent)),
                   const SizedBox(width: 8),
                   Expanded(child: _detailCard(context, 'Cost Price', Formatters.currency(item.costPrice), AppColors.primary)),
                   const SizedBox(width: 8),
                   Expanded(child: _detailCard(context, 'Profit', Formatters.currency(item.profit),
-                      item.profit > 0 ? AppColors.success : AppColors.error)),
+                    item.profit > 0 ? AppColors.success : AppColors.error)),
                 ]),
                 const SizedBox(height: 8),
                 Row(children: [
                   Expanded(child: _detailCard(context, 'In Stock', '${item.quantity}',
-                      item.isOutOfStock ? AppColors.error : item.isLowStock ? AppColors.warning : AppColors.success)),
+                    item.isOutOfStock ? AppColors.error : item.isLowStock ? AppColors.warning : AppColors.success)),
                   const SizedBox(width: 8),
                   Expanded(child: _detailCard(context, 'Stock Value', Formatters.currency(item.stockValue), AppColors.accent)),
                   const SizedBox(width: 8),
                   Expanded(child: _detailCard(context, 'Margin', '${item.profitMargin.toStringAsFixed(1)}%',
-                      item.profitMargin > 0 ? AppColors.success : AppColors.error)),
+                    item.profitMargin > 0 ? AppColors.success : AppColors.error)),
                 ]),
               ]))),
               const SizedBox(height: 12),
-              // Actions
               Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                 OutlinedButton.icon(
                   onPressed: () { Navigator.pop(ctx); _showItemForm(context, item: item); },
                   icon: Icon(Icons.edit_rounded, size: 16, color: AppColors.accent),
                   label: Text('Edit', style: TextStyle(color: AppColors.accent)),
                   style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.accent),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(onPressed: () => Navigator.pop(ctx),
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                   child: const Text('Close', style: TextStyle(color: Colors.white))),
               ]),
             ]),
@@ -399,25 +388,17 @@ class InventoryScreen extends StatelessWidget {
 
   Widget _detailRow(BuildContext context, String label, String value, IconData icon) {
     if (value.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(children: [
-        Icon(icon, size: 16, color: AppColors.textTertiary(context)),
-        const SizedBox(width: 8),
-        Text('$label: ', style: TextStyle(color: AppColors.textTertiary(context), fontSize: 12)),
-        Expanded(child: Text(value, style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13, fontWeight: FontWeight.w500))),
-      ]),
-    );
+    return Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(children: [
+      Icon(icon, size: 16, color: AppColors.textTertiary(context)), const SizedBox(width: 8),
+      Text('$label: ', style: TextStyle(color: AppColors.textTertiary(context), fontSize: 12)),
+      Expanded(child: Text(value, style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13, fontWeight: FontWeight.w500))),
+    ]));
   }
 
   Widget _detailCard(BuildContext context, String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
+    return Container(padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.2))),
       child: Column(children: [
         Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 14)),
         const SizedBox(height: 2),
@@ -500,7 +481,6 @@ class InventoryScreen extends StatelessWidget {
     final price = Formatters.currency(item.price).replaceAll("'", "\\'").replaceAll('"', '\\"');
     final size = item.size.replaceAll("'", "\\'").replaceAll('"', '\\"');
 
-    // Build label divs
     final labelsHtml = StringBuffer();
     for (int i = 0; i < count; i++) {
       labelsHtml.write('<div class="label"><div class="shop">SKYWALK</div>');
@@ -508,7 +488,6 @@ class InventoryScreen extends StatelessWidget {
       labelsHtml.write('<canvas id="bc$i"></canvas><div class="price">MRP: $price</div></div>');
     }
 
-    // Build barcode init calls
     final barcodeJs = StringBuffer();
     for (int i = 0; i < count; i++) {
       barcodeJs.write('JsBarcode("#bc$i","$barcode",{format:"CODE128",width:1.5,height:35,displayValue:true,fontSize:9,fontOptions:"bold",margin:2});');
@@ -519,7 +498,7 @@ class InventoryScreen extends StatelessWidget {
       var w = window.open('', '_blank', 'width=800,height=900');
       if (w) {
         var html = '<html><head><title>$count Labels - $name</title>';
-        html += '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\\/script>';
+        html += '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>';
         html += '<style>';
         html += '@page{size:A4;margin:8mm}';
         html += 'body{font-family:Arial,sans-serif;margin:0;padding:0;background:#fff}';
@@ -542,7 +521,7 @@ class InventoryScreen extends StatelessWidget {
         html += '<script>';
         html += '${barcodeJs.toString().replaceAll("'", "\\'")}';
         html += 'setTimeout(function(){window.print();},800);';
-        html += '<\\/script>';
+        html += '<\/script>';
         html += '</body></html>';
         w.document.write(html);
         w.document.close();
@@ -552,48 +531,33 @@ class InventoryScreen extends StatelessWidget {
   }
 
   void _showItemForm(BuildContext context, {ItemModel? item}) {
-    showDialog(
-      context: context,
-      builder: (ctx) => ItemFormDialog(item: item),
-    );
+    showDialog(context: context, builder: (ctx) => ItemFormDialog(item: item));
   }
 
   void _confirmDelete(BuildContext context, InventoryProvider provider, ItemModel item) {
     Future.microtask(() {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: AppColors.card(context),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Delete Item', style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context))),
-          content: Text(
-            'Are you sure you want to delete "${item.name}"?',
-            style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary(context)),
+      showDialog(context: context, builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete Item', style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context))),
+        content: Text('Are you sure you want to delete "${item.name}"?',
+          style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary(context))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              provider.deleteItem(item.id);
+              Navigator.pop(ctx);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('${item.name} deleted'), backgroundColor: AppColors.card(context)));
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                provider.deleteItem(item.id);
-                Navigator.pop(ctx);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('${item.name} deleted'),
-                      backgroundColor: AppColors.card(context),
-                    ),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-              child: const Text('Delete', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      );
+        ],
+      ));
     });
   }
 }

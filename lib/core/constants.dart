@@ -14,7 +14,7 @@ class AppConstants {
 
   // ─── Database ───
   static const String dbName = 'skywalk_billing.db';
-  static const int dbVersion = 8;
+  static const int dbVersion = 9;
 
   // ─── Invoice ───
   static const String invoicePrefix = 'SKY';
