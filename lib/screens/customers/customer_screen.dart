@@ -6,6 +6,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/whatsapp_helper.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/sales_provider.dart';
+import '../../providers/loyalty_settings_provider.dart';
 import '../../data/models/customer_model.dart';
 
 class CustomerScreen extends StatefulWidget {
@@ -424,15 +425,22 @@ class _CustomerScreenState extends State<CustomerScreen> {
               const SizedBox(height: 16),
 
               // Stats row
-              Row(children: [
-                _detailStat(context, '$totalOrders', 'Orders', Icons.receipt_rounded, AppColors.accent),
-                const SizedBox(width: 8),
-                _detailStat(context, Formatters.currency(totalSpent), 'Total Spent', Icons.currency_rupee_rounded, AppColors.success),
-                const SizedBox(width: 8),
-                _detailStat(context, '${customer.loyaltyPoints}', 'Points', Icons.star_rounded, AppColors.warning),
-                const SizedBox(width: 8),
-                _detailStat(context, lastPurchase, 'Last Visit', Icons.calendar_today_rounded, AppColors.primary),
-              ]),
+              Builder(builder: (_) {
+                final loyalty = context.read<LoyaltySettingsProvider>();
+                final pointsLabel = loyalty.isEnabled && customer.loyaltyPoints > 0
+                    ? '${customer.loyaltyPoints} (${Formatters.currency(loyalty.valueOfPoints(customer.loyaltyPoints))})'
+                    : '${customer.loyaltyPoints}';
+                return Row(children: [
+                  _detailStat(context, '$totalOrders', 'Orders', Icons.receipt_rounded, AppColors.accent),
+                  const SizedBox(width: 8),
+                  _detailStat(context, Formatters.currency(totalSpent), 'Total Spent', Icons.currency_rupee_rounded, AppColors.success),
+                  const SizedBox(width: 8),
+                  _detailStat(context, pointsLabel, 'Points', Icons.star_rounded,
+                      customer.loyaltyPoints > 0 ? AppColors.warning : AppColors.primary),
+                  const SizedBox(width: 8),
+                  _detailStat(context, lastPurchase, 'Last Visit', Icons.calendar_today_rounded, AppColors.primary),
+                ]);
+              }),
               const SizedBox(height: 16),
 
               // Purchase history

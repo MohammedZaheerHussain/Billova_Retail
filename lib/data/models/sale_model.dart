@@ -47,6 +47,9 @@ class SaleModel {
   final DateTime updatedAt;
   final String staffId;
   final String staffName;
+  final double loyaltyDiscount;  // ₹ deducted via loyalty points
+  final int pointsRedeemed;      // number of points used
+  final int pointsEarned;        // number of points awarded
 
   SaleModel({
     required this.id,
@@ -60,6 +63,9 @@ class SaleModel {
     this.paymentMode = 'Cash',
     this.staffId = '',
     this.staffName = '',
+    this.loyaltyDiscount = 0,
+    this.pointsRedeemed = 0,
+    this.pointsEarned = 0,
     this.isDeleted = false,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -82,6 +88,9 @@ class SaleModel {
       'payment_mode': paymentMode,
       'staff_id': staffId,
       'staff_name': staffName,
+      'loyalty_discount': loyaltyDiscount,
+      'points_redeemed': pointsRedeemed,
+      'points_earned': pointsEarned,
       'is_deleted': isDeleted ? 1 : 0,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -113,6 +122,9 @@ class SaleModel {
       paymentMode: map['payment_mode'] as String? ?? 'Cash',
       staffId: map['staff_id'] as String? ?? '',
       staffName: map['staff_name'] as String? ?? '',
+      loyaltyDiscount: (map['loyalty_discount'] as num?)?.toDouble() ?? 0,
+      pointsRedeemed: (map['points_redeemed'] as num?)?.toInt() ?? 0,
+      pointsEarned: (map['points_earned'] as num?)?.toInt() ?? 0,
       isDeleted: map['is_deleted'] == 1 || map['is_deleted'] == true,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
@@ -127,6 +139,9 @@ class SaleModel {
     double? discount,
     double? total,
     String? paymentMode,
+    double? loyaltyDiscount,
+    int? pointsRedeemed,
+    int? pointsEarned,
     bool? isDeleted,
     DateTime? updatedAt,
   }) {
@@ -140,8 +155,11 @@ class SaleModel {
       discount: discount ?? this.discount,
       total: total ?? this.total,
       paymentMode: paymentMode ?? this.paymentMode,
-      staffId: staffId ?? this.staffId,
-      staffName: staffName ?? this.staffName,
+      staffId: staffId,
+      staffName: staffName,
+      loyaltyDiscount: loyaltyDiscount ?? this.loyaltyDiscount,
+      pointsRedeemed: pointsRedeemed ?? this.pointsRedeemed,
+      pointsEarned: pointsEarned ?? this.pointsEarned,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),

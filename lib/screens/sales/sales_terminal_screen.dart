@@ -15,6 +15,7 @@ import '../../providers/cash_till_provider.dart';
 import '../../providers/staff_provider.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/loyalty_settings_provider.dart';
+import '../../data/local/db_helper.dart';
 
 class SalesTerminalScreen extends StatefulWidget {
   const SalesTerminalScreen({super.key});
@@ -115,11 +116,36 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
     final discountPct = double.tryParse(_discountCtrl.text) ?? 0;
     sales.setDiscount(discountPct);
 
-    // Complete sale with staff info
+    // ─── Calculate loyalty discount ───
+    final loyalty = context.read<LoyaltySettingsProvider>();
+    double loyaltyDiscount = 0;
+    int pointsToRedeem = 0;
+    int pointsEarned = 0;
+
+    if (_usePoints && _matchedCustomerId.isNotEmpty && _availablePoints > 0 && loyalty.isEnabled) {
+      final maxDiscount = loyalty.valueOfPoints(_availablePoints);
+      loyaltyDiscount = maxDiscount.clamp(0.0, sales.total);
+      pointsToRedeem = loyaltyDiscount >= maxDiscount
+          ? _availablePoints
+          : (loyaltyDiscount / loyalty.redeemValue).floor();
+      // Recalculate to avoid rounding mismatch
+      loyaltyDiscount = loyalty.valueOfPoints(pointsToRedeem).clamp(0.0, sales.total);
+    }
+
+    // Calculate points earned on the reduced total
+    final payableTotal = (sales.total - loyaltyDiscount).clamp(0.0, double.infinity);
+    if (loyalty.isEnabled) {
+      pointsEarned = loyalty.pointsForAmount(payableTotal);
+    }
+
+    // Complete sale with staff info + loyalty
     final staff = context.read<StaffProvider>();
     final sale = await sales.completeSale(
       staffId: staff.currentStaffId ?? '',
       staffName: staff.currentStaffName,
+      loyaltyDiscount: loyaltyDiscount,
+      pointsRedeemed: pointsToRedeem,
+      pointsEarned: pointsEarned,
     );
 
     if (sale != null && mounted) {
@@ -136,16 +162,19 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       // Auto-save customer + track purchase stats + loyalty
       if (sale.customerName.isNotEmpty && sale.customerName != 'Walk-in Customer') {
         final customerProvider = context.read<CustomerProvider>();
-        final loyalty = context.read<LoyaltySettingsProvider>();
         final earnRate = loyalty.isEnabled ? loyalty.earnRate : 0;
 
         // Redeem points first (if used)
-        if (_usePoints && _matchedCustomerId.isNotEmpty && _availablePoints > 0) {
-          final loyaltyDiscount = loyalty.valueOfPoints(_availablePoints);
-          final pointsToUse = loyaltyDiscount > sale.total
-              ? (sale.total / loyalty.redeemValue).floor()
-              : _availablePoints;
-          await customerProvider.redeemPoints(_matchedCustomerId, pointsToUse);
+        if (pointsToRedeem > 0 && _matchedCustomerId.isNotEmpty) {
+          await customerProvider.redeemPoints(_matchedCustomerId, pointsToRedeem);
+          // Log redemption to audit trail
+          await _logLoyaltyTransaction(
+            customerId: _matchedCustomerId,
+            type: 'redeemed',
+            points: pointsToRedeem,
+            saleId: sale.id,
+            balanceAfter: (_availablePoints - pointsToRedeem).clamp(0, _availablePoints),
+          );
         }
 
         await customerProvider.recordSaleByName(
@@ -154,11 +183,30 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
           sale.total,
           earnRate: earnRate,
         );
+
+        // Log earning to audit trail
+        if (pointsEarned > 0 && loyalty.isEnabled) {
+          final customer = customerProvider.findByPhone(sale.customerPhone) ??
+              customerProvider.findByName(sale.customerName);
+          if (customer != null) {
+            await _logLoyaltyTransaction(
+              customerId: customer.id,
+              type: 'earned',
+              points: pointsEarned,
+              saleId: sale.id,
+              balanceAfter: customer.loyaltyPoints,
+            );
+          }
+        }
       }
 
       // Capture payment values before clearing
       final cashPaid = double.tryParse(_cashPaidCtrl.text) ?? 0;
       final upiPaid = double.tryParse(_upiPaidCtrl.text) ?? 0;
+
+      // Store loyalty info before clearing
+      final redeemedPts = pointsToRedeem;
+      final earnedPts = pointsEarned;
 
       // Clear form
       _customerNameCtrl.clear();
@@ -172,11 +220,37 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       ReceiptPrinter.printReceipt(sale, cashPaid: cashPaid, upiPaid: upiPaid);
 
       // Success feedback
-      _showSuccessDialog(sale, cashPaid: cashPaid, upiPaid: upiPaid);
+      _showSuccessDialog(sale, cashPaid: cashPaid, upiPaid: upiPaid,
+          pointsRedeemed: redeemedPts, pointsEarned: earnedPts);
     }
   }
 
-  void _showSuccessDialog(SaleModel sale, {double cashPaid = 0, double upiPaid = 0}) {
+  /// Log a loyalty transaction to the audit trail
+  Future<void> _logLoyaltyTransaction({
+    required String customerId,
+    required String type,
+    required int points,
+    required String saleId,
+    required int balanceAfter,
+  }) async {
+    try {
+      final db = DBHelper.instance;
+      await db.insert('loyalty_transactions', {
+        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+        'customer_id': customerId,
+        'type': type,
+        'points': points,
+        'sale_id': saleId,
+        'balance_after': balanceAfter,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('⚠️ Failed to log loyalty transaction: $e');
+    }
+  }
+
+  void _showSuccessDialog(SaleModel sale, {double cashPaid = 0, double upiPaid = 0,
+      int pointsRedeemed = 0, int pointsEarned = 0}) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -206,6 +280,36 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
               Formatters.currency(sale.total),
               style: AppTypography.monoLarge.copyWith(color: AppColors.success),
             ),
+            // ─── Loyalty Points Summary ───
+            if (pointsRedeemed > 0 || pointsEarned > 0) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.star_rounded, color: AppColors.warning, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      [
+                        if (pointsEarned > 0) '+$pointsEarned earned',
+                        if (pointsRedeemed > 0) '$pointsRedeemed redeemed',
+                      ].join(' · '),
+                      style: TextStyle(
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -714,7 +818,15 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
               final cashPaid = double.tryParse(_cashPaidCtrl.text) ?? 0;
               final upiPaid = double.tryParse(_upiPaidCtrl.text) ?? 0;
               final totalPaid = cashPaid + upiPaid;
-              final pendingDue = (sales.total - totalPaid).clamp(0.0, double.infinity);
+
+              // Calculate loyalty discount for display
+              final loyalty = context.read<LoyaltySettingsProvider>();
+              double loyaltyDisc = 0;
+              if (_usePoints && _availablePoints > 0 && loyalty.isEnabled) {
+                loyaltyDisc = loyalty.valueOfPoints(_availablePoints).clamp(0.0, sales.total);
+              }
+              final payableTotal = (sales.total - loyaltyDisc).clamp(0.0, double.infinity);
+              final pendingDue = (payableTotal - totalPaid).clamp(0.0, double.infinity);
 
               return Container(
                 padding: EdgeInsets.all(14),
@@ -734,23 +846,24 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                       ),
                     Divider(color: AppColors.cardBorder(context), height: 16),
                     _totalRow('Total', Formatters.currency(sales.total),
-                        isBold: true, color: AppColors.accent),
+                        isBold: loyaltyDisc == 0, color: AppColors.accent),
                     // Loyalty points discount line
-                    if (_usePoints && _availablePoints > 0) ...[
-                      Builder(builder: (_) {
-                        final loyalty = context.read<LoyaltySettingsProvider>();
-                        final discount = loyalty.valueOfPoints(_availablePoints).clamp(0.0, sales.total);
-                        return _totalRow('⭐ Points Redeemed ($_availablePoints pts)',
-                            '- ${Formatters.currency(discount)}',
-                            color: AppColors.warning);
-                      }),
+                    if (_usePoints && _availablePoints > 0 && loyalty.isEnabled) ...[
+                      _totalRow('⭐ Points Redeemed ($_availablePoints pts)',
+                          '- ${Formatters.currency(loyaltyDisc)}',
+                          color: AppColors.warning),
+                      Divider(color: AppColors.warning.withValues(alpha: 0.3), height: 12),
+                      _totalRow('Payable', Formatters.currency(payableTotal),
+                          isBold: true, color: AppColors.success),
                     ],
-                    if (totalPaid > 0) ...[                      const SizedBox(height: 4),
+                    if (totalPaid > 0) ...[
+                      const SizedBox(height: 4),
                       if (cashPaid > 0)
                         _totalRow('Cash Paid', Formatters.currency(cashPaid), color: AppColors.success),
                       if (upiPaid > 0)
                         _totalRow('UPI/Card Paid', Formatters.currency(upiPaid), color: AppColors.success),
-                      if (pendingDue > 0) ...[                        Divider(color: AppColors.warning.withValues(alpha: 0.3), height: 12),
+                      if (pendingDue > 0) ...[
+                        Divider(color: AppColors.warning.withValues(alpha: 0.3), height: 12),
                         _totalRow('Pending Udhaar', Formatters.currency(pendingDue),
                             isBold: true, color: AppColors.warning),
                       ],
@@ -808,13 +921,12 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
     final phone = _customerPhoneCtrl.text.trim();
     final name = _customerNameCtrl.text.trim();
 
-    // Try to find customer
-    final customer = phone.isNotEmpty
-        ? customers.findByPhone(phone)
-        : customers.findByName(name);
+    // Try to find customer — phone first (more unique), then name
+    final customer = (phone.isNotEmpty ? customers.findByPhone(phone) : null) ??
+        (name.isNotEmpty ? customers.findByName(name) : null);
 
-    if (customer == null || customer.loyaltyPoints <= 0) {
-      // Update state if needed
+    if (customer == null) {
+      // No customer matched — clear state if needed
       if (_matchedCustomerId.isNotEmpty) {
         Future.microtask(() => setState(() {
           _matchedCustomerId = '';
@@ -830,9 +942,11 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       Future.microtask(() => setState(() {
         _matchedCustomerId = customer.id;
         _availablePoints = customer.loyaltyPoints;
+        if (customer.loyaltyPoints < loyalty.minRedeem) _usePoints = false;
       }));
     }
 
+    final hasPoints = customer.loyaltyPoints > 0;
     final canRedeem = customer.loyaltyPoints >= loyalty.minRedeem;
     final pointsValue = loyalty.valueOfPoints(customer.loyaltyPoints);
 
@@ -840,17 +954,27 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: 0.08),
+        color: hasPoints
+            ? AppColors.warning.withValues(alpha: 0.08)
+            : AppColors.accent.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.warning.withValues(alpha: 0.25)),
+        border: Border.all(color: hasPoints
+            ? AppColors.warning.withValues(alpha: 0.25)
+            : AppColors.accent.withValues(alpha: 0.15)),
       ),
       child: Row(children: [
-        Icon(Icons.star_rounded, color: AppColors.warning, size: 20),
+        Icon(Icons.star_rounded,
+            color: hasPoints ? AppColors.warning : AppColors.textTertiary(context),
+            size: 20),
         const SizedBox(width: 8),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('${customer.loyaltyPoints} points (${Formatters.currency(pointsValue)} value)',
-              style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.w600, fontSize: 12)),
-          if (!canRedeem)
+          if (hasPoints)
+            Text('${customer.loyaltyPoints} points (${Formatters.currency(pointsValue)} value)',
+                style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.w600, fontSize: 12))
+          else
+            Text('No points yet — earn with purchases!',
+                style: TextStyle(color: AppColors.textSecondary(context), fontWeight: FontWeight.w500, fontSize: 12)),
+          if (hasPoints && !canRedeem)
             Text('Min ${loyalty.minRedeem} pts to redeem',
                 style: TextStyle(color: AppColors.textTertiary(context), fontSize: 10)),
         ])),

@@ -218,11 +218,20 @@ class SalesProvider extends ChangeNotifier {
 
   // ─── Save Sale ───
 
-  Future<SaleModel?> completeSale({String staffId = '', String staffName = ''}) async {
+  Future<SaleModel?> completeSale({
+    String staffId = '',
+    String staffName = '',
+    double loyaltyDiscount = 0,
+    int pointsRedeemed = 0,
+    int pointsEarned = 0,
+  }) async {
     if (_cart.isEmpty) return null;
 
     try {
       final invoiceNumber = await _db.nextInvoiceNumber();
+
+      // Apply loyalty discount to the final total
+      final finalTotal = (total - loyaltyDiscount).clamp(0.0, double.infinity);
 
       final sale = SaleModel(
         id: _uuid.v4(),
@@ -232,10 +241,13 @@ class SalesProvider extends ChangeNotifier {
         items: List.from(_cart),
         subtotal: subtotal,
         discount: discountAmount,
-        total: total,
+        total: finalTotal,
         paymentMode: _paymentMode,
         staffId: staffId,
         staffName: staffName,
+        loyaltyDiscount: loyaltyDiscount,
+        pointsRedeemed: pointsRedeemed,
+        pointsEarned: pointsEarned,
       );
 
       // Save locally first

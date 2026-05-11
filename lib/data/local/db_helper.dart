@@ -25,6 +25,7 @@ class _WebDB {
     ];
     _tables['categories'] = [];
     _tables['sync_queue'] = [];
+    _tables['loyalty_transactions'] = [];
     _initialized = true;
   }
 
@@ -241,6 +242,9 @@ class DBHelper {
         payment_mode TEXT DEFAULT 'Cash',
         staff_id TEXT DEFAULT '',
         staff_name TEXT DEFAULT '',
+        loyalty_discount REAL DEFAULT 0,
+        points_redeemed INTEGER DEFAULT 0,
+        points_earned INTEGER DEFAULT 0,
         is_deleted INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
@@ -402,6 +406,20 @@ class DBHelper {
       )
     ''');
     await db.execute('CREATE INDEX idx_customers_deleted ON customers(is_deleted)');
+
+    // ─── Loyalty Transactions Table ───
+    await db.execute('''
+      CREATE TABLE loyalty_transactions (
+        id TEXT PRIMARY KEY,
+        customer_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        points INTEGER NOT NULL,
+        sale_id TEXT DEFAULT '',
+        balance_after INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL
+      )
+    ''');
+    await db.execute('CREATE INDEX idx_loyalty_tx_customer ON loyalty_transactions(customer_id)');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -499,7 +517,28 @@ class DBHelper {
         await db.execute("ALTER TABLE customers ADD COLUMN last_purchase_date TEXT");
       } catch (_) {} // Column may already exist
     }
+    // v8: Add loyalty tracking fields to sales + audit trail table
+    if (oldVersion < 8) {
+      try {
+        await db.execute("ALTER TABLE sales ADD COLUMN loyalty_discount REAL DEFAULT 0");
+        await db.execute("ALTER TABLE sales ADD COLUMN points_redeemed INTEGER DEFAULT 0");
+        await db.execute("ALTER TABLE sales ADD COLUMN points_earned INTEGER DEFAULT 0");
+      } catch (_) {} // Columns may already exist
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS loyalty_transactions (
+          id TEXT PRIMARY KEY,
+          customer_id TEXT NOT NULL,
+          type TEXT NOT NULL,
+          points INTEGER NOT NULL,
+          sale_id TEXT DEFAULT '',
+          balance_after INTEGER DEFAULT 0,
+          created_at TEXT NOT NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_loyalty_tx_customer ON loyalty_transactions(customer_id)');
+    }
   }
+
   // ─── Generic CRUD ───
 
   Future<int> insert(String table, Map<String, dynamic> data) async {
