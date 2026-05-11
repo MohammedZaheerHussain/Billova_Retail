@@ -127,4 +127,44 @@ class WhatsAppHelper {
     buf.writeln('- Team $companyName');
     return buf.toString();
   }
+
+  /// Format a single payment receipt for WhatsApp sharing
+  static String vendorPaymentMessage({
+    required String vendorName,
+    required String date,
+    required double totalAmount,
+    required double paidAmount,
+    required double dueAmount,
+    required String paymentMode,
+    required double overallPending,
+    String companyName = 'SKYWALK',
+  }) {
+    String status;
+    if (dueAmount <= 0) {
+      status = 'Fully Paid';
+    } else if (paidAmount > 0) {
+      status = 'Partial Payment';
+    } else {
+      status = 'Pending';
+    }
+
+    final buf = StringBuffer();
+    buf.writeln('*$companyName - PAYMENT RECEIPT*');
+    buf.writeln('');
+    buf.writeln('Hello *$vendorName*,');
+    buf.writeln('Here is your recent payment update.');
+    buf.writeln('');
+    buf.writeln('Date: *$date*');
+    buf.writeln('Purchase Amount: *${Formatters.currency(totalAmount)}*');
+    buf.writeln('Paid: *${Formatters.currency(paidAmount)}*');
+    buf.writeln('Due on this purchase: *${Formatters.currency(dueAmount)}*');
+    buf.writeln('Payment Mode: *$paymentMode*');
+    buf.writeln('Status: *$status*');
+    buf.writeln('');
+    buf.writeln('Overall Pending Balance: *${Formatters.currency(overallPending)}*');
+    buf.writeln('');
+    buf.writeln('Thank you for your business.');
+    buf.writeln('- Team $companyName');
+    return buf.toString();
+  }
 }

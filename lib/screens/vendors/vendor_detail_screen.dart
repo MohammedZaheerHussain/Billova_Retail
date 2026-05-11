@@ -539,6 +539,8 @@ class VendorDetailScreen extends StatelessWidget {
           final isPaid = p.isFullyPaid;
           final statusColor = isPaid ? AppColors.success : p.paidAmount > 0 ? AppColors.warning : AppColors.error;
           final statusText = isPaid ? 'Paid' : p.paidAmount > 0 ? 'Partial' : 'Unpaid';
+          final purchaseProvider = context.read<PurchaseProvider>();
+          final overallPending = (purchaseProvider.getVendorSummary(vendor.id)['pending'] as double?) ?? 0;
           return Container(
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.all(12),
@@ -548,7 +550,7 @@ class VendorDetailScreen extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(p.createdAt.toIso8601String().substring(0, 10), style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context), fontSize: 10)),
-                Text('${Formatters.currency(p.totalAmount)} — Paid: ${Formatters.currency(p.paidAmount)}',
+                Text('${Formatters.currency(p.totalAmount)} - Paid: ${Formatters.currency(p.paidAmount)}',
                   style: AppTypography.bodySmall.copyWith(color: AppColors.textPrimary(context), fontWeight: FontWeight.w500)),
                 if (p.dueAmount > 0) Text('Due: ${Formatters.currency(p.dueAmount)}', style: AppTypography.labelSmall.copyWith(color: AppColors.error, fontSize: 10)),
               ])),
@@ -557,8 +559,29 @@ class VendorDetailScreen extends StatelessWidget {
                 decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
                 child: Text(statusText, style: AppTypography.labelSmall.copyWith(color: statusColor, fontWeight: FontWeight.w700, fontSize: 10)),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(p.paymentMode, style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context), fontSize: 10)),
+              if (vendor.phone.isNotEmpty) ...[
+                const SizedBox(width: 6),
+                IconButton(
+                  tooltip: 'Send this payment via WhatsApp',
+                  icon: const Icon(Icons.chat_rounded, size: 16, color: Color(0xFF25D366)),
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(4),
+                  onPressed: () {
+                    final msg = WhatsAppHelper.vendorPaymentMessage(
+                      vendorName: vendor.name,
+                      date: p.createdAt.toIso8601String().substring(0, 10),
+                      totalAmount: p.totalAmount,
+                      paidAmount: p.paidAmount,
+                      dueAmount: p.dueAmount,
+                      paymentMode: p.paymentMode,
+                      overallPending: overallPending,
+                    );
+                    WhatsAppHelper.send(phone: vendor.phone, message: msg);
+                  },
+                ),
+              ],
             ]),
           );
         }),
