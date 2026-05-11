@@ -152,22 +152,18 @@ class CustomerProvider extends ChangeNotifier {
   Future<void> recordSaleByName(String name, String phone, double amount, {int earnRate = 1}) async {
     if (name.isEmpty || name == 'Walk-in Customer') return;
 
-    // Find existing customer
+    // Find existing customer — try phone first (more unique), then name
     CustomerModel? customer;
-    try {
-      customer = _customers.firstWhere(
-        (c) => c.name.toLowerCase().trim() == name.toLowerCase().trim(),
-      );
-    } catch (_) {
-      // Not found — create new
+    if (phone.trim().isNotEmpty) {
+      customer = findByPhone(phone.trim());
+    }
+    customer ??= findByName(name.trim());
+
+    // Not found — create new
+    if (customer == null) {
       await addCustomer(name: name.trim(), phone: phone.trim());
-      try {
-        customer = _customers.firstWhere(
-          (c) => c.name.toLowerCase().trim() == name.toLowerCase().trim(),
-        );
-      } catch (_) {
-        return;
-      }
+      customer = findByPhone(phone.trim()) ?? findByName(name.trim());
+      if (customer == null) return;
     }
 
     // Update stats
