@@ -1,0 +1,45 @@
+# Skills & Plugins
+skills/
+.agents/
+.agent/
+skills-lock.json
+
+# Flutter/Dart
+*.dart.js
+*.js_
+*.js.deps
+*.js.map
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+!build/web/
+!build/web/**
+*.g.dart
+*.freezed.dart
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+*.swp
+Thumbs.db
+
+# Env (NEVER commit secrets)
+.env
+.env.*
+!.env.example
+
+# Vercel
+.vercel/
+
+# Node
+node_modules/
+# Added by code-review-graph
+.code-review-graph/
