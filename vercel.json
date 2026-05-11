@@ -1,4 +1,10 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "zaheer": false
+    }
+  },
   "buildCommand": "",
   "outputDirectory": "build/web",
   "installCommand": "",
