@@ -15,6 +15,7 @@ import '../../providers/vendor_provider.dart';
 import '../../providers/purchase_provider.dart';
 import '../../data/models/vendor_model.dart';
 import '../shell/app_shell.dart';
+import '../../widgets/stock_alert_drawer.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -302,7 +303,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         AppColors.primaryGradient),
                     _statCard('Low Stock', _lowStockCount.toString(),
                         'Need restock', Icons.warning_rounded,
-                        AppColors.warningGradient),
+                        AppColors.warningGradient, onTap: () => _openStockDrawer('low')),
                   ],
                 );
               },
@@ -395,39 +396,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _openStockDrawer(String mode) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Stock Alert',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (_, __, ___) => StockAlertDrawer(mode: mode),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
+              .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+          child: child,
+        );
+      },
+    );
+  }
+
   Widget _statCard(String title, String value, String subtitle, IconData icon,
-      LinearGradient gradient) {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder(context)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      LinearGradient gradient, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: MouseRegion(
+        cursor: onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
+        child: Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: onTap != null
+                ? AppColors.warning.withValues(alpha: 0.3)
+                : AppColors.cardBorder(context)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Flexible(child: Text(title, style: AppTypography.labelMedium.copyWith(
-                  color: AppColors.textSecondary(context)), overflow: TextOverflow.ellipsis)),
-              Container(
-                padding: EdgeInsets.all(6),
-                decoration: BoxDecoration(gradient: gradient, borderRadius: BorderRadius.circular(8)),
-                child: Icon(icon, size: 16, color: Colors.white),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(child: Text(title, style: AppTypography.labelMedium.copyWith(
+                      color: AppColors.textSecondary(context)), overflow: TextOverflow.ellipsis)),
+                  Container(
+                    padding: EdgeInsets.all(6),
+                    decoration: BoxDecoration(gradient: gradient, borderRadius: BorderRadius.circular(8)),
+                    child: Icon(icon, size: 16, color: Colors.white),
+                  ),
+                ],
               ),
+              SizedBox(height: 8),
+              Text(value, style: AppTypography.monoLarge.copyWith(
+                  color: AppColors.textPrimary(context), fontSize: 18),
+                  overflow: TextOverflow.ellipsis),
+              SizedBox(height: 2),
+              Row(children: [
+                Expanded(child: Text(subtitle, style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.textTertiary(context)))),
+                if (onTap != null)
+                  Icon(Icons.arrow_forward_ios_rounded, size: 10,
+                      color: AppColors.warning.withValues(alpha: 0.5)),
+              ]),
             ],
           ),
-          SizedBox(height: 8),
-          Text(value, style: AppTypography.monoLarge.copyWith(
-              color: AppColors.textPrimary(context), fontSize: 18),
-              overflow: TextOverflow.ellipsis),
-          SizedBox(height: 2),
-          Text(subtitle, style: AppTypography.labelSmall.copyWith(
-              color: AppColors.textTertiary(context))),
-        ],
+        ),
       ),
     );
   }
@@ -851,11 +883,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 20),
-            SizedBox(width: 8),
-            Text('Low Stock Alert', style: AppTypography.h4.copyWith(color: AppColors.warning)),
-          ]),
+          GestureDetector(
+            onTap: () => _openStockDrawer('low'),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: Row(children: [
+                Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 20),
+                SizedBox(width: 8),
+                Text('Low Stock Alert', style: AppTypography.h4.copyWith(color: AppColors.warning)),
+                const Spacer(),
+                Text('View All', style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.accent, fontWeight: FontWeight.w600)),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.accent),
+              ]),
+            ),
+          ),
           SizedBox(height: 12),
           Wrap(
             spacing: 8, runSpacing: 8,
