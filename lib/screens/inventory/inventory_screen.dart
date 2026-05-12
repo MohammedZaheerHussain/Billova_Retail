@@ -19,6 +19,7 @@ class InventoryScreen extends StatefulWidget {
 
 class _InventoryScreenState extends State<InventoryScreen> {
   final Set<String> _collapsedCategories = {};
+  String? _selectedCategory; // null = show all
 
   @override
   void initState() {
@@ -98,7 +99,25 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+
+                // ─── Category Quick Filter ───
+                if (grouped.keys.length > 1)
+                  SizedBox(
+                    height: 38,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _categoryFilterChip('All', null),
+                        const SizedBox(width: 6),
+                        ...grouped.keys.map((cat) => Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: _categoryFilterChip(cat, cat),
+                        )),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 12),
 
                 if (provider.error.isNotEmpty) _errorBanner(context, provider),
 
@@ -108,13 +127,29 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
                       : provider.items.isEmpty
                           ? _emptyState(context)
-                          : ListView.builder(
-                              itemCount: grouped.length,
-                              itemBuilder: (context, index) {
-                                final category = grouped.keys.elementAt(index);
-                                final items = grouped[category]!;
-                                final isCollapsed = _collapsedCategories.contains(category);
-                                return _categorySection(context, category, items, isCollapsed, provider);
+                          : Builder(
+                              builder: (context) {
+                                // Apply category filter
+                                final filteredGrouped = _selectedCategory == null
+                                    ? grouped
+                                    : Map.fromEntries(
+                                        grouped.entries.where((e) => e.key == _selectedCategory));
+                                if (filteredGrouped.isEmpty) {
+                                  return Center(
+                                    child: Text('No items in this category',
+                                      style: AppTypography.bodyMedium.copyWith(
+                                        color: AppColors.textTertiary(context))),
+                                  );
+                                }
+                                return ListView.builder(
+                                  itemCount: filteredGrouped.length,
+                                  itemBuilder: (context, index) {
+                                    final category = filteredGrouped.keys.elementAt(index);
+                                    final items = filteredGrouped[category]!;
+                                    final isCollapsed = _collapsedCategories.contains(category);
+                                    return _categorySection(context, category, items, isCollapsed, provider);
+                                  },
+                                );
                               },
                             ),
                 ),
@@ -239,6 +274,51 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 ]),
               ),
             ],
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _categoryFilterChip(String label, String? categoryValue) {
+    final isSelected = _selectedCategory == categoryValue;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedCategory = categoryValue),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          gradient: isSelected ? AppColors.primaryGradient : null,
+          color: isSelected ? null : (isDark ? AppColors.card(context) : AppColors.cardLight),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected
+                ? Colors.transparent
+                : (isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight),
+          ),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (categoryValue != null)
+            Container(
+              width: 20, height: 20, margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white.withValues(alpha: 0.25) : AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Center(child: Text(
+                label.isNotEmpty ? label[0].toUpperCase() : '?',
+                style: TextStyle(
+                  color: isSelected ? Colors.white : AppColors.accent,
+                  fontSize: 10, fontWeight: FontWeight.w700),
+              )),
+            ),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : (isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight),
+              fontSize: 12, fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            ),
           ),
         ]),
       ),
