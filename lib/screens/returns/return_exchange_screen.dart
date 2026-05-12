@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
@@ -16,6 +17,7 @@ class ReturnExchangeScreen extends StatefulWidget {
 
 class _ReturnExchangeScreenState extends State<ReturnExchangeScreen> {
   final _searchCtrl = TextEditingController();
+  final _searchFocus = FocusNode();
   SaleModel? _foundSale;
   String _status = '';
   bool _isReturn = true;
@@ -37,6 +39,7 @@ class _ReturnExchangeScreenState extends State<ReturnExchangeScreen> {
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _searchFocus.dispose();
     _exchSearchCtrl.dispose();
     super.dispose();
   }
@@ -170,6 +173,73 @@ class _ReturnExchangeScreenState extends State<ReturnExchangeScreen> {
     ));
   }
 
+  /// Check if user has unsaved work in this session
+  bool get _hasUnsavedWork =>
+      _returnQty.isNotEmpty || _exchangeItems.isNotEmpty;
+
+  /// Show confirmation dialog before resetting
+  void _confirmAndReset() {
+    if (!_hasUnsavedWork) {
+      _resetAndFocus();
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(children: [
+          Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 22),
+          const SizedBox(width: 10),
+          Text('Close Session?', style: AppTypography.h4.copyWith(
+              color: AppColors.textPrimary(context))),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('You have unsaved changes in this return session. Closing will discard all selections.',
+              style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondary(context), height: 1.5)),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.warning.withValues(alpha: 0.2)),
+            ),
+            child: Row(children: [
+              Icon(Icons.info_outline_rounded, size: 16, color: AppColors.warning),
+              const SizedBox(width: 8),
+              Expanded(child: Text(
+                '${_returnQty.length} item(s) selected${_exchangeItems.isNotEmpty ? ", ${_exchangeItems.length} exchange item(s)" : ""}',
+                style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.warning, fontWeight: FontWeight.w600),
+              )),
+            ]),
+          ),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: AppColors.textSecondary(context))),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _resetAndFocus();
+            },
+            icon: const Icon(Icons.close_rounded, size: 16),
+            label: const Text('Close Session'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _reset() {
     setState(() {
       _foundSale = null;
@@ -182,80 +252,144 @@ class _ReturnExchangeScreenState extends State<ReturnExchangeScreen> {
     });
   }
 
+  void _resetAndFocus() {
+    _reset();
+    // Auto-focus search field after a frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _searchFocus.requestFocus();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Header
-          Row(children: [
-            Text('Returns & Exchange', style: AppTypography.h1.copyWith(
-                color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight)),
-            const Spacer(),
+    return KeyboardListener(
+      focusNode: FocusNode(),
+      autofocus: true,
+      onKeyEvent: (event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.escape &&
+            _foundSale != null) {
+          _confirmAndReset();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Header
+            Row(children: [
+              Text('Returns & Exchange', style: AppTypography.h1.copyWith(
+                  color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight)),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.3))),
+                child: Text('$_returnWindowDays Day Return Policy',
+                    style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.warning, fontWeight: FontWeight.w700)),
+              ),
+            ]),
+            const SizedBox(height: 16),
+            // Toggle + Close Session button
+            Row(children: [
+              _toggleBtn('Return (Refund)', _isReturn, () => setState(() => _isReturn = true)),
+              const SizedBox(width: 10),
+              _toggleBtn('Exchange (Swap)', !_isReturn, () => setState(() => _isReturn = false)),
+              if (_foundSale != null) ...[
+                const Spacer(),
+                _closeSessionButton(),
+              ],
+            ]),
+            const SizedBox(height: 16),
+            // Search
+            Row(children: [
+              Expanded(child: TextField(
+                controller: _searchCtrl,
+                focusNode: _searchFocus,
+                style: TextStyle(color: AppColors.textPrimary(context), fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Search by Invoice No / Phone / Customer Name',
+                  hintStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 13),
+                  prefixIcon: Icon(Icons.search_rounded, color: AppColors.textTertiary(context)),
+                  filled: true,
+                  fillColor: isDark ? AppColors.surface(context) : Colors.grey.shade50,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                ),
+                onSubmitted: (_) => _lookupInvoice(),
+                onChanged: _onSearchChanged,
+              )),
+              const SizedBox(width: 10),
+              SizedBox(height: 48, child: ElevatedButton.icon(
+                onPressed: _lookupInvoice,
+                icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                label: const Text('Lookup'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              )),
+            ]),
+            if (_status.isNotEmpty && _foundSale == null && !_showSuggestions) ...[
+              const SizedBox(height: 8),
+              Text(_status, style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.error, fontWeight: FontWeight.w600)),
+            ],
+            const SizedBox(height: 16),
+            // Content — show suggestions, invoice, or empty state
+            Expanded(child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              child: _showSuggestions && _foundSale == null
+                  ? _buildSuggestionsList(isDark)
+                  : _foundSale == null
+                      ? _buildEmptyState()
+                      : _buildInvoiceView(isDark),
+            )),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  /// Close Session button widget
+  Widget _closeSessionButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _confirmAndReset,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.error.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.close_rounded, size: 16, color: AppColors.error),
+            const SizedBox(width: 6),
+            Text('Close Session', style: AppTypography.labelSmall.copyWith(
+                color: AppColors.error, fontWeight: FontWeight.w700, fontSize: 12)),
+            const SizedBox(width: 4),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
               decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.warning.withValues(alpha: 0.3))),
-              child: Text('$_returnWindowDays Day Return Policy',
-                  style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.warning, fontWeight: FontWeight.w700)),
+                color: AppColors.error.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text('ESC', style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.error.withValues(alpha: 0.7), fontSize: 9, fontWeight: FontWeight.w600)),
             ),
           ]),
-          const SizedBox(height: 16),
-          // Toggle
-          Row(children: [
-            _toggleBtn('Return (Refund)', _isReturn, () => setState(() => _isReturn = true)),
-            const SizedBox(width: 10),
-            _toggleBtn('Exchange (Swap)', !_isReturn, () => setState(() => _isReturn = false)),
-          ]),
-          const SizedBox(height: 16),
-          // Search
-          Row(children: [
-            Expanded(child: TextField(
-              controller: _searchCtrl,
-              style: TextStyle(color: AppColors.textPrimary(context), fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'Search by Invoice No / Phone / Customer Name',
-                hintStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 13),
-                prefixIcon: Icon(Icons.search_rounded, color: AppColors.textTertiary(context)),
-                filled: true,
-                fillColor: isDark ? AppColors.surface(context) : Colors.grey.shade50,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.cardBorder(context))),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.cardBorder(context))),
-              ),
-              onSubmitted: (_) => _lookupInvoice(),
-              onChanged: _onSearchChanged,
-            )),
-            const SizedBox(width: 10),
-            SizedBox(height: 48, child: ElevatedButton.icon(
-              onPressed: _lookupInvoice,
-              icon: const Icon(Icons.receipt_long_rounded, size: 18),
-              label: const Text('Lookup'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary, foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            )),
-          ]),
-          if (_status.isNotEmpty && _foundSale == null && !_showSuggestions) ...[
-            const SizedBox(height: 8),
-            Text(_status, style: AppTypography.labelSmall.copyWith(
-                color: AppColors.error, fontWeight: FontWeight.w600)),
-          ],
-          const SizedBox(height: 16),
-          // Content — show suggestions, invoice, or empty state
-          Expanded(child: _showSuggestions && _foundSale == null
-              ? _buildSuggestionsList(isDark)
-              : _foundSale == null
-                  ? _buildEmptyState()
-                  : _buildInvoiceView(isDark)),
-        ]),
+        ),
       ),
     );
   }
