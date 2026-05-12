@@ -7,6 +7,7 @@ import '../../providers/sales_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/expense_provider.dart';
+import '../../widgets/stock_alert_drawer.dart';
 
 class CrmReportsScreen extends StatefulWidget {
   const CrmReportsScreen({super.key});
@@ -340,9 +341,11 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
             Row(children: [
               _kpiCard('Total Stock', '$totalStock', Icons.inventory_2_rounded, AppColors.accent),
               const SizedBox(width: 12),
-              _kpiCard('Low Stock', '$lowStockItems', Icons.warning_amber_rounded, AppColors.warning),
+              _kpiCard('Low Stock', '$lowStockItems', Icons.warning_amber_rounded, AppColors.warning,
+                  onTap: () => _openStockDrawer('low')),
               const SizedBox(width: 12),
-              _kpiCard('Out of Stock', '$outOfStock', Icons.block_rounded, AppColors.error),
+              _kpiCard('Out of Stock', '$outOfStock', Icons.block_rounded, AppColors.error,
+                  onTap: () => _openStockDrawer('out')),
               const SizedBox(width: 12),
               _kpiCard('Customers', '$totalCustomers', Icons.people_rounded, AppColors.primary),
               const SizedBox(width: 12),
@@ -502,6 +505,24 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
     );
   }
 
+  void _openStockDrawer(String mode) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Stock Alert',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (_, __, ___) => StockAlertDrawer(mode: mode),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
+              .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+          child: child,
+        );
+      },
+    );
+  }
+
   Widget _calendarOption({
     required IconData icon,
     required String label,
@@ -542,35 +563,44 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
     );
   }
 
-  Widget _kpiCard(String label, String value, IconData icon, Color color) {
+  Widget _kpiCard(String label, String value, IconData icon, Color color, {VoidCallback? onTap}) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.cardBorder(context)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8)),
-                child: Icon(icon, size: 16, color: color),
-              ),
-              const Spacer(),
-            ]),
-            const SizedBox(height: 8),
-            Text(value, style: AppTypography.mono.copyWith(
-                color: AppColors.textPrimary(context), fontWeight: FontWeight.w700, fontSize: 16)),
-            const SizedBox(height: 2),
-            Text(label, style: AppTypography.labelSmall.copyWith(
-                color: AppColors.textTertiary(context))),
-          ],
+      child: GestureDetector(
+        onTap: onTap,
+        child: MouseRegion(
+          cursor: onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: onTap != null ? color.withValues(alpha: 0.3) : AppColors.cardBorder(context)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8)),
+                    child: Icon(icon, size: 16, color: color),
+                  ),
+                  const Spacer(),
+                  if (onTap != null)
+                    Icon(Icons.arrow_forward_ios_rounded, size: 12, color: color.withValues(alpha: 0.5)),
+                ]),
+                const SizedBox(height: 8),
+                Text(value, style: AppTypography.mono.copyWith(
+                    color: AppColors.textPrimary(context), fontWeight: FontWeight.w700, fontSize: 16)),
+                const SizedBox(height: 2),
+                Text(label, style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.textTertiary(context))),
+              ],
+            ),
+          ),
         ),
       ),
     );
