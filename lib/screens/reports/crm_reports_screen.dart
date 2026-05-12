@@ -17,7 +17,167 @@ class CrmReportsScreen extends StatefulWidget {
 
 class _CrmReportsScreenState extends State<CrmReportsScreen> {
   String _period = 'Today';
-  static const _periods = ['Today', 'This Week', 'This Month', 'All Time'];
+  DateTime? _customStart;
+  DateTime? _customEnd;
+
+  static const _periods = ['Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days', 'This Month', 'This Year', 'All Time', 'Custom'];
+
+  /// Get the date range for the current period
+  ({DateTime start, DateTime end}) _getDateRange() {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final todayEnd = todayStart.add(const Duration(days: 1));
+
+    switch (_period) {
+      case 'Today':
+        return (start: todayStart, end: todayEnd);
+      case 'Yesterday':
+        final ys = todayStart.subtract(const Duration(days: 1));
+        return (start: ys, end: todayStart);
+      case 'Last 7 Days':
+        return (start: todayStart.subtract(const Duration(days: 7)), end: todayEnd);
+      case 'Last 30 Days':
+        return (start: todayStart.subtract(const Duration(days: 30)), end: todayEnd);
+      case 'This Month':
+        return (start: DateTime(now.year, now.month, 1), end: todayEnd);
+      case 'This Year':
+        return (start: DateTime(now.year, 1, 1), end: todayEnd);
+      case 'Custom':
+        return (
+          start: _customStart ?? todayStart,
+          end: (_customEnd ?? todayStart).add(const Duration(days: 1)),
+        );
+      default: // All Time
+        return (start: DateTime(2020), end: todayEnd);
+    }
+  }
+
+  /// Format a date for display
+  String _fmtDate(DateTime d) {
+    const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${d.day} ${months[d.month]} ${d.year}';
+  }
+
+  /// Show the calendar date picker dialog
+  Future<void> _showCalendarPicker() async {
+    final now = DateTime.now();
+
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      initialDateRange: _customStart != null && _customEnd != null
+          ? DateTimeRange(start: _customStart!, end: _customEnd!)
+          : DateTimeRange(start: now, end: now),
+      helpText: 'SELECT DATE RANGE',
+      cancelText: 'CANCEL',
+      confirmText: 'APPLY',
+      saveText: 'APPLY',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: const Color(0xFF1A1A2E),
+              onSurface: Colors.white,
+              secondary: AppColors.accent,
+              onSecondary: Colors.white,
+            ),
+            dialogBackgroundColor: const Color(0xFF1A1A2E),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(foregroundColor: AppColors.accent),
+            ),
+            datePickerTheme: DatePickerThemeData(
+              backgroundColor: const Color(0xFF1A1A2E),
+              headerBackgroundColor: AppColors.primary.withValues(alpha: 0.15),
+              headerForegroundColor: Colors.white,
+              dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) return Colors.white;
+                if (states.contains(WidgetState.disabled)) return Colors.white24;
+                return Colors.white70;
+              }),
+              dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) return AppColors.primary;
+                return null;
+              }),
+              todayForegroundColor: WidgetStateProperty.all(AppColors.accent),
+              rangePickerBackgroundColor: const Color(0xFF1A1A2E),
+              rangePickerHeaderBackgroundColor: AppColors.primary.withValues(alpha: 0.15),
+              rangePickerHeaderForegroundColor: Colors.white,
+              rangeSelectionBackgroundColor: AppColors.primary.withValues(alpha: 0.2),
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: child!,
+          ),
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _customStart = picked.start;
+        _customEnd = picked.end;
+        _period = 'Custom';
+      });
+    }
+  }
+
+  /// Show single date picker
+  Future<void> _showSingleDatePicker() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _customStart ?? now,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      helpText: 'SELECT DATE',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: const Color(0xFF1A1A2E),
+              onSurface: Colors.white,
+              secondary: AppColors.accent,
+            ),
+            dialogBackgroundColor: const Color(0xFF1A1A2E),
+            datePickerTheme: DatePickerThemeData(
+              backgroundColor: const Color(0xFF1A1A2E),
+              headerBackgroundColor: AppColors.primary.withValues(alpha: 0.15),
+              headerForegroundColor: Colors.white,
+              dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) return Colors.white;
+                if (states.contains(WidgetState.disabled)) return Colors.white24;
+                return Colors.white70;
+              }),
+              dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) return AppColors.primary;
+                return null;
+              }),
+              todayForegroundColor: WidgetStateProperty.all(AppColors.accent),
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _customStart = picked;
+        _customEnd = picked;
+        _period = 'Custom';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,15 +187,13 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
     final customers = context.watch<CustomerProvider>();
     final expenses = context.watch<ExpenseProvider>();
 
-    // Calculate metrics based on period
-    final now = DateTime.now();
+    // Get date range
+    final range = _getDateRange();
+
+    // Filter sales by date range
     final filteredSales = sales.sales.where((s) {
       if (_period == 'All Time') return true;
-      final diff = now.difference(s.createdAt).inDays;
-      if (_period == 'Today') return diff == 0;
-      if (_period == 'This Week') return diff <= 7;
-      if (_period == 'This Month') return diff <= 30;
-      return true;
+      return s.createdAt.isAfter(range.start) && s.createdAt.isBefore(range.end);
     }).toList();
 
     final totalRevenue = filteredSales.fold(0.0, (sum, s) => sum + s.total);
@@ -44,11 +202,7 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
 
     final totalExpenses = expenses.expenses.where((e) {
       if (_period == 'All Time') return true;
-      final diff = now.difference(e.createdAt).inDays;
-      if (_period == 'Today') return diff == 0;
-      if (_period == 'This Week') return diff <= 7;
-      if (_period == 'This Month') return diff <= 30;
-      return true;
+      return e.createdAt.isAfter(range.start) && e.createdAt.isBefore(range.end);
     }).fold(0.0, (sum, e) => sum + e.amount);
 
     final profit = totalRevenue - totalExpenses;
@@ -84,32 +238,88 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
               Text('CRM Reports', style: AppTypography.h1.copyWith(
                   color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight)),
               const Spacer(),
-              // Period selector
-              ...List.generate(_periods.length, (i) {
-                final p = _periods[i];
-                return Padding(
-                  padding: const EdgeInsets.only(left: 6),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _period = p),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _period == p
-                            ? AppColors.primary.withValues(alpha: 0.15)
-                            : AppColors.surface(context),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: _period == p
-                            ? AppColors.primary : AppColors.cardBorder(context)),
-                      ),
-                      child: Text(p, style: AppTypography.labelSmall.copyWith(
-                          color: _period == p ? AppColors.primary : AppColors.textSecondary(context),
-                          fontWeight: _period == p ? FontWeight.w700 : FontWeight.w400)),
-                    ),
+              // Custom date label
+              if (_period == 'Custom' && _customStart != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
                   ),
-                );
-              }),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.date_range_rounded, size: 14, color: AppColors.accent),
+                    const SizedBox(width: 6),
+                    Text(
+                      _customStart == _customEnd
+                          ? _fmtDate(_customStart!)
+                          : '${_fmtDate(_customStart!)} - ${_fmtDate(_customEnd!)}',
+                      style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.accent, fontWeight: FontWeight.w600, fontSize: 11),
+                    ),
+                  ]),
+                ),
+                const SizedBox(width: 8),
+              ],
             ]),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
+
+            // Period selector with quick shortcuts
+            SizedBox(
+              height: 38,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  ..._periods.map((p) {
+                    final isActive = _period == p;
+                    final isCalendar = p == 'Custom';
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () {
+                            if (isCalendar) {
+                              _showCalendarOptions();
+                            } else {
+                              setState(() => _period = p);
+                            }
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? AppColors.primary.withValues(alpha: 0.15)
+                                  : AppColors.surface(context),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isActive ? AppColors.primary : AppColors.cardBorder(context),
+                                width: isActive ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              if (isCalendar) ...[
+                                Icon(Icons.calendar_month_rounded, size: 14,
+                                    color: isActive ? AppColors.accent : AppColors.textTertiary(context)),
+                                const SizedBox(width: 5),
+                              ],
+                              Text(p, style: AppTypography.labelSmall.copyWith(
+                                color: isActive ? AppColors.accent : AppColors.textSecondary(context),
+                                fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+                                fontSize: 12,
+                              )),
+                            ]),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
 
             // KPI Cards
             Row(children: [
@@ -221,7 +431,7 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
                                   ),
                                   title: Text(c.name, style: AppTypography.bodySmall.copyWith(
                                       color: AppColors.textPrimary(context), fontWeight: FontWeight.w500)),
-                                  subtitle: Text('${c.totalOrders} orders • ${c.loyaltyPoints} pts',
+                                  subtitle: Text('${c.totalOrders} orders - ${c.loyaltyPoints} pts',
                                       style: AppTypography.labelSmall.copyWith(
                                           color: AppColors.textTertiary(context))),
                                   trailing: Text(Formatters.currency(c.totalSpent),
@@ -236,6 +446,97 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Show calendar options (single date or date range)
+  void _showCalendarOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border.all(color: AppColors.cardBorder(context)),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.textTertiary(context).withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text('Select Date Filter', style: AppTypography.h3.copyWith(
+              color: AppColors.textPrimary(context))),
+          const SizedBox(height: 20),
+          Row(children: [
+            Expanded(child: _calendarOption(
+              icon: Icons.calendar_today_rounded,
+              label: 'Single Date',
+              subtitle: 'Pick one specific date',
+              onTap: () {
+                Navigator.pop(ctx);
+                _showSingleDatePicker();
+              },
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: _calendarOption(
+              icon: Icons.date_range_rounded,
+              label: 'Date Range',
+              subtitle: 'Pick start and end date',
+              onTap: () {
+                Navigator.pop(ctx);
+                _showCalendarPicker();
+              },
+            )),
+          ]),
+          const SizedBox(height: 16),
+        ]),
+      ),
+    );
+  }
+
+  Widget _calendarOption({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.surface(context),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.cardBorder(context)),
+          ),
+          child: Column(children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 28, color: AppColors.primary),
+            ),
+            const SizedBox(height: 12),
+            Text(label, style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textPrimary(context), fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            Text(subtitle, style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textTertiary(context), fontSize: 10),
+                textAlign: TextAlign.center),
+          ]),
         ),
       ),
     );
