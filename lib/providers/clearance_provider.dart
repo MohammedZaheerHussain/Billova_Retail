@@ -1,13 +1,16 @@
 import 'package:flutter/foundation.dart';
 import '../data/local/db_helper.dart';
+import '../data/remote/supabase_service.dart';
 import '../data/models/clearance_item_model.dart';
 import '../data/models/item_model.dart';
 import '../providers/inventory_provider.dart';
 
 /// Manages clearance stock — split items, restore, and audit trail.
 /// The clearance_items table is the audit log; actual items live in the items table.
+/// All mutations sync to Supabase for zero data loss.
 class ClearanceProvider extends ChangeNotifier {
   final DBHelper _db = DBHelper.instance;
+  final SupabaseService _supabase = SupabaseService.instance;
   List<ClearanceItemModel> _records = [];
 
   List<ClearanceItemModel> get records => _records;
@@ -20,6 +23,20 @@ class ClearanceProvider extends ChangeNotifier {
     final rows = await _db.query('clearance_items', orderBy: 'created_at DESC');
     _records = rows.map((r) => ClearanceItemModel.fromMap(r)).toList();
     notifyListeners();
+  }
+
+  // ─── Sync helper ───
+
+  Future<void> _syncToCloud(String action, ClearanceItemModel record) async {
+    try {
+      if (kIsWeb) {
+        await _supabase.syncRecord('clearance_items', record.id, action, record.toMap());
+      } else {
+        _supabase.syncRecord('clearance_items', record.id, action, record.toMap());
+      }
+    } catch (e) {
+      debugPrint('⚠️ Clearance sync failed (queued): $e');
+    }
   }
 
   // ─── Split item for clearance ───
@@ -38,7 +55,7 @@ class ClearanceProvider extends ChangeNotifier {
 
     final clearanceItemId = 'CLR-${originalItem.id}-${DateTime.now().millisecondsSinceEpoch}';
 
-    // 1. Create the clearance copy in the items table
+    // 1. Create the clearance copy in the items table (syncs via InventoryProvider)
     final clearanceItem = ItemModel(
       id: clearanceItemId,
       name: originalItem.name,
@@ -57,12 +74,12 @@ class ClearanceProvider extends ChangeNotifier {
     );
     await inventoryProvider.addItemDirect(clearanceItem);
 
-    // 2. Reduce quantity on the original item
+    // 2. Reduce quantity on the original item (syncs via InventoryProvider)
     await inventoryProvider.updateItem(
       originalItem.copyWith(quantity: originalItem.quantity - qty),
     );
 
-    // 3. Create the audit record in clearance_items
+    // 3. Create the audit record in clearance_items + sync to Supabase
     final auditId = 'CA-${DateTime.now().millisecondsSinceEpoch}';
     final record = ClearanceItemModel(
       id: auditId,
@@ -75,6 +92,7 @@ class ClearanceProvider extends ChangeNotifier {
       status: 'active',
     );
     await _db.insert('clearance_items', record.toMap());
+    await _syncToCloud('insert', record);
     _records.insert(0, record);
     notifyListeners();
 
@@ -97,17 +115,18 @@ class ClearanceProvider extends ChangeNotifier {
     final originalItem = inventoryProvider.items
         .firstWhere((i) => i.id == record.originalItemId, orElse: () => throw StateError('Original item not found'));
 
-    // 3. Merge quantity back to original
+    // 3. Merge quantity back to original (syncs via InventoryProvider)
     await inventoryProvider.updateItem(
       originalItem.copyWith(quantity: originalItem.quantity + clearanceItem.quantity),
     );
 
-    // 4. Delete the clearance copy from items
+    // 4. Delete the clearance copy from items (syncs via InventoryProvider)
     await inventoryProvider.deleteItem(clearanceItem.id);
 
-    // 5. Update audit record
+    // 5. Update audit record + sync to Supabase
     final updated = record.copyWith(status: 'restored');
     await _db.update('clearance_items', updated.toMap(), record.id);
+    await _syncToCloud('update', updated);
 
     final idx = _records.indexWhere((r) => r.id == record.id);
     if (idx >= 0) _records[idx] = updated;
@@ -173,7 +192,7 @@ class ClearanceProvider extends ChangeNotifier {
       );
     }
 
-    // 3. Update the clearance item in items table
+    // 3. Update the clearance item in items table (syncs via InventoryProvider)
     await inventoryProvider.updateItem(
       clearanceItem.copyWith(
         price: newPrice,
@@ -182,13 +201,14 @@ class ClearanceProvider extends ChangeNotifier {
       ),
     );
 
-    // 4. Update the audit record
+    // 4. Update the audit record + sync to Supabase
     final updated = record.copyWith(
       clearancePrice: newPrice,
       quantity: newQty,
       reason: newReason,
     );
     await _db.update('clearance_items', updated.toMap(), record.id);
+    await _syncToCloud('update', updated);
 
     final idx = _records.indexWhere((r) => r.id == record.id);
     if (idx >= 0) _records[idx] = updated;
