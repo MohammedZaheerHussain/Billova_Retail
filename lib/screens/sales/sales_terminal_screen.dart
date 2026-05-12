@@ -26,6 +26,7 @@ class SalesTerminalScreen extends StatefulWidget {
 
 class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
   final _searchCtrl = TextEditingController();
+  final _searchFocus = FocusNode(); // auto-focus for barcode scanner
   final _customerNameCtrl = TextEditingController();
   final _customerPhoneCtrl = TextEditingController();
   final _discountCtrl = TextEditingController();
@@ -38,9 +39,23 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
   int _availablePoints = 0;
   String _matchedCustomerId = '';
 
+  // Barcode scan timing — scanner fires all chars in < 100ms
+  DateTime? _lastKeyTime;
+  int _rapidKeyCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-focus the barcode field when terminal opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _searchFocus.requestFocus();
+    });
+  }
+
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _searchFocus.dispose();
     _customerNameCtrl.dispose();
     _customerPhoneCtrl.dispose();
     _discountCtrl.dispose();
@@ -91,26 +106,57 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
   void _onSearchChanged(String query) {
     setState(() => _searchQuery = query);
 
-    // Auto-detect barcode scan (fast input, usually 8+ chars)
-    if (query.length >= 8) {
-      final inventory = context.read<InventoryProvider>();
-      final exactMatch = inventory.items.firstWhere(
-        (i) => i.barcode == query && !i.isOutOfStock &&
-          (_isClearanceMode
-            ? i.storageLocation.startsWith('CLEARANCE:')
-            : !i.storageLocation.startsWith('CLEARANCE:')),
-        orElse: () => ItemModel(id: '', name: '', price: 0),
-      );
-      if (exactMatch.id.isNotEmpty) {
-        _addToCart(exactMatch);
-        _searchCtrl.clear();
-        setState(() => _searchQuery = '');
-      }
+    // ─── Barcode Scanner Detection ───
+    // Physical scanners type all chars in rapid succession (<50ms each)
+    // then typically send an Enter or the text appears all at once.
+    final now = DateTime.now();
+    if (_lastKeyTime != null && now.difference(_lastKeyTime!).inMilliseconds < 80) {
+      _rapidKeyCount++;
+    } else {
+      _rapidKeyCount = 1;
+    }
+    _lastKeyTime = now;
+
+    // Detect scan: rapid input of 4+ characters (covers SKY-XXX-NNN and standard barcodes)
+    if (query.length >= 4 && _rapidKeyCount >= 3) {
+      _tryBarcodeMatch(query);
+    }
+
+    // Also try exact match for any input >= 4 chars (handles paste & slower scanners)
+    if (query.length >= 4) {
+      // Debounce slightly for manual typing vs instant for scan
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && _searchCtrl.text == query && query.length >= 4) {
+          _tryBarcodeMatch(query);
+        }
+      });
+    }
+  }
+
+  void _tryBarcodeMatch(String query) {
+    final inventory = context.read<InventoryProvider>();
+    final exactMatch = inventory.items.firstWhere(
+      (i) => i.barcode.toLowerCase() == query.toLowerCase() &&
+        !i.isOutOfStock &&
+        (_isClearanceMode
+          ? i.storageLocation.startsWith('CLEARANCE:')
+          : !i.storageLocation.startsWith('CLEARANCE:')),
+      orElse: () => ItemModel(id: '', name: '', price: 0),
+    );
+    if (exactMatch.id.isNotEmpty) {
+      _addToCart(exactMatch);
+      _searchCtrl.clear();
+      setState(() => _searchQuery = '');
+      _rapidKeyCount = 0;
     }
   }
 
   void _addToCart(ItemModel item) {
     context.read<SalesProvider>().addToCart(item);
+    // Re-focus search field so scanner is always ready
+    Future.microtask(() {
+      if (mounted) _searchFocus.requestFocus();
+    });
   }
 
   Future<void> _completeSale() async {
@@ -225,7 +271,10 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       _discountCtrl.clear();
       _cashPaidCtrl.clear();
       _upiPaidCtrl.clear();
-      setState(() { _usePoints = false; _availablePoints = 0; _matchedCustomerId = ''; });
+      _searchCtrl.clear();
+      setState(() { _usePoints = false; _availablePoints = 0; _matchedCustomerId = ''; _searchQuery = ''; });
+      // Re-focus barcode field for next customer
+      Future.microtask(() { if (mounted) _searchFocus.requestFocus(); });
 
       // Auto-print receipt (if enabled in settings)
       ReceiptPrinter.printReceipt(sale, cashPaid: cashPaid, upiPaid: upiPaid);
@@ -529,6 +578,8 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
           // Search bar
           TextField(
             controller: _searchCtrl,
+            focusNode: _searchFocus,
+            autofocus: true,
             onChanged: _onSearchChanged,
             style: TextStyle(color: AppColors.textPrimary(context)),
             decoration: InputDecoration(
