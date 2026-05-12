@@ -1,8 +1,10 @@
+import 'dart:js' as js;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/whatsapp_helper.dart';
 import '../../providers/purchase_provider.dart';
 import '../../providers/vendor_provider.dart';
 import '../../providers/inventory_provider.dart';
@@ -37,6 +39,25 @@ class VendorDetailScreen extends StatelessWidget {
         title: Text(vendor.name,
             style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context))),
         actions: [
+          // WhatsApp Invoice
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: IconButton(
+              tooltip: vendor.phone.isEmpty ? 'No phone number' : 'Send Invoice via WhatsApp',
+              onPressed: vendor.phone.isEmpty ? null : () => _sendWhatsAppInvoice(context, purchaseProvider),
+              icon: Icon(Icons.chat_rounded, size: 20,
+                color: vendor.phone.isEmpty ? AppColors.textTertiary(context) : const Color(0xFF25D366)),
+            ),
+          ),
+          // Print Invoice
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: IconButton(
+              tooltip: 'Print Invoice',
+              onPressed: () => _printInvoice(context, purchaseProvider),
+              icon: Icon(Icons.print_rounded, size: 20, color: AppColors.textSecondary(context)),
+            ),
+          ),
           if (pending > 0)
             Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -76,13 +97,21 @@ class VendorDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSummarySection(context, totalPurchase, totalPaid, pending, totalItems),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+
+            // ─── Invoice / Ledger Section ───
+            _buildLedgerSection(context, purchaseProvider, totalPurchase, totalPaid, pending, purchases),
+            const SizedBox(height: 20),
 
             // Top Items Supplied
             if (purchases.isNotEmpty) ...[
               _buildTopItems(context, purchases),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
             ],
+
+            // ─── Payment History ───
+            _buildPaymentHistory(context, purchases),
+            const SizedBox(height: 20),
 
             _buildPurchaseHistory(context, purchases),
           ],
@@ -415,6 +444,234 @@ class VendorDetailScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // ─── Vendor Ledger / Invoice Section ───
+  Widget _buildLedgerSection(BuildContext context, PurchaseProvider pp, double total, double paid, double pending, List<PurchaseModel> purchases) {
+    final invoiceNo = pp.generateVendorInvoiceNumber(vendor.id);
+    final status = pp.getVendorPaymentStatus(vendor.id);
+    final statusColor = status == 'Paid' ? AppColors.success : status == 'Unpaid' ? AppColors.error : AppColors.warning;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder(context)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.receipt_long_rounded, color: AppColors.accent, size: 20),
+          const SizedBox(width: 8),
+          Text('Vendor Invoice / Ledger', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+            child: Text(status, style: AppTypography.labelSmall.copyWith(color: statusColor, fontWeight: FontWeight.w700)),
+          ),
+        ]),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: AppColors.surface(context), borderRadius: BorderRadius.circular(12)),
+          child: Column(children: [
+            _ledgerRow(context, 'Invoice No', invoiceNo, AppColors.accent),
+            _ledgerRow(context, 'Total Purchase', Formatters.currency(total), AppColors.primary),
+            _ledgerRow(context, 'Total Paid', Formatters.currency(paid), AppColors.success),
+            _ledgerRow(context, 'Pending Balance', Formatters.currency(pending), pending > 0 ? AppColors.error : AppColors.success),
+            _ledgerRow(context, 'Transactions', '${purchases.length}', AppColors.textSecondary(context)),
+          ]),
+        ),
+        const SizedBox(height: 14),
+        // Action buttons
+        Row(children: [
+          Expanded(child: OutlinedButton.icon(
+            onPressed: vendor.phone.isEmpty ? null : () => _sendWhatsAppInvoice(context, pp),
+            icon: Icon(Icons.chat_rounded, size: 16, color: vendor.phone.isEmpty ? AppColors.textTertiary(context) : const Color(0xFF25D366)),
+            label: Text('WhatsApp', style: TextStyle(fontSize: 12, color: vendor.phone.isEmpty ? AppColors.textTertiary(context) : const Color(0xFF25D366))),
+            style: OutlinedButton.styleFrom(side: BorderSide(color: vendor.phone.isEmpty ? AppColors.cardBorder(context) : const Color(0xFF25D366).withValues(alpha: 0.4)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 10)),
+          )),
+          const SizedBox(width: 8),
+          Expanded(child: OutlinedButton.icon(
+            onPressed: () => _printInvoice(context, pp),
+            icon: Icon(Icons.print_rounded, size: 16, color: AppColors.primary),
+            label: Text('Print', style: TextStyle(fontSize: 12, color: AppColors.primary)),
+            style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 10)),
+          )),
+          const SizedBox(width: 8),
+          Expanded(child: OutlinedButton.icon(
+            onPressed: () => _printInvoice(context, pp),
+            icon: Icon(Icons.download_rounded, size: 16, color: AppColors.accent),
+            label: Text('Download', style: TextStyle(fontSize: 12, color: AppColors.accent)),
+            style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.accent.withValues(alpha: 0.4)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 10)),
+          )),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _ledgerRow(BuildContext context, String label, String value, Color color) {
+    return Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(children: [
+      Expanded(child: Text(label, style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary(context)))),
+      Text(value, style: AppTypography.mono.copyWith(color: color, fontWeight: FontWeight.w600, fontSize: 13)),
+    ]));
+  }
+
+  // ─── Payment History Timeline ───
+  Widget _buildPaymentHistory(BuildContext context, List<PurchaseModel> purchases) {
+    if (purchases.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: AppColors.card(context), borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder(context))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.history_rounded, color: AppColors.accent, size: 20),
+          const SizedBox(width: 8),
+          Text('Payment History', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
+        ]),
+        const SizedBox(height: 14),
+        ...purchases.map((p) {
+          final isPaid = p.isFullyPaid;
+          final statusColor = isPaid ? AppColors.success : p.paidAmount > 0 ? AppColors.warning : AppColors.error;
+          final statusText = isPaid ? 'Paid' : p.paidAmount > 0 ? 'Partial' : 'Unpaid';
+          final purchaseProvider = context.read<PurchaseProvider>();
+          final overallPending = (purchaseProvider.getVendorSummary(vendor.id)['pending'] as double?) ?? 0;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: AppColors.surface(context), borderRadius: BorderRadius.circular(10)),
+            child: Row(children: [
+              Container(width: 8, height: 40, decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(4))),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(p.createdAt.toIso8601String().substring(0, 10), style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context), fontSize: 10)),
+                Text('${Formatters.currency(p.totalAmount)} - Paid: ${Formatters.currency(p.paidAmount)}',
+                  style: AppTypography.bodySmall.copyWith(color: AppColors.textPrimary(context), fontWeight: FontWeight.w500)),
+                if (p.dueAmount > 0) Text('Due: ${Formatters.currency(p.dueAmount)}', style: AppTypography.labelSmall.copyWith(color: AppColors.error, fontSize: 10)),
+              ])),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                child: Text(statusText, style: AppTypography.labelSmall.copyWith(color: statusColor, fontWeight: FontWeight.w700, fontSize: 10)),
+              ),
+              const SizedBox(width: 6),
+              Text(p.paymentMode, style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context), fontSize: 10)),
+              if (vendor.phone.isNotEmpty) ...[
+                const SizedBox(width: 6),
+                IconButton(
+                  tooltip: 'Send this payment via WhatsApp',
+                  icon: const Icon(Icons.chat_rounded, size: 16, color: Color(0xFF25D366)),
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(4),
+                  onPressed: () {
+                    final msg = WhatsAppHelper.vendorPaymentMessage(
+                      vendorName: vendor.name,
+                      date: p.createdAt.toIso8601String().substring(0, 10),
+                      totalAmount: p.totalAmount,
+                      paidAmount: p.paidAmount,
+                      dueAmount: p.dueAmount,
+                      paymentMode: p.paymentMode,
+                      overallPending: overallPending,
+                    );
+                    WhatsAppHelper.send(phone: vendor.phone, message: msg);
+                  },
+                ),
+              ],
+            ]),
+          );
+        }),
+      ]),
+    );
+  }
+
+  // ─── WhatsApp Invoice ───
+  void _sendWhatsAppInvoice(BuildContext context, PurchaseProvider pp) {
+    final summary = pp.getVendorSummary(vendor.id);
+    final invoiceNo = pp.generateVendorInvoiceNumber(vendor.id);
+    final message = WhatsAppHelper.vendorInvoiceMessage(
+      vendorName: vendor.name,
+      invoiceNumber: invoiceNo,
+      totalAmount: summary['totalPurchase'] as double,
+      paidAmount: summary['totalPaid'] as double,
+      pendingAmount: summary['pending'] as double,
+      paymentStatus: pp.getVendorPaymentStatus(vendor.id),
+      purchases: pp.getVendorPurchasesList(vendor.id),
+    );
+    WhatsAppHelper.send(phone: vendor.phone, message: message);
+  }
+
+  // ─── Print Invoice ───
+  void _printInvoice(BuildContext context, PurchaseProvider pp) {
+    final summary = pp.getVendorSummary(vendor.id);
+    final purchases = pp.getVendorPurchases(vendor.id);
+    final invoiceNo = pp.generateVendorInvoiceNumber(vendor.id);
+    final status = pp.getVendorPaymentStatus(vendor.id);
+    final total = summary['totalPurchase'] as double;
+    final paid = summary['totalPaid'] as double;
+    final pending = summary['pending'] as double;
+
+    final itemRows = StringBuffer();
+    for (final p in purchases) {
+      for (final item in p.itemsList) {
+        final name = item['name'] ?? 'Item';
+        final qty = item['quantity'] ?? 0;
+        final cost = (item['cost_price'] as num?)?.toDouble() ?? 0;
+        itemRows.write('<tr><td>$name</td><td style="text-align:center">$qty</td><td style="text-align:right">${Formatters.currency(cost)}</td><td style="text-align:right">${Formatters.currency(cost * (qty as num).toInt())}</td></tr>');
+      }
+    }
+
+    final paymentRows = StringBuffer();
+    for (final p in purchases) {
+      final date = p.createdAt.toIso8601String().substring(0, 10);
+      final pStatus = p.isFullyPaid ? 'Paid' : p.paidAmount > 0 ? 'Partial' : 'Unpaid';
+      paymentRows.write('<tr><td>$date</td><td style="text-align:right">${Formatters.currency(p.totalAmount)}</td><td style="text-align:right">${Formatters.currency(p.paidAmount)}</td><td>${p.paymentMode}</td><td>$pStatus</td></tr>');
+    }
+
+    final escapedName = vendor.name.replaceAll("'", "\\'");
+    js.context.callMethod('eval', ['''
+      var w=window.open(\'\',\'_blank\',\'width=800,height=900\');
+      if(w){w.document.write(\'<html><head><title>Invoice - $escapedName</title><style>\'
+        +\'body{font-family:Arial,sans-serif;padding:30px;color:#1a1a2e}\'
+        +\'.header{display:flex;justify-content:space-between;border-bottom:3px solid #0f3460;padding-bottom:16px;margin-bottom:20px}\'
+        +\'.logo{font-size:28px;font-weight:800;color:#0f3460}\'
+        +\'.badge{display:inline-block;padding:4px 12px;border-radius:6px;font-weight:700;font-size:13px}\'
+        +\'table{width:100%;border-collapse:collapse;margin:12px 0}\'
+        +\'th{background:#0f3460;color:#fff;padding:8px 12px;text-align:left;font-size:12px}\'
+        +\'td{padding:8px 12px;border-bottom:1px solid #eee;font-size:12px}\'
+        +\'.summary{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}\'
+        +\'.summary-box{padding:14px;border-radius:10px;background:#f0f4ff}\'
+        +\'.summary-box.green{background:#e6f9f0}.summary-box.red{background:#fde8e8}\'
+        +\'.summary-label{font-size:11px;color:#666}.summary-value{font-size:18px;font-weight:700;margin-top:4px}\'
+        +\'.footer{text-align:center;margin-top:30px;padding-top:16px;border-top:2px solid #eee;color:#999;font-size:12px}\'
+        +\'@media print{body{padding:10px}}\'
+        +\'</style></head><body>\'
+        +\'<div class="header"><div><div class="logo">SKYWALK</div><div style="font-size:12px;color:#666">Professional Billing System</div></div>\'
+        +\'<div style="text-align:right"><div style="font-size:14px;font-weight:700">VENDOR INVOICE</div>\'
+        +\'<div style="font-size:12px;color:#666">$invoiceNo</div>\'
+        +\'<div style="font-size:11px;color:#999">${DateTime.now().toIso8601String().substring(0, 10)}</div></div></div>\'
+        +\'<div style="background:#f8f9ff;padding:14px;border-radius:10px;margin-bottom:16px">\'
+        +\'<div style="font-size:11px;color:#666">BILL TO</div>\'
+        +\'<div style="font-size:16px;font-weight:700">${vendor.name}</div>\'
+        +\'<div style="font-size:12px;color:#666">${vendor.phone}</div></div>\'
+        +\'<div class="summary">\'
+        +\'<div class="summary-box"><div class="summary-label">Total Purchase</div><div class="summary-value" style="color:#0f3460">${Formatters.currency(total)}</div></div>\'
+        +\'<div class="summary-box green"><div class="summary-label">Total Paid</div><div class="summary-value" style="color:#0f9b58">${Formatters.currency(paid)}</div></div>\'
+        +\'<div class="summary-box red"><div class="summary-label">Pending Balance</div><div class="summary-value" style="color:#d32f2f">${Formatters.currency(pending)}</div></div>\'
+        +\'<div class="summary-box"><div class="summary-label">Status</div><div class="summary-value" style="color:${status == 'Paid' ? '#0f9b58' : '#d32f2f'}">$status</div></div></div>\'
+        +\'<h3 style="color:#0f3460;margin:20px 0 8px">Purchase Items</h3>\'
+        +\'<table><thead><tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Total</th></tr></thead>\'
+        +\'<tbody>$itemRows</tbody></table>\'
+        +\'<h3 style="color:#0f3460;margin:20px 0 8px">Payment History</h3>\'
+        +\'<table><thead><tr><th>Date</th><th style="text-align:right">Amount</th><th style="text-align:right">Paid</th><th>Method</th><th>Status</th></tr></thead>\'
+        +\'<tbody>$paymentRows</tbody></table>\'
+        +\'<div class="footer">Thank you for doing business with us!<br>Generated by SKYWALK Billing System</div>\'
+        +\'</body></html>\');w.document.close();setTimeout(function(){w.print()},600);}
+    ''']);
   }
 
   // ─── Add Purchase Dialog ───

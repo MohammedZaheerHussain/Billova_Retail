@@ -219,4 +219,35 @@ class PurchaseProvider extends ChangeNotifier {
       return false;
     }
   }
+
+  // ─── Invoice Helpers ───
+
+  /// Generate a vendor invoice number: VINV-YYYY-XXXX
+  String generateVendorInvoiceNumber(String vendorId) {
+    final year = DateTime.now().year;
+    final vendorPurchases = getVendorPurchases(vendorId);
+    final seq = (vendorPurchases.length + 1).toString().padLeft(4, '0');
+    return 'VINV-$year-$seq';
+  }
+
+  /// Get payment status string for a vendor
+  String getVendorPaymentStatus(String vendorId) {
+    final summary = getVendorSummary(vendorId);
+    final totalPaid = summary['totalPaid'] as double;
+    final pending = summary['pending'] as double;
+    if (pending <= 0) return 'Paid';
+    if (totalPaid <= 0) return 'Unpaid';
+    return 'Partial';
+  }
+
+  /// Get purchase summary list formatted for WhatsApp message
+  List<Map<String, dynamic>> getVendorPurchasesList(String vendorId) {
+    final purchases = getVendorPurchases(vendorId);
+    return purchases.map((p) => {
+      'date': p.createdAt.toIso8601String().substring(0, 10),
+      'amount': p.totalAmount,
+      'paid': p.paidAmount,
+      'status': p.isFullyPaid ? '✅' : '⏳',
+    }).toList();
+  }
 }
