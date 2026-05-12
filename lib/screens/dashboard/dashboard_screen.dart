@@ -47,17 +47,97 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // AI Insights
   String _aiInsights = '';
   bool _isLoadingAI = false;
+  bool _showMonthlyBackupBanner = false;
 
   @override
   void initState() {
     super.initState();
     _loadDashboardData();
+    _checkMonthlyBackup();
     // Re-load when Supabase data pull completes (web: in-memory DB starts empty)
     AppShell.dataVersion.addListener(_onDataReady);
   }
 
   void _onDataReady() {
     if (mounted) _loadDashboardData();
+  }
+
+  Future<void> _checkMonthlyBackup() async {
+    final lastExport = await DBHelper.instance.getSetting('last_csv_export_month');
+    final currentMonth = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
+    if (lastExport != currentMonth && mounted) {
+      setState(() => _showMonthlyBackupBanner = true);
+    }
+  }
+
+  Widget _buildMonthlyBackupBanner() {
+    final now = DateTime.now();
+    final monthName = ['Jan','Feb','Mar','Apr','May','Jun',
+                       'Jul','Aug','Sep','Oct','Nov','Dec'][now.month - 1];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.warning.withValues(alpha: 0.15), AppColors.accent.withValues(alpha: 0.08)],
+          begin: Alignment.centerLeft, end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.backup_rounded, color: AppColors.warning, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Monthly Backup Due — $monthName ${now.year}',
+                    style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.warning, fontWeight: FontWeight.w700, fontSize: 12)),
+                Text('Download your monthly CSV backup to keep your data safe',
+                    style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.textSecondary(context), fontSize: 10)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton.icon(
+            onPressed: () {
+              // Navigate to Settings via AppShell
+              AppShell.navigateTo.value = 'Settings & Backup';
+            },
+            icon: Icon(Icons.download_rounded, size: 14, color: AppColors.accent),
+            label: Text('Export Now', style: TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.w700)),
+            style: TextButton.styleFrom(
+              backgroundColor: AppColors.accent.withValues(alpha: 0.12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            onPressed: () async {
+              await DBHelper.instance.setSetting('last_csv_export_month',
+                  '${now.year}-${now.month.toString().padLeft(2, '0')}');
+              if (mounted) setState(() => _showMonthlyBackupBanner = false);
+            },
+            icon: Icon(Icons.close_rounded, size: 16, color: AppColors.textTertiary(context)),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Dismiss',
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -270,6 +350,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
             const SizedBox(height: 24),
+
+            // ─── Monthly Backup Reminder ───
+            if (_showMonthlyBackupBanner)
+              _buildMonthlyBackupBanner(),
 
             // ─── Stat Cards (6 cards) ───
             LayoutBuilder(
