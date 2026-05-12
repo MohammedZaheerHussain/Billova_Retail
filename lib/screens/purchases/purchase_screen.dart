@@ -8,6 +8,7 @@ import '../../core/constants.dart';
 import '../../providers/vendor_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/purchase_provider.dart';
+import '../../providers/category_provider.dart';
 import '../../data/models/vendor_model.dart';
 import '../../data/models/item_model.dart';
 import '../../data/models/purchase_model.dart';
@@ -138,18 +139,38 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
     final sellingPriceCtrl = TextEditingController();
     final qtyCtrl = TextEditingController(text: '1');
     bool autoBarcode = true;
+    String? selectedCategory;
+    bool showSize = true;
+    bool showColor = true;
 
     void generateBarcode() {
-      final cat = categoryCtrl.text.trim();
+      final cat = selectedCategory ?? categoryCtrl.text.trim();
       final code = cat.isNotEmpty
           ? cat.substring(0, cat.length < 3 ? cat.length : 3).toUpperCase()
           : 'GEN';
       final num = (10000 + Random().nextInt(90000)).toString();
-      barcodeCtrl.text = 'SKY-$code-$num';
+      barcodeCtrl.text = 'SKY-\$code-\$num';
+    }
+
+    void updateCategoryFields(String categoryName, void Function(void Function()) setDialogState) {
+      final catProvider = context.read<CategoryProvider>();
+      final match = catProvider.getCategoryByName(categoryName);
+      if (match != null) {
+        setDialogState(() {
+          showSize = match.requiresSize;
+          showColor = match.requiresColor;
+        });
+      } else {
+        setDialogState(() { showSize = true; showColor = true; });
+      }
     }
 
     // Auto-generate on open
     generateBarcode();
+
+    // Ensure categories are loaded
+    final catProvider = context.read<CategoryProvider>();
+    if (catProvider.categories.isEmpty) catProvider.loadCategories();
 
     showDialog(
       context: context,
@@ -183,15 +204,65 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                   Row(children: [
                     Expanded(child: _purchaseField(ctx, 'Brand / Vendor', vendorCtrl, 'e.g. Nike', Icons.store_rounded)),
                     const SizedBox(width: 8),
-                    Expanded(child: _purchaseField(ctx, 'Category', categoryCtrl, 'e.g. Shoes', Icons.category_rounded)),
+                    // Dynamic category dropdown from CategoryProvider
+                    Expanded(
+                      child: Consumer<CategoryProvider>(
+                        builder: (context, catProv, _) {
+                          final categories = catProv.categories;
+                          if (categories.isEmpty) {
+                            return _purchaseField(ctx, 'Category', categoryCtrl, 'e.g. Shoes', Icons.category_rounded);
+                          }
+                          return DropdownButtonFormField<String>(
+                            value: selectedCategory != null &&
+                                categories.any((c) => c.name == selectedCategory)
+                                ? selectedCategory : null,
+                            items: categories.map((c) => DropdownMenuItem(
+                              value: c.name,
+                              child: Text(c.name, style: const TextStyle(fontSize: 13)),
+                            )).toList(),
+                            onChanged: (v) {
+                              setDialogState(() {
+                                selectedCategory = v;
+                                categoryCtrl.text = v ?? '';
+                              });
+                              if (v != null) updateCategoryFields(v, setDialogState);
+                              if (autoBarcode) {
+                                generateBarcode();
+                                setDialogState(() {});
+                              }
+                            },
+                            style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
+                            dropdownColor: AppColors.card(context),
+                            decoration: InputDecoration(
+                              labelText: 'Category',
+                              labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 12),
+                              prefixIcon: Icon(Icons.category_rounded, size: 18, color: AppColors.textTertiary(context)),
+                              filled: true,
+                              fillColor: AppColors.surface(context),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: AppColors.primary, width: 1.5)),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ]),
                   const SizedBox(height: 10),
-                  Row(children: [
-                    Expanded(child: _purchaseField(ctx, 'Size', sizeCtrl, 'e.g. 42, XL', Icons.straighten_rounded)),
-                    const SizedBox(width: 8),
-                    Expanded(child: _purchaseField(ctx, 'Color', colorCtrl, 'e.g. Black', Icons.palette_rounded)),
-                  ]),
-                  const SizedBox(height: 10),
+                  // Dynamic Size/Color based on selected category
+                  if (showSize || showColor)
+                    Row(children: [
+                      if (showSize)
+                        Expanded(child: _purchaseField(ctx, 'Size', sizeCtrl, 'e.g. 42, XL', Icons.straighten_rounded)),
+                      if (showSize && showColor) const SizedBox(width: 8),
+                      if (showColor)
+                        Expanded(child: _purchaseField(ctx, 'Color', colorCtrl, 'e.g. Black', Icons.palette_rounded)),
+                    ]),
+                  if (showSize || showColor) const SizedBox(height: 10),
                   // Barcode
                   Row(children: [
                     Checkbox(value: autoBarcode, activeColor: AppColors.accent, onChanged: (v) {
@@ -209,9 +280,9 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                   const SizedBox(height: 10),
                   // Pricing
                   Row(children: [
-                    Expanded(child: _purchaseField(ctx, 'Cost Price (₹) *', costPriceCtrl, '0.00', Icons.payments_rounded, isNumber: true)),
+                    Expanded(child: _purchaseField(ctx, 'Cost Price (\u20b9) *', costPriceCtrl, '0.00', Icons.payments_rounded, isNumber: true)),
                     const SizedBox(width: 8),
-                    Expanded(child: _purchaseField(ctx, 'Selling Price (₹)', sellingPriceCtrl, '0.00', Icons.sell_rounded, isNumber: true)),
+                    Expanded(child: _purchaseField(ctx, 'Selling Price (\u20b9)', sellingPriceCtrl, '0.00', Icons.sell_rounded, isNumber: true)),
                     const SizedBox(width: 8),
                     SizedBox(width: 80, child: _purchaseField(ctx, 'Qty', qtyCtrl, '1', Icons.inventory_rounded, isNumber: true)),
                   ]),
@@ -225,14 +296,15 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                     onPressed: () async {
                       if (nameCtrl.text.trim().isEmpty) return;
                       if (autoBarcode && barcodeCtrl.text.isEmpty) generateBarcode();
+                      final category = selectedCategory ?? categoryCtrl.text.trim();
                       final inv = context.read<InventoryProvider>();
                       await inv.addItem(
                         name: nameCtrl.text.trim(),
                         vendor: vendorCtrl.text.trim(),
                         barcode: barcodeCtrl.text.trim(),
-                        category: categoryCtrl.text.trim(),
-                        size: sizeCtrl.text.trim(),
-                        color: colorCtrl.text.trim(),
+                        category: category,
+                        size: showSize ? sizeCtrl.text.trim() : '',
+                        color: showColor ? colorCtrl.text.trim() : '',
                         storageLocation: locationCtrl.text.trim(),
                         price: double.tryParse(sellingPriceCtrl.text) ?? double.tryParse(costPriceCtrl.text) ?? 0,
                         costPrice: double.tryParse(costPriceCtrl.text) ?? 0,
