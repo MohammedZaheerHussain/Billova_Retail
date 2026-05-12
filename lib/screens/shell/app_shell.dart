@@ -40,6 +40,9 @@ class AppShell extends StatefulWidget {
   /// Incremented after every Supabase data pull so screens can reload.
   static final ValueNotifier<int> dataVersion = ValueNotifier<int>(0);
 
+  /// Trigger navigation to a named module from anywhere in the widget tree.
+  static final ValueNotifier<String> navigateTo = ValueNotifier<String>('');
+
   @override
   State<AppShell> createState() => _AppShellState();
 }
@@ -48,6 +51,15 @@ class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
   bool _sidebarExpanded = true;
   final FocusNode _focusNode = FocusNode();
+
+  void _onNavigateTo() {
+    final label = AppShell.navigateTo.value;
+    if (label.isEmpty) return;
+    final idx = _allNavItems.toList().indexWhere((item) => item.label == label);
+    if (idx >= 0 && mounted) setState(() => _selectedIndex = idx);
+    AppShell.navigateTo.value = ''; // reset
+  }
+
 
   // F-key → absolute nav index mapping
   static final Map<LogicalKeyboardKey, int> _shortcutMap = {
@@ -116,6 +128,7 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    AppShell.navigateTo.addListener(_onNavigateTo);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAllData();
       _focusNode.requestFocus();
@@ -126,6 +139,7 @@ class _AppShellState extends State<AppShell> {
   @override
   void dispose() {
     _syncTimer?.cancel();
+    AppShell.navigateTo.removeListener(_onNavigateTo);
     _focusNode.dispose();
     super.dispose();
   }
