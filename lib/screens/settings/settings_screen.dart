@@ -44,6 +44,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _categoryNameCtrl = TextEditingController();
   bool _requiresSize = false;
   bool _requiresColor = false;
+  bool _categoryExpanded = false;
+  final _categorySearchCtrl = TextEditingController();
+  String _categorySearch = '';
 
   // Printer Config
   final _shopNameCtrl = TextEditingController();
@@ -68,6 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _addressCtrl.dispose();
     _receiptTermsCtrl.dispose();
     _categoryNameCtrl.dispose();
+    _categorySearchCtrl.dispose();
     _shopNameCtrl.dispose();
     _shopPhoneCtrl.dispose();
     _shopAddressCtrl.dispose();
@@ -525,138 +529,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ]),
             const SizedBox(height: 16),
-            _buildSection(isDark, 'Category Manager', Icons.category_rounded, [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: TextField(
-                  controller: _categoryNameCtrl,
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight),
-                  decoration: _inputDeco(isDark, 'Category Name (e.g. Wallets)'),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                child: Row(children: [
-                  Checkbox(value: _requiresSize, onChanged: (v) => setState(() => _requiresSize = v!),
-                    activeColor: AppColors.primary),
-                  Text('Requires Size?', style: AppTypography.bodySmall.copyWith(
-                    color: isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight)),
-                  const SizedBox(width: 20),
-                  Checkbox(value: _requiresColor, onChanged: (v) => setState(() => _requiresColor = v!),
-                    activeColor: AppColors.primary),
-                  Text('Requires Color?', style: AppTypography.bodySmall.copyWith(
-                    color: isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight)),
-                ]),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                child: SizedBox(
-                  width: double.infinity, height: 48,
-                  child: ElevatedButton.icon(
-                    onPressed: _addCategory,
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: Text('Add Category', style: AppTypography.button.copyWith(color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Category list from provider
-              Consumer<CategoryProvider>(
-                builder: (context, catProvider, _) {
-                  if (catProvider.categories.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.03),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.cardBorder(context).withValues(alpha: 0.5)),
-                        ),
-                        child: Column(children: [
-                          Icon(Icons.category_outlined, size: 36, color: AppColors.textTertiary(context).withValues(alpha: 0.4)),
-                          const SizedBox(height: 8),
-                          Text('No categories yet', style: AppTypography.bodyMedium.copyWith(
-                            color: AppColors.textTertiary(context))),
-                          const SizedBox(height: 4),
-                          Text('Add your first category above', style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.textTertiary(context).withValues(alpha: 0.7))),
-                        ]),
-                      ),
-                    );
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${catProvider.categories.length} Categories', style: AppTypography.labelSmall.copyWith(
-                          color: AppColors.textTertiary(context), fontWeight: FontWeight.w600, letterSpacing: 0.5)),
-                        const SizedBox(height: 8),
-                        ...catProvider.categories.map((cat) => Container(
-                          margin: const EdgeInsets.only(bottom: 6),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.cardBorder(context).withValues(alpha: 0.5)),
-                          ),
-                          child: Row(children: [
-                            Container(
-                              width: 32, height: 32,
-                              decoration: BoxDecoration(
-                                gradient: AppColors.primaryGradient,
-                                borderRadius: BorderRadius.circular(8)),
-                              child: Center(child: Text(
-                                cat.name.isNotEmpty ? cat.name[0].toUpperCase() : '?',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14))),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(cat.name, style: AppTypography.bodyMedium.copyWith(
-                                  color: AppColors.textPrimary(context), fontWeight: FontWeight.w600)),
-                                const SizedBox(height: 2),
-                                Row(children: [
-                                  if (cat.requiresSize) _tagChip('Size', AppColors.accent),
-                                  if (cat.requiresSize && cat.requiresColor) const SizedBox(width: 6),
-                                  if (cat.requiresColor) _tagChip('Color', AppColors.warning),
-                                  if (!cat.requiresSize && !cat.requiresColor)
-                                    Text('No variants', style: AppTypography.labelSmall.copyWith(
-                                      color: AppColors.textTertiary(context), fontStyle: FontStyle.italic)),
-                                ]),
-                              ],
-                            )),
-                            IconButton(
-                              icon: Icon(Icons.edit_rounded, size: 18, color: AppColors.accent),
-                              tooltip: 'Edit',
-                              onPressed: () => _showEditDialog(cat),
-                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                              padding: EdgeInsets.zero,
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.delete_rounded, size: 18, color: AppColors.error),
-                              tooltip: 'Delete',
-                              onPressed: () => _deleteCategory(cat),
-                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                              padding: EdgeInsets.zero,
-                            ),
-                          ]),
-                        )),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
-            ]),
+            _buildCategoryManagerAccordion(isDark),
             const SizedBox(height: 16),
 
             // ─── Appearance ───
@@ -1287,6 +1160,386 @@ class _SettingsScreenState extends State<SettingsScreen> {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  // ─── Category Manager Accordion ───
+
+  Widget _buildCategoryManagerAccordion(bool isDark) {
+    final catProvider = context.watch<CategoryProvider>();
+    final catCount = catProvider.categories.length;
+    final inventory = context.watch<InventoryProvider>();
+
+    // Filter categories by search
+    final filtered = _categorySearch.isEmpty
+        ? catProvider.categories
+        : catProvider.categories.where((c) =>
+            c.name.toLowerCase().contains(_categorySearch)).toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.card(context) : AppColors.cardLight,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: [
+        // ─── Accordion Header ───
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => setState(() => _categoryExpanded = !_categoryExpanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.category_rounded, color: AppColors.primary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Category Manager', style: AppTypography.labelLarge.copyWith(
+                    color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight,
+                    fontSize: 13, letterSpacing: 0.5)),
+                  const SizedBox(height: 2),
+                  Text('$catCount ${catCount == 1 ? "category" : "categories"} configured',
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.textTertiary(context), fontSize: 11)),
+                ])),
+                // Category count badge
+                if (catCount > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text('$catCount', style: TextStyle(
+                      color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                const SizedBox(width: 10),
+                AnimatedRotation(
+                  turns: _categoryExpanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOut,
+                  child: Icon(Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.textTertiary(context), size: 24),
+                ),
+              ]),
+            ),
+          ),
+        ),
+
+        // ─── Accordion Body ───
+        AnimatedCrossFade(
+          firstChild: const SizedBox.shrink(),
+          secondChild: _buildCategoryBody(isDark, catProvider, filtered, inventory),
+          crossFadeState: _categoryExpanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 300),
+          sizeCurve: Curves.easeInOut,
+          firstCurve: Curves.easeIn,
+          secondCurve: Curves.easeOut,
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildCategoryBody(bool isDark, CategoryProvider catProvider,
+      List<CategoryModel> filtered, InventoryProvider inventory) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Divider(color: AppColors.cardBorder(context), height: 1),
+
+      // ─── Add Category Form ───
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        child: Text('New Category', style: AppTypography.labelSmall.copyWith(
+          color: AppColors.textTertiary(context), fontWeight: FontWeight.w600,
+          letterSpacing: 0.8, fontSize: 10)),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+        child: TextField(
+          controller: _categoryNameCtrl,
+          style: AppTypography.bodyMedium.copyWith(
+            color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight),
+          decoration: InputDecoration(
+            hintText: 'Category Name (e.g. Wallets)',
+            hintStyle: AppTypography.bodyMedium.copyWith(
+              color: (isDark ? AppColors.textTertiary(context) : AppColors.textTertiaryLight).withValues(alpha: 0.5)),
+            prefixIcon: Icon(Icons.label_rounded, size: 18, color: AppColors.textTertiary(context)),
+            filled: true,
+            fillColor: isDark ? AppColors.sidebarDark.withValues(alpha: 0.5) : Colors.grey.shade50,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: AppColors.cardBorder(context))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: AppColors.cardBorder(context))),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: AppColors.primary, width: 1.5)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+          onSubmitted: (_) => _addCategory(),
+        ),
+      ),
+
+      // ─── Variant Toggles (improved UX) ───
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+        child: Row(children: [
+          Expanded(child: _variantToggle(
+            isDark: isDark,
+            value: _requiresSize,
+            label: 'Enable Size Variants',
+            helper: 'Products have multiple sizes',
+            icon: Icons.straighten_rounded,
+            color: AppColors.accent,
+            onChanged: (v) => setState(() => _requiresSize = v),
+          )),
+          const SizedBox(width: 10),
+          Expanded(child: _variantToggle(
+            isDark: isDark,
+            value: _requiresColor,
+            label: 'Enable Color Variants',
+            helper: 'Products have multiple colors',
+            icon: Icons.palette_rounded,
+            color: AppColors.warning,
+            onChanged: (v) => setState(() => _requiresColor = v),
+          )),
+        ]),
+      ),
+
+      // ─── Add Button ───
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+        child: SizedBox(
+          width: double.infinity, height: 44,
+          child: ElevatedButton.icon(
+            onPressed: _addCategory,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: Text('Add Category', style: AppTypography.button.copyWith(color: Colors.white, fontSize: 13)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ),
+      ),
+
+      Divider(color: AppColors.cardBorder(context), height: 1),
+
+      // ─── Category List Header + Search ───
+      if (catProvider.categories.isNotEmpty) ...[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+          child: Row(children: [
+            Text('${catProvider.categories.length} Categories',
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textTertiary(context), fontWeight: FontWeight.w600,
+                letterSpacing: 0.8, fontSize: 10)),
+            const Spacer(),
+            if (catProvider.categories.length > 5)
+              SizedBox(
+                width: 180, height: 32,
+                child: TextField(
+                  controller: _categorySearchCtrl,
+                  style: TextStyle(color: AppColors.textPrimary(context), fontSize: 12),
+                  onChanged: (v) => setState(() => _categorySearch = v.toLowerCase()),
+                  decoration: InputDecoration(
+                    hintText: 'Search...',
+                    hintStyle: TextStyle(color: AppColors.textTertiary(context), fontSize: 11),
+                    prefixIcon: Icon(Icons.search_rounded, size: 16, color: AppColors.textTertiary(context)),
+                    filled: true,
+                    fillColor: AppColors.surface(context),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                    isDense: true,
+                  ),
+                ),
+              ),
+          ]),
+        ),
+        const SizedBox(height: 8),
+
+        // ─── Scrollable Category List ───
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 320),
+            child: filtered.isEmpty
+                ? Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(child: Text('No categories match "$_categorySearch"',
+                      style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary(context)))),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: filtered.length,
+                    itemBuilder: (_, i) => _buildCategoryCard(isDark, filtered[i], inventory),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ] else ...[
+        // Empty state
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.cardBorder(context).withValues(alpha: 0.5)),
+            ),
+            child: Column(children: [
+              Icon(Icons.category_outlined, size: 40, color: AppColors.textTertiary(context).withValues(alpha: 0.4)),
+              const SizedBox(height: 10),
+              Text('No categories yet', style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textTertiary(context))),
+              const SizedBox(height: 4),
+              Text('Add your first category above to get started',
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.textTertiary(context).withValues(alpha: 0.7))),
+            ]),
+          ),
+        ),
+      ],
+    ]);
+  }
+
+  Widget _buildCategoryCard(bool isDark, CategoryModel cat, InventoryProvider inventory) {
+    // Count products using this category
+    final productCount = inventory.items.where(
+      (item) => item.category.toLowerCase() == cat.name.toLowerCase()).length;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.cardBorder(context).withValues(alpha: 0.5)),
+      ),
+      child: Row(children: [
+        // Avatar
+        Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient,
+            borderRadius: BorderRadius.circular(10)),
+          child: Center(child: Text(
+            cat.name.isNotEmpty ? cat.name[0].toUpperCase() : '?',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15))),
+        ),
+        const SizedBox(width: 12),
+        // Info
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(cat.name, style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.textPrimary(context), fontWeight: FontWeight.w600)),
+            const SizedBox(height: 3),
+            Row(children: [
+              if (cat.requiresSize) ...[
+                _tagChip('Size', AppColors.accent),
+                const SizedBox(width: 6),
+              ],
+              if (cat.requiresColor) ...[
+                _tagChip('Color', AppColors.warning),
+                const SizedBox(width: 6),
+              ],
+              if (!cat.requiresSize && !cat.requiresColor)
+                Text('No variants', style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.textTertiary(context), fontStyle: FontStyle.italic, fontSize: 10)),
+              const SizedBox(width: 8),
+              // Product count
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: productCount > 0
+                      ? AppColors.success.withValues(alpha: 0.1)
+                      : AppColors.textTertiary(context).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '$productCount ${productCount == 1 ? "product" : "products"}',
+                  style: TextStyle(
+                    color: productCount > 0 ? AppColors.success : AppColors.textTertiary(context),
+                    fontSize: 9, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ]),
+          ],
+        )),
+        // Actions
+        IconButton(
+          icon: Icon(Icons.edit_rounded, size: 18, color: AppColors.accent),
+          tooltip: 'Edit',
+          onPressed: () => _showEditDialog(cat),
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          padding: EdgeInsets.zero,
+        ),
+        IconButton(
+          icon: Icon(Icons.delete_rounded, size: 18, color: AppColors.error),
+          tooltip: 'Delete',
+          onPressed: () => _deleteCategory(cat),
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          padding: EdgeInsets.zero,
+        ),
+      ]),
+    );
+  }
+
+  Widget _variantToggle({
+    required bool isDark,
+    required bool value,
+    required String label,
+    required String helper,
+    required IconData icon,
+    required Color color,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return InkWell(
+      onTap: () => onChanged(!value),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: value ? color.withValues(alpha: 0.08) : AppColors.surface(context),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: value ? color.withValues(alpha: 0.4) : AppColors.cardBorder(context)),
+        ),
+        child: Row(children: [
+          Icon(icon, size: 16, color: value ? color : AppColors.textTertiary(context)),
+          const SizedBox(width: 8),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: TextStyle(
+              color: value ? color : AppColors.textSecondary(context),
+              fontSize: 11, fontWeight: FontWeight.w600)),
+            Text(helper, style: TextStyle(
+              color: AppColors.textTertiary(context), fontSize: 9)),
+          ])),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: color,
+            activeTrackColor: color.withValues(alpha: 0.3),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ]),
+      ),
     );
   }
   Widget _tableChip(String tableName, IconData icon) {
