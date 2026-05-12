@@ -18,6 +18,8 @@ import '../../providers/category_provider.dart';
 import '../../data/models/category_model.dart';
 import '../../data/local/db_helper.dart';
 import '../../data/remote/supabase_service.dart';
+import '../../core/utils/data_export_service.dart';
+import '../../core/utils/formatters.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -29,6 +31,9 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isBackingUp = false;
   String _backupStatus = '';
+  bool _isExporting = false;
+  String _exportStatus = '';
+  bool _showMonthlyReminder = false;
 
   // Store Profile controllers
   final _storeNameCtrl = TextEditingController();
@@ -52,6 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadSettings();
+    _checkMonthlyBackupReminder();
     // Load categories via provider
     Future.microtask(() => context.read<CategoryProvider>().loadCategories());
   }
@@ -302,6 +308,111 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _backupStatus = 'Backup failed: ${e.toString().split(':').last.trim()}';
         _isBackingUp = false;
       });
+    }
+  }
+
+  // ─── Monthly Backup Reminder ───
+
+  Future<void> _checkMonthlyBackupReminder() async {
+    final db = DBHelper.instance;
+    final lastExport = await db.getSetting('last_csv_export_month');
+    final currentMonth = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
+
+    // Show reminder if we're in a new month and haven't exported yet
+    if (lastExport != currentMonth) {
+      if (mounted) setState(() => _showMonthlyReminder = true);
+    }
+  }
+
+  Future<void> _dismissMonthlyReminder() async {
+    final db = DBHelper.instance;
+    final currentMonth = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
+    await db.setSetting('last_csv_export_month', currentMonth);
+    if (mounted) setState(() => _showMonthlyReminder = false);
+  }
+
+  // ─── CSV Export ───
+
+  Future<void> _exportFullCSV() async {
+    setState(() { _isExporting = true; _exportStatus = 'Preparing full data export...'; });
+    try {
+      final counts = await DataExportService.instance.exportAll();
+      final total = counts.values.where((v) => v >= 0).fold<int>(0, (a, b) => a + b);
+      if (!mounted) return;
+      setState(() {
+        _exportStatus = 'Exported $total records across ${counts.length} tables';
+        _isExporting = false;
+      });
+      // Mark monthly export done
+      await _dismissMonthlyReminder();
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Full data export complete — $total records downloaded'),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _exportStatus = '');
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _exportStatus = 'Export failed: ${e.toString().split(':').last.trim()}';
+        _isExporting = false;
+      });
+    }
+  }
+
+  Future<void> _exportMonthlyCSV() async {
+    // Export previous month's data
+    final now = DateTime.now();
+    final prevMonth = DateTime(now.year, now.month - 1, 1);
+    setState(() { _isExporting = true; _exportStatus = 'Generating monthly report...'; });
+    try {
+      final counts = await DataExportService.instance.exportMonthlyReport(month: prevMonth);
+      final total = counts.values.where((v) => v >= 0).fold<int>(0, (a, b) => a + b);
+      if (!mounted) return;
+      setState(() {
+        _exportStatus = 'Monthly report: $total records exported';
+        _isExporting = false;
+      });
+      await _dismissMonthlyReminder();
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Monthly report downloaded — $total records'),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _exportStatus = '');
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _exportStatus = 'Export failed: ${e.toString().split(':').last.trim()}';
+        _isExporting = false;
+      });
+    }
+  }
+
+  Future<void> _exportSingleTable(String tableName) async {
+    try {
+      final count = await DataExportService.instance.exportTable(tableName);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('$tableName: $count records exported'),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Export failed: $e'),
+        backgroundColor: AppColors.error,
+      ));
     }
   }
 
@@ -684,6 +795,201 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
             const SizedBox(height: 16),
 
+            // ─── CSV Data Export ───
+            _buildSection(isDark, 'Data Export (CSV)', Icons.download_rounded, [
+              // Monthly backup reminder banner
+              if (_showMonthlyReminder)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.warning.withValues(alpha: 0.15), AppColors.accent.withValues(alpha: 0.1)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.notification_important_rounded, size: 20, color: AppColors.warning),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Monthly Backup Reminder',
+                                  style: AppTypography.labelSmall.copyWith(
+                                      color: AppColors.warning, fontWeight: FontWeight.w700, fontSize: 12)),
+                              Text('Download your monthly data to keep a safe copy',
+                                  style: TextStyle(
+                                      color: isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight,
+                                      fontSize: 10)),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _dismissMonthlyReminder,
+                          icon: Icon(Icons.close_rounded, size: 16,
+                              color: isDark ? AppColors.textTertiary(context) : AppColors.textTertiaryLight),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              _SettingsTile(
+                icon: Icons.info_outline_rounded,
+                title: 'Offline-Safe Data Downloads',
+                subtitle: 'Export your data as CSV files — works even without internet',
+                isDark: isDark,
+                trailing: Icon(Icons.verified_rounded, color: AppColors.success, size: 20),
+              ),
+
+              // Full backup export
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.storage_rounded, size: 16, color: AppColors.accent),
+                          const SizedBox(width: 6),
+                          Text('Full Data Export', style: AppTypography.labelLarge.copyWith(
+                            color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight, fontSize: 13)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text('Downloads ALL data — Items, Sales, Customers, Vendors, Expenses, Staff, Attendance',
+                          style: TextStyle(
+                              color: isDark ? AppColors.textTertiary(context) : AppColors.textTertiaryLight,
+                              fontSize: 10)),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity, height: 44,
+                        child: ElevatedButton.icon(
+                          onPressed: _isExporting ? null : _exportFullCSV,
+                          icon: _isExporting
+                              ? const SizedBox(width: 16, height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.download_rounded, size: 18),
+                          label: Text(_isExporting ? 'Exporting...' : 'DOWNLOAD FULL BACKUP (CSV)',
+                            style: AppTypography.button.copyWith(color: Colors.white, fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accent,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+
+              // Monthly report export
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_month_rounded, size: 16, color: AppColors.primary),
+                          const SizedBox(width: 6),
+                          Text('Monthly Report', style: AppTypography.labelLarge.copyWith(
+                            color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight, fontSize: 13)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text('Sales, Purchases, Expenses & Attendance from last month + full inventory snapshot',
+                          style: TextStyle(
+                              color: isDark ? AppColors.textTertiary(context) : AppColors.textTertiaryLight,
+                              fontSize: 10)),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity, height: 44,
+                        child: ElevatedButton.icon(
+                          onPressed: _isExporting ? null : _exportMonthlyCSV,
+                          icon: const Icon(Icons.calendar_today_rounded, size: 16),
+                          label: Text('DOWNLOAD MONTHLY REPORT (CSV)',
+                            style: AppTypography.button.copyWith(color: Colors.white, fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+
+              // Export status
+              if (_exportStatus.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+                  child: Text(_exportStatus, style: AppTypography.labelSmall.copyWith(
+                    color: _exportStatus.contains('Exported') || _exportStatus.contains('report')
+                        ? AppColors.success
+                        : _exportStatus.contains('failed') ? AppColors.error : AppColors.accent),
+                    textAlign: TextAlign.center),
+                ),
+
+              // Individual table exports
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Export Individual Tables',
+                        style: AppTypography.labelSmall.copyWith(
+                            color: isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight,
+                            fontWeight: FontWeight.w600, fontSize: 11)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6, runSpacing: 6,
+                      children: [
+                        _tableChip('items', Icons.inventory_2_rounded),
+                        _tableChip('sales', Icons.point_of_sale_rounded),
+                        _tableChip('customers', Icons.people_rounded),
+                        _tableChip('vendors', Icons.store_rounded),
+                        _tableChip('purchases', Icons.local_shipping_rounded),
+                        _tableChip('expenses', Icons.money_off_rounded),
+                        _tableChip('staff', Icons.badge_rounded),
+                        _tableChip('attendance', Icons.access_time_rounded),
+                        _tableChip('categories', Icons.category_rounded),
+                        _tableChip('clearance_items', Icons.cleaning_services_rounded),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ]),
+            const SizedBox(height: 16),
+
             // ─── Account ───
             _buildSection(isDark, 'Account', Icons.person_rounded, [
               _SettingsTile(
@@ -981,6 +1287,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+    );
+  }
+  Widget _tableChip(String tableName, IconData icon) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ActionChip(
+      avatar: Icon(icon, size: 14, color: AppColors.accent),
+      label: Text(tableName.replaceAll('_', ' '),
+          style: TextStyle(fontSize: 11,
+              color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight)),
+      backgroundColor: isDark ? AppColors.surface(context) : AppColors.surfaceLight,
+      side: BorderSide(color: isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      onPressed: () => _exportSingleTable(tableName),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
     );
   }
 
