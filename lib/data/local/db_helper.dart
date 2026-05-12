@@ -571,6 +571,13 @@ class DBHelper {
       await db.execute('CREATE INDEX IF NOT EXISTS idx_clearance_original ON clearance_items(original_item_id)');
       await db.execute('CREATE INDEX IF NOT EXISTS idx_clearance_status ON clearance_items(status)');
     }
+
+    // v11: Staff monthly sale target
+    if (oldVersion < 11) {
+      try {
+        await db.execute("ALTER TABLE staff ADD COLUMN monthly_sale_target REAL DEFAULT 0");
+      } catch (_) {} // Column may already exist
+    }
   }
 
   // ─── Generic CRUD ───

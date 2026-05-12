@@ -8,6 +8,7 @@ class StaffModel {
   final String role; // "admin" | "staff"
   final bool isActive;
   final bool isDeleted;
+  final double monthlySaleTarget; // Monthly sale target in ₹
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -19,6 +20,7 @@ class StaffModel {
     this.role = 'staff',
     this.isActive = true,
     this.isDeleted = false,
+    this.monthlySaleTarget = 0,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
@@ -35,6 +37,7 @@ class StaffModel {
       'role': role,
       'is_active': isActive ? 1 : 0,
       'is_deleted': isDeleted ? 1 : 0,
+      'monthly_sale_target': monthlySaleTarget,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -49,6 +52,7 @@ class StaffModel {
       role: map['role'] as String? ?? 'staff',
       isActive: map['is_active'] == 1 || map['is_active'] == true,
       isDeleted: map['is_deleted'] == 1 || map['is_deleted'] == true,
+      monthlySaleTarget: (map['monthly_sale_target'] as num?)?.toDouble() ?? 0,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
     );
@@ -61,6 +65,7 @@ class StaffModel {
     String? role,
     bool? isActive,
     bool? isDeleted,
+    double? monthlySaleTarget,
     DateTime? updatedAt,
   }) {
     return StaffModel(
@@ -71,6 +76,7 @@ class StaffModel {
       role: role ?? this.role,
       isActive: isActive ?? this.isActive,
       isDeleted: isDeleted ?? this.isDeleted,
+      monthlySaleTarget: monthlySaleTarget ?? this.monthlySaleTarget,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );
