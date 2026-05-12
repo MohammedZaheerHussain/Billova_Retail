@@ -139,4 +139,59 @@ class ClearanceProvider extends ChangeNotifier {
         .where((r) => r.originalItemId == originalItemId && r.status == 'active')
         .toList();
   }
+
+  // ─── Edit clearance item (price and/or quantity) ───
+
+  /// Updates clearance price and/or quantity on an active clearance item.
+  /// If quantity changes, adjusts original item stock accordingly.
+  Future<void> updateClearanceItem({
+    required ClearanceItemModel record,
+    required double newPrice,
+    required int newQty,
+    required String newReason,
+    required InventoryProvider inventoryProvider,
+  }) async {
+    // 1. Find the clearance item in inventory
+    final clearanceItem = inventoryProvider.items
+        .firstWhere((i) => i.id == record.clearanceItemId,
+            orElse: () => throw StateError('Clearance item not found'));
+
+    // 2. Handle quantity change — adjust original item stock
+    final qtyDiff = newQty - clearanceItem.quantity;
+    if (qtyDiff != 0) {
+      final originalItem = inventoryProvider.items
+          .firstWhere((i) => i.id == record.originalItemId,
+              orElse: () => throw StateError('Original item not found'));
+
+      // qtyDiff > 0 means we're moving MORE to clearance → reduce original
+      // qtyDiff < 0 means we're moving LESS to clearance → return to original
+      final newOriginalQty = originalItem.quantity - qtyDiff;
+      if (newOriginalQty < 0) throw StateError('Not enough stock in original item');
+
+      await inventoryProvider.updateItem(
+        originalItem.copyWith(quantity: newOriginalQty),
+      );
+    }
+
+    // 3. Update the clearance item in items table
+    await inventoryProvider.updateItem(
+      clearanceItem.copyWith(
+        price: newPrice,
+        quantity: newQty,
+        storageLocation: 'CLEARANCE: $newReason',
+      ),
+    );
+
+    // 4. Update the audit record
+    final updated = record.copyWith(
+      clearancePrice: newPrice,
+      quantity: newQty,
+      reason: newReason,
+    );
+    await _db.update('clearance_items', updated.toMap(), record.id);
+
+    final idx = _records.indexWhere((r) => r.id == record.id);
+    if (idx >= 0) _records[idx] = updated;
+    notifyListeners();
+  }
 }
