@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/inventory_provider.dart';
+import '../../providers/clearance_provider.dart';
 import '../../data/models/item_model.dart';
 
 class ClearanceStockScreen extends StatefulWidget {
@@ -61,9 +62,10 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, ss) {
         final q = pickerSearch.text.toLowerCase();
-        // Show only items NOT already in clearance
+        // Show only items NOT already in clearance and with stock > 0
         final available = inv.items.where((i) =>
             !i.storageLocation.startsWith('CLEARANCE:') &&
+            i.parentItemId.isEmpty &&  // exclude clearance copies
             i.quantity > 0 &&
             (q.isEmpty || i.name.toLowerCase().contains(q) ||
              i.barcode.toLowerCase().contains(q) ||
@@ -148,15 +150,19 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
     );
   }
 
-  // ─── Mark for clearance dialog ───
+  // ─── Mark for clearance dialog (with quantity picker) ───
   void _showClearanceDialog(ItemModel item) {
     String reason = _reasons[0];
     final cpCtrl = TextEditingController(text: (item.price * 0.5).toStringAsFixed(0));
+    final qtyCtrl = TextEditingController(text: '${item.quantity}');
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, ss) {
         final cp = double.tryParse(cpCtrl.text) ?? 0;
+        final qty = int.tryParse(qtyCtrl.text) ?? item.quantity;
         final disc = item.price > 0 ? ((1 - cp / item.price) * 100).clamp(0.0, 100.0) : 0.0;
+
         return AlertDialog(
           backgroundColor: AppColors.card(context),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -170,6 +176,36 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
             Text('Current: ${Formatters.currency(item.price)} • Stock: ${item.quantity}',
                 style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
             const SizedBox(height: 16),
+
+            // ─── Quantity to Move ───
+            Text('Quantity to Move', style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context))),
+            const SizedBox(height: 4),
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: qtyCtrl, keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 16),
+                  onChanged: (_) => ss(() {}),
+                  decoration: InputDecoration(
+                    filled: true, fillColor: AppColors.surface(context),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text('of ${item.quantity} items', style: TextStyle(color: AppColors.textTertiary(context), fontSize: 12)),
+            ]),
+            if (qty > 0 && qty < item.quantity)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('${item.quantity - qty} will remain in regular inventory',
+                    style: TextStyle(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.w500)),
+              ),
+            const SizedBox(height: 12),
+
+            // ─── Reason ───
             Text('Reason', style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context))),
             const SizedBox(height: 4),
             DropdownButtonFormField<String>(
@@ -183,6 +219,8 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
             ),
             const SizedBox(height: 12),
+
+            // ─── Clearance Price ───
             Text('Clearance Price (₹)', style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context))),
             const SizedBox(height: 4),
             TextField(
@@ -200,13 +238,22 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: TextStyle(color: AppColors.textTertiary(context)))),
             ElevatedButton(
-              onPressed: () async {
+              onPressed: (qty < 1 || qty > item.quantity || cp <= 0) ? null : () async {
+                final clearanceProvider = context.read<ClearanceProvider>();
                 final inv = context.read<InventoryProvider>();
-                await inv.updateItem(item.copyWith(price: cp, storageLocation: 'CLEARANCE: $reason'));
+
+                await clearanceProvider.splitForClearance(
+                  originalItem: item,
+                  qty: qty,
+                  clearancePrice: cp,
+                  reason: reason,
+                  inventoryProvider: inv,
+                );
+
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('${item.name} marked for clearance at ${Formatters.currency(cp)}'),
+                    content: Text('$qty × ${item.name} moved to clearance at ${Formatters.currency(cp)}'),
                     backgroundColor: AppColors.warning, behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                 }
@@ -221,22 +268,40 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
     );
   }
 
-  // ─── Remove from clearance ───
+  // ─── Remove from clearance (restore to inventory) ───
   void _removeClearance(ItemModel item) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card(context),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Remove from Clearance?', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
-        content: Text('Move "${item.name}" back to regular inventory?',
-            style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary(context))),
+        title: Text('Restore to Inventory?', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Move "${item.name}" back to regular inventory?',
+              style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary(context))),
+          const SizedBox(height: 8),
+          Text('${item.quantity} units at ${Formatters.currency(item.originalPrice > 0 ? item.originalPrice : item.price)} will be restored.',
+              style: TextStyle(color: AppColors.textTertiary(context), fontSize: 11)),
+        ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
+              final clearanceProvider = context.read<ClearanceProvider>();
               final inv = context.read<InventoryProvider>();
-              await inv.updateItem(item.copyWith(storageLocation: ''));
+
+              // Find the audit record for this clearance item
+              final record = clearanceProvider.findByItemId(item.id);
+              if (record != null) {
+                await clearanceProvider.restoreFromClearance(
+                  record: record,
+                  inventoryProvider: inv,
+                );
+              } else {
+                // Legacy clearance item (no audit record) — just reset storageLocation
+                await inv.updateItem(item.copyWith(storageLocation: ''));
+              }
+
               if (ctx.mounted) Navigator.pop(ctx);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -373,6 +438,12 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
                               child: Text(reason, style: AppTypography.labelSmall.copyWith(
                                   color: AppColors.warning, fontWeight: FontWeight.w700, fontSize: 9)),
                             ),
+                          ],
+                          if (isClearance && item.originalPrice > 0) ...[
+                            const SizedBox(width: 6),
+                            Text('was ${Formatters.currency(item.originalPrice)}',
+                                style: TextStyle(color: AppColors.textTertiary(context), fontSize: 9,
+                                    decoration: TextDecoration.lineThrough)),
                           ],
                         ]),
                         trailing: Row(mainAxisSize: MainAxisSize.min, children: [

@@ -11,6 +11,8 @@ class ItemModel {
   final String storageLocation;
   final double price;
   final double costPrice;
+  final double originalPrice;     // MRP before clearance discount (0 = not a clearance item)
+  final String parentItemId;      // Links clearance copy → original item ('' = not a copy)
   final int quantity;
   final int lowStockThreshold;
   final bool isDeleted;
@@ -27,6 +29,8 @@ class ItemModel {
     this.color = '',
     this.storageLocation = '',
     required this.price,
+    this.originalPrice = 0,
+    this.parentItemId = '',
     this.costPrice = 0,
     this.quantity = 0,
     this.lowStockThreshold = 5,
@@ -53,6 +57,8 @@ class ItemModel {
       'color': color,
       'storage_location': storageLocation,
       'price': price,
+      'original_price': originalPrice,
+      'parent_item_id': parentItemId,
       'cost_price': costPrice,
       'quantity': quantity,
       'low_stock_threshold': lowStockThreshold,
@@ -74,6 +80,8 @@ class ItemModel {
       storageLocation: (map['storage_location'] as String?) ?? '',
       price: (map['price'] as num).toDouble(),
       costPrice: (map['cost_price'] as num?)?.toDouble() ?? 0,
+      originalPrice: (map['original_price'] as num?)?.toDouble() ?? 0,
+      parentItemId: (map['parent_item_id'] as String?) ?? '',
       quantity: (map['quantity'] as num?)?.toInt() ?? 0,
       lowStockThreshold: (map['low_stock_threshold'] as num?)?.toInt() ?? 5,
       isDeleted: map['is_deleted'] == 1 || map['is_deleted'] == true,
@@ -91,6 +99,8 @@ class ItemModel {
     String? color,
     String? storageLocation,
     double? price,
+    double? originalPrice,
+    String? parentItemId,
     double? costPrice,
     int? quantity,
     int? lowStockThreshold,
@@ -108,6 +118,8 @@ class ItemModel {
       storageLocation: storageLocation ?? this.storageLocation,
       price: price ?? this.price,
       costPrice: costPrice ?? this.costPrice,
+      originalPrice: originalPrice ?? this.originalPrice,
+      parentItemId: parentItemId ?? this.parentItemId,
       quantity: quantity ?? this.quantity,
       lowStockThreshold: lowStockThreshold ?? this.lowStockThreshold,
       isDeleted: isDeleted ?? this.isDeleted,

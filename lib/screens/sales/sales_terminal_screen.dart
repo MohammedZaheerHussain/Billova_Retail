@@ -33,6 +33,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
   final _upiPaidCtrl = TextEditingController();
   String _searchQuery = '';
   String _selectedCategory = 'All';
+  bool _isClearanceMode = false;
   bool _usePoints = false;
   int _availablePoints = 0;
   String _matchedCustomerId = '';
@@ -50,6 +51,13 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
 
   List<ItemModel> _getFilteredItems(InventoryProvider inventory) {
     var items = inventory.items.where((i) => !i.isOutOfStock).toList();
+
+    // Split by clearance mode
+    if (_isClearanceMode) {
+      items = items.where((i) => i.storageLocation.startsWith('CLEARANCE:')).toList();
+    } else {
+      items = items.where((i) => !i.storageLocation.startsWith('CLEARANCE:')).toList();
+    }
 
     // Filter by category
     if (_selectedCategory != 'All') {
@@ -87,7 +95,10 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
     if (query.length >= 8) {
       final inventory = context.read<InventoryProvider>();
       final exactMatch = inventory.items.firstWhere(
-        (i) => i.barcode == query && !i.isOutOfStock,
+        (i) => i.barcode == query && !i.isOutOfStock &&
+          (_isClearanceMode
+            ? i.storageLocation.startsWith('CLEARANCE:')
+            : !i.storageLocation.startsWith('CLEARANCE:')),
         orElse: () => ItemModel(id: '', name: '', price: 0),
       );
       if (exactMatch.id.isNotEmpty) {
@@ -392,8 +403,49 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
             // Header
             Row(
               children: [
-                Text('Sales Terminal', style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context))),
+                Text(_isClearanceMode ? 'Stock Clearance' : 'Sales Terminal',
+                    style: AppTypography.h1.copyWith(
+                        color: _isClearanceMode ? AppColors.warning : AppColors.textPrimary(context))),
                 const Spacer(),
+                // ─── Clearance Mode Toggle ───
+                GestureDetector(
+                  onTap: () => setState(() {
+                    _isClearanceMode = !_isClearanceMode;
+                    _selectedCategory = 'All';
+                    _searchQuery = '';
+                    _searchCtrl.clear();
+                  }),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _isClearanceMode
+                          ? AppColors.warning.withValues(alpha: 0.2)
+                          : AppColors.surface(context),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: _isClearanceMode ? AppColors.warning : AppColors.cardBorder(context),
+                        width: _isClearanceMode ? 1.5 : 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isClearanceMode ? Icons.local_offer_rounded : Icons.local_offer_outlined,
+                          size: 16,
+                          color: _isClearanceMode ? AppColors.warning : AppColors.textTertiary(context)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Stock Clearance',
+                          style: AppTypography.labelSmall.copyWith(
+                            color: _isClearanceMode ? AppColors.warning : AppColors.textSecondary(context),
+                            fontWeight: _isClearanceMode ? FontWeight.w700 : FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
                 // Barcode scanner indicator
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -456,16 +508,20 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
         children: [
           // Title + count
           Row(children: [
-            Text('Products', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
+            Text(_isClearanceMode ? 'Clearance Items' : 'Products',
+                style: AppTypography.h4.copyWith(
+                    color: _isClearanceMode ? AppColors.warning : AppColors.textPrimary(context))),
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.15),
+                color: (_isClearanceMode ? AppColors.warning : AppColors.accent).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text('${filteredItems.length}',
-                  style: AppTypography.labelSmall.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700)),
+                  style: AppTypography.labelSmall.copyWith(
+                      color: _isClearanceMode ? AppColors.warning : AppColors.accent,
+                      fontWeight: FontWeight.w700)),
             ),
           ]),
           SizedBox(height: 12),
@@ -564,6 +620,9 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
   }
 
   Widget _buildProductCard(ItemModel item) {
+    final isClearance = item.storageLocation.startsWith('CLEARANCE:');
+    final accentColor = isClearance ? AppColors.warning : AppColors.accent;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -574,7 +633,9 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
           decoration: BoxDecoration(
             color: AppColors.surface(context),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.cardBorder(context)),
+            border: Border.all(color: isClearance
+                ? AppColors.warning.withValues(alpha: 0.4)
+                : AppColors.cardBorder(context)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -586,7 +647,9 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                   Container(
                     width: 30, height: 30,
                     decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
+                      gradient: isClearance
+                          ? LinearGradient(colors: [AppColors.warning, AppColors.warning.withValues(alpha: 0.7)])
+                          : AppColors.primaryGradient,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Center(child: Text(
@@ -601,14 +664,29 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                           color: AppColors.textPrimary(context), fontWeight: FontWeight.w500),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
+                  if (isClearance)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(3)),
+                      child: Text('SALE', style: TextStyle(
+                          color: AppColors.warning, fontSize: 7, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                    ),
                 ],
               ),
               // Bottom: Price + Stock
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(Formatters.currency(item.price),
-                      style: AppTypography.mono.copyWith(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.w700)),
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(Formatters.currency(item.price),
+                        style: AppTypography.mono.copyWith(color: accentColor, fontSize: 12, fontWeight: FontWeight.w700)),
+                    if (isClearance && item.originalPrice > 0)
+                      Text(Formatters.currency(item.originalPrice),
+                          style: TextStyle(color: AppColors.textTertiary(context), fontSize: 9,
+                              decoration: TextDecoration.lineThrough, decorationColor: AppColors.textTertiary(context))),
+                  ]),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(

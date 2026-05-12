@@ -123,6 +123,29 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
+  /// Add a pre-built ItemModel directly (used by ClearanceProvider for split items)
+  Future<bool> addItemDirect(ItemModel item) async {
+    try {
+      await _db.insert('items', item.toMap());
+      _items.insert(0, item);
+      _items.sort((a, b) => a.name.compareTo(b.name));
+      _applySearch();
+      notifyListeners();
+
+      if (kIsWeb) {
+        await _supabase.syncRecord('items', item.id, 'insert', item.toMap());
+      } else {
+        _supabase.syncRecord('items', item.id, 'insert', item.toMap());
+      }
+      return true;
+    } catch (e) {
+      _error = 'Failed to add item: $e';
+      debugPrint('❌ $_error');
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> updateItem(ItemModel item) async {
     try {
       final updated = item.copyWith(updatedAt: DateTime.now());

@@ -547,6 +547,30 @@ class DBHelper {
         await db.execute("ALTER TABLE categories ADD COLUMN is_deleted INTEGER DEFAULT 0");
       } catch (_) {} // Columns may already exist
     }
+
+    // v10: Clearance stock tracking — new item fields + audit table
+    if (oldVersion < 10) {
+      try {
+        await db.execute("ALTER TABLE items ADD COLUMN original_price REAL DEFAULT 0");
+        await db.execute("ALTER TABLE items ADD COLUMN parent_item_id TEXT DEFAULT ''");
+      } catch (_) {} // Columns may already exist
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS clearance_items (
+          id TEXT PRIMARY KEY,
+          original_item_id TEXT NOT NULL,
+          clearance_item_id TEXT NOT NULL,
+          quantity INTEGER NOT NULL,
+          original_price REAL NOT NULL,
+          clearance_price REAL NOT NULL,
+          reason TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'active',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_clearance_original ON clearance_items(original_item_id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_clearance_status ON clearance_items(status)');
+    }
   }
 
   // ─── Generic CRUD ───
