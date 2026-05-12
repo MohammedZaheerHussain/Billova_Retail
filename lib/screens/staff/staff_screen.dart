@@ -54,6 +54,7 @@ class _StaffScreenState extends State<StaffScreen> {
     final usernameCtrl = TextEditingController(text: staff?.username ?? '');
     final pinCtrl = TextEditingController(text: staff?.pin ?? '');
     String role = staff?.role ?? 'staff';
+    double monthlySaleTarget = staff?.monthlySaleTarget ?? 0;
     final formKey = GlobalKey<FormState>();
     final isEditing = staff != null;
 
@@ -64,118 +65,190 @@ class _StaffScreenState extends State<StaffScreen> {
           backgroundColor: AppColors.card(context),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
-                            borderRadius: BorderRadius.circular(12),
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              gradient: AppColors.primaryGradient,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(isEditing ? Icons.edit_rounded : Icons.person_add_rounded,
+                                color: Colors.white, size: 20),
                           ),
-                          child: Icon(isEditing ? Icons.edit_rounded : Icons.person_add_rounded,
-                              color: Colors.white, size: 20),
+                          SizedBox(width: 12),
+                          Text(isEditing ? 'Edit Staff' : 'Add Staff',
+                              style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context))),
+                          Spacer(),
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      _field('Full Name', nameCtrl, 'e.g. John Doe',
+                          validator: (v) => v!.trim().isEmpty ? 'Required' : null),
+                      const SizedBox(height: 12),
+                      _field('Username', usernameCtrl, 'e.g. john',
+                          enabled: !isEditing,
+                          validator: (v) => v!.trim().isEmpty ? 'Required' : null),
+                      const SizedBox(height: 12),
+                      _field('PIN (4-6 digits)', pinCtrl, '••••',
+                          obscure: true,
+                          keyboardType: TextInputType.number,
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return 'Required';
+                            if (v.length < 4 || v.length > 6) return '4-6 digits';
+                            return null;
+                          }),
+                      SizedBox(height: 12),
+                      // Role selector
+                      DropdownButtonFormField<String>(
+                        value: role,
+                        decoration: InputDecoration(
+                          labelText: 'Role',
+                          labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
+                          filled: true,
+                          fillColor: AppColors.surface(context),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: AppColors.cardBorder(context)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: AppColors.cardBorder(context)),
+                          ),
                         ),
-                        SizedBox(width: 12),
-                        Text(isEditing ? 'Edit Staff' : 'Add Staff',
-                            style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context))),
-                        Spacer(),
-                        IconButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context)),
+                        dropdownColor: AppColors.surface(context),
+                        style: TextStyle(color: AppColors.textPrimary(context)),
+                        items: const [
+                          DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                          DropdownMenuItem(value: 'staff', child: Text('Staff')),
+                        ],
+                        onChanged: (v) => setDialogState(() => role = v ?? 'staff'),
+                      ),
+
+                      // ─── Monthly Sale Target (only for staff role) ───
+                      if (role == 'staff') ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface(context),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.flag_rounded, size: 16, color: AppColors.accent),
+                                  const SizedBox(width: 6),
+                                  Text('Monthly Sale Target',
+                                      style: AppTypography.labelSmall.copyWith(
+                                          color: AppColors.textSecondary(context), fontWeight: FontWeight.w600)),
+                                  const Spacer(),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.accent.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      monthlySaleTarget > 0
+                                          ? '₹${Formatters.currency(monthlySaleTarget).replaceAll('₹', '')}'
+                                          : 'No Target',
+                                      style: AppTypography.mono.copyWith(
+                                          color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 13),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              SliderTheme(
+                                data: SliderThemeData(
+                                  activeTrackColor: AppColors.accent,
+                                  inactiveTrackColor: AppColors.cardBorder(context),
+                                  thumbColor: AppColors.accent,
+                                  overlayColor: AppColors.accent.withValues(alpha: 0.1),
+                                  trackHeight: 4,
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                                ),
+                                child: Slider(
+                                  value: monthlySaleTarget,
+                                  min: 0,
+                                  max: 500000,
+                                  divisions: 100,
+                                  onChanged: (v) => setDialogState(() => monthlySaleTarget = v),
+                                ),
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('₹0', style: TextStyle(color: AppColors.textTertiary(context), fontSize: 10)),
+                                  Text('₹5,00,000', style: TextStyle(color: AppColors.textTertiary(context), fontSize: 10)),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 20),
-                    _field('Full Name', nameCtrl, 'e.g. John Doe',
-                        validator: (v) => v!.trim().isEmpty ? 'Required' : null),
-                    const SizedBox(height: 12),
-                    _field('Username', usernameCtrl, 'e.g. john',
-                        enabled: !isEditing,
-                        validator: (v) => v!.trim().isEmpty ? 'Required' : null),
-                    const SizedBox(height: 12),
-                    _field('PIN (4-6 digits)', pinCtrl, '••••',
-                        obscure: true,
-                        keyboardType: TextInputType.number,
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'Required';
-                          if (v.length < 4 || v.length > 6) return '4-6 digits';
-                          return null;
-                        }),
-                    SizedBox(height: 12),
-                    // Role selector
-                    DropdownButtonFormField<String>(
-                      value: role,
-                      decoration: InputDecoration(
-                        labelText: 'Role',
-                        labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
-                        filled: true,
-                        fillColor: AppColors.surface(context),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: AppColors.cardBorder(context)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: AppColors.cardBorder(context)),
+
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            if (!formKey.currentState!.validate()) return;
+                            final provider = context.read<StaffProvider>();
+                            bool success;
+                            if (isEditing) {
+                              success = await provider.updateStaff(staff!.copyWith(
+                                name: nameCtrl.text.trim(),
+                                pin: pinCtrl.text.trim(),
+                                role: role,
+                                monthlySaleTarget: role == 'staff' ? monthlySaleTarget : 0,
+                              ));
+                            } else {
+                              success = await provider.addStaff(
+                                name: nameCtrl.text.trim(),
+                                username: usernameCtrl.text.trim(),
+                                pin: pinCtrl.text.trim(),
+                                role: role,
+                                monthlySaleTarget: role == 'staff' ? monthlySaleTarget : 0,
+                              );
+                            }
+                            if (success && ctx.mounted) {
+                              Navigator.pop(ctx);
+                            } else if (!success && ctx.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                                content: Text('Username already exists'),
+                                backgroundColor: AppColors.error,
+                              ));
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: Text(isEditing ? 'Update Staff' : 'Add Staff',
+                              style: AppTypography.button.copyWith(color: Colors.white)),
                         ),
                       ),
-                      dropdownColor: AppColors.surface(context),
-                      style: TextStyle(color: AppColors.textPrimary(context)),
-                      items: const [
-                        DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                        DropdownMenuItem(value: 'staff', child: Text('Staff')),
-                      ],
-                      onChanged: (v) => setDialogState(() => role = v ?? 'staff'),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          if (!formKey.currentState!.validate()) return;
-                          final provider = context.read<StaffProvider>();
-                          bool success;
-                          if (isEditing) {
-                            success = await provider.updateStaff(staff!.copyWith(
-                              name: nameCtrl.text.trim(),
-                              pin: pinCtrl.text.trim(),
-                              role: role,
-                            ));
-                          } else {
-                            success = await provider.addStaff(
-                              name: nameCtrl.text.trim(),
-                              username: usernameCtrl.text.trim(),
-                              pin: pinCtrl.text.trim(),
-                              role: role,
-                            );
-                          }
-                          if (success && ctx.mounted) {
-                            Navigator.pop(ctx);
-                          } else if (!success && ctx.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                              content: Text('Username already exists'),
-                              backgroundColor: AppColors.error,
-                            ));
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: Text(isEditing ? 'Update Staff' : 'Add Staff',
-                            style: AppTypography.button.copyWith(color: Colors.white)),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -303,6 +376,7 @@ class _StaffScreenState extends State<StaffScreen> {
                 Expanded(flex: 2, child: Text('NAME', style: _headerStyle)),
                 Expanded(flex: 2, child: Text('USERNAME', style: _headerStyle)),
                 Expanded(flex: 1, child: Text('ROLE', style: _headerStyle)),
+                Expanded(flex: 1, child: Text('TARGET', style: _headerStyle)),
                 Expanded(flex: 1, child: Text('STATUS', style: _headerStyle)),
                 SizedBox(width: 48, child: Text('', style: TextStyle())),
               ],
@@ -360,6 +434,19 @@ class _StaffScreenState extends State<StaffScreen> {
                   fontWeight: FontWeight.w600,
                 ),
                 textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Text(
+              staff.monthlySaleTarget > 0
+                  ? Formatters.currency(staff.monthlySaleTarget)
+                  : '—',
+              style: AppTypography.mono.copyWith(
+                color: staff.monthlySaleTarget > 0 ? AppColors.accent : AppColors.textTertiary(context),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

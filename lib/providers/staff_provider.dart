@@ -72,6 +72,7 @@ class StaffProvider extends ChangeNotifier {
     required String name,
     required String pin,
     String role = 'staff',
+    double monthlySaleTarget = 0,
   }) async {
     // Check unique username
     final exists = _staff.any((s) => s.username.toLowerCase() == username.toLowerCase());
@@ -84,6 +85,7 @@ class StaffProvider extends ChangeNotifier {
         name: name,
         pin: pin,
         role: role,
+        monthlySaleTarget: monthlySaleTarget,
       );
 
       await _db.insert('staff', member.toMap());
@@ -433,8 +435,10 @@ class StaffProvider extends ChangeNotifier {
 
   /// Modules accessible by staff (non-admin) role
   static const List<String> _staffAllowedModules = [
-    'Inventory',
     'Sales Terminal',
+    'Returns & Exchange',
+    'Master Inventory',
+    'Clearance Stock',
     'Customers',
     'Bill History',
   ];

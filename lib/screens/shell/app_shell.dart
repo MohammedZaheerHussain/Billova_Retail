@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/formatters.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
@@ -70,18 +71,18 @@ class _AppShellState extends State<AppShell> {
     _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Daily Cash Till', shortcut: 'F2', adminOnly: true, section: 'OVERVIEW'),
     // TRANSACTIONS
     _NavItem(icon: Icons.point_of_sale_rounded, label: 'Sales Terminal', shortcut: 'F3', adminOnly: false, section: 'TRANSACTIONS'),
-    _NavItem(icon: Icons.swap_horiz_rounded, label: 'Returns & Exchange', shortcut: 'F4', adminOnly: true, section: 'TRANSACTIONS'),
+    _NavItem(icon: Icons.swap_horiz_rounded, label: 'Returns & Exchange', shortcut: 'F4', adminOnly: false, section: 'TRANSACTIONS'),
     _NavItem(icon: Icons.local_shipping_rounded, label: 'Purchases (In)', shortcut: 'F5', adminOnly: true, section: 'TRANSACTIONS'),
     // INVENTORY & CLEARANCE
     _NavItem(icon: Icons.inventory_2_rounded, label: 'Master Inventory', shortcut: 'F6', adminOnly: false, section: 'INVENTORY & CLEARANCE'),
-    _NavItem(icon: Icons.cleaning_services_rounded, label: 'Clearance Stock', shortcut: 'F7', adminOnly: true, section: 'INVENTORY & CLEARANCE'),
+    _NavItem(icon: Icons.cleaning_services_rounded, label: 'Clearance Stock', shortcut: 'F7', adminOnly: false, section: 'INVENTORY & CLEARANCE'),
     // DIRECTORY
     _NavItem(icon: Icons.people_outline_rounded, label: 'Customers', shortcut: 'F8', adminOnly: false, section: 'DIRECTORY'),
     _NavItem(icon: Icons.store_rounded, label: 'Vendors', shortcut: 'F9', adminOnly: true, section: 'DIRECTORY'),
     _NavItem(icon: Icons.badge_rounded, label: 'Staff & Attendance', shortcut: 'F10', adminOnly: true, section: 'DIRECTORY'),
     // FINANCE & ANALYTICS
     _NavItem(icon: Icons.money_off_rounded, label: 'Expenses', shortcut: 'F11', adminOnly: true, section: 'FINANCE & ANALYTICS'),
-    _NavItem(icon: Icons.receipt_long_rounded, label: 'Bill History', shortcut: '', adminOnly: true, section: 'FINANCE & ANALYTICS'),
+    _NavItem(icon: Icons.receipt_long_rounded, label: 'Bill History', shortcut: '', adminOnly: false, section: 'FINANCE & ANALYTICS'),
     _NavItem(icon: Icons.analytics_rounded, label: 'CRM Reports', shortcut: '', adminOnly: true, section: 'FINANCE & ANALYTICS'),
     // SYSTEM
     _NavItem(icon: Icons.settings_rounded, label: 'Settings & Backup', shortcut: '', adminOnly: true, section: 'SYSTEM'),
@@ -483,6 +484,57 @@ class _AppShellState extends State<AppShell> {
                       ),
                     ],
                   ),
+                  // ─── Monthly target progress (staff only) ───
+                  if (staffProvider.currentStaff != null &&
+                      !staffProvider.isAdmin &&
+                      staffProvider.currentStaff!.monthlySaleTarget > 0) ...[
+                    const SizedBox(height: 8),
+                    Builder(builder: (_) {
+                      final target = staffProvider.currentStaff!.monthlySaleTarget;
+                      // Calculate current month sales for this staff
+                      final salesProv = context.watch<SalesProvider>();
+                      final now = DateTime.now();
+                      final monthStart = DateTime(now.year, now.month, 1);
+                      final staffSales = salesProv.sales
+                          .where((s) => s.staffId == staffProvider.currentStaffId &&
+                              s.createdAt.isAfter(monthStart))
+                          .fold<double>(0, (sum, s) => sum + s.total);
+                      final progress = (staffSales / target).clamp(0.0, 1.0);
+                      final progressColor = progress >= 1.0
+                          ? AppColors.success
+                          : progress >= 0.5
+                              ? AppColors.accent
+                              : AppColors.warning;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.flag_rounded, size: 10, color: progressColor),
+                              const SizedBox(width: 4),
+                              Text('Target: ${Formatters.currency(target)}',
+                                  style: TextStyle(color: AppColors.textTertiaryDark, fontSize: 9)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 5,
+                              backgroundColor: AppColors.surface(context).withValues(alpha: 0.3),
+                              color: progressColor,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${Formatters.currency(staffSales)} • ${(progress * 100).toStringAsFixed(0)}%',
+                            style: TextStyle(color: progressColor, fontSize: 9, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      );
+                    }),
+                  ],
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
