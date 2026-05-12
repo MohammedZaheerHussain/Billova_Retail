@@ -268,6 +268,151 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
     );
   }
 
+  // ─── Edit clearance item ───
+  void _showEditClearanceDialog(ItemModel item) {
+    final clearanceProvider = context.read<ClearanceProvider>();
+    final inv = context.read<InventoryProvider>();
+    final record = clearanceProvider.findByItemId(item.id);
+    if (record == null) return;
+
+    // Find original item to compute max available qty
+    final originalItem = inv.items.firstWhere(
+      (i) => i.id == record.originalItemId,
+      orElse: () => ItemModel(id: '', name: '', price: 0),
+    );
+    final maxQty = item.quantity + originalItem.quantity; // current clearance + remaining original
+
+    String reason = item.storageLocation.replaceFirst('CLEARANCE: ', '');
+    if (!_reasons.contains(reason)) reason = _reasons[0];
+    final cpCtrl = TextEditingController(text: item.price.toStringAsFixed(0));
+    final qtyCtrl = TextEditingController(text: '${item.quantity}');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, ss) {
+        final cp = double.tryParse(cpCtrl.text) ?? 0;
+        final qty = int.tryParse(qtyCtrl.text) ?? item.quantity;
+        final origPrice = item.originalPrice > 0 ? item.originalPrice : record.originalPrice;
+        final disc = origPrice > 0 ? ((1 - cp / origPrice) * 100).clamp(0.0, 100.0) : 0.0;
+        final isValid = qty >= 1 && qty <= maxQty && cp > 0;
+
+        return AlertDialog(
+          backgroundColor: AppColors.card(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(children: [
+            Icon(Icons.edit_rounded, color: AppColors.accent, size: 22),
+            const SizedBox(width: 8),
+            Text('Edit Clearance', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
+          ]),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(item.name, style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary(context), fontWeight: FontWeight.w600)),
+            Text('Original MRP: ${Formatters.currency(origPrice)}',
+                style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
+            const SizedBox(height: 16),
+
+            // Quantity
+            Text('Clearance Quantity', style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context))),
+            const SizedBox(height: 4),
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: qtyCtrl, keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 16),
+                  onChanged: (_) => ss(() {}),
+                  decoration: InputDecoration(
+                    filled: true, fillColor: AppColors.surface(context),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text('of $maxQty max', style: TextStyle(color: AppColors.textTertiary(context), fontSize: 12)),
+            ]),
+            if (qty != item.quantity && qty >= 1 && qty <= maxQty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  qty > item.quantity
+                      ? '${qty - item.quantity} more moving to clearance'
+                      : '${item.quantity - qty} returning to inventory',
+                  style: TextStyle(
+                      color: qty > item.quantity ? AppColors.warning : AppColors.success,
+                      fontSize: 10, fontWeight: FontWeight.w500)),
+              ),
+            const SizedBox(height: 12),
+
+            // Reason
+            Text('Reason', style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context))),
+            const SizedBox(height: 4),
+            DropdownButtonFormField<String>(
+              value: reason, dropdownColor: AppColors.card(context),
+              style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
+              items: _reasons.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+              onChanged: (v) => ss(() => reason = v!),
+              decoration: InputDecoration(
+                filled: true, fillColor: AppColors.surface(context),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+            ),
+            const SizedBox(height: 12),
+
+            // Price
+            Text('Clearance Price (₹)', style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context))),
+            const SizedBox(height: 4),
+            TextField(
+              controller: cpCtrl, keyboardType: TextInputType.number,
+              style: TextStyle(color: AppColors.textPrimary(context), fontSize: 14),
+              onChanged: (_) => ss(() {}),
+              decoration: InputDecoration(
+                filled: true, fillColor: AppColors.surface(context),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                suffixText: '${disc.toStringAsFixed(0)}% off',
+                suffixStyle: TextStyle(color: AppColors.error, fontWeight: FontWeight.w700, fontSize: 12)),
+            ),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: TextStyle(color: AppColors.textTertiary(context)))),
+            ElevatedButton.icon(
+              onPressed: !isValid ? null : () async {
+                try {
+                  await clearanceProvider.updateClearanceItem(
+                    record: record,
+                    newPrice: cp,
+                    newQty: qty,
+                    newReason: reason,
+                    inventoryProvider: inv,
+                  );
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('${item.name} clearance updated'),
+                      backgroundColor: AppColors.accent, behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+                  }
+                } catch (e) {
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+                  }
+                }
+              },
+              icon: const Icon(Icons.save_rounded, size: 16),
+              label: const Text('Save Changes'),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
   // ─── Remove from clearance (restore to inventory) ───
   void _removeClearance(ItemModel item) {
     showDialog(
@@ -450,10 +595,12 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
                           Text(Formatters.currency(item.price), style: AppTypography.mono.copyWith(
                               color: isClearance ? AppColors.warning : AppColors.accent, fontWeight: FontWeight.w700)),
                           const SizedBox(width: 4),
-                          if (isClearance)
+                          if (isClearance) ...[
+                            IconButton(icon: Icon(Icons.edit_rounded, size: 18, color: AppColors.accent),
+                              tooltip: 'Edit Clearance', onPressed: () => _showEditClearanceDialog(item)),
                             IconButton(icon: Icon(Icons.restore_rounded, size: 20, color: AppColors.success),
-                              tooltip: 'Remove from Clearance', onPressed: () => _removeClearance(item))
-                          else
+                              tooltip: 'Remove from Clearance', onPressed: () => _removeClearance(item)),
+                          ] else
                             IconButton(icon: Icon(Icons.local_offer_rounded, size: 20, color: AppColors.warning),
                               tooltip: 'Mark for Clearance', onPressed: () => _showClearanceDialog(item)),
                         ]),
