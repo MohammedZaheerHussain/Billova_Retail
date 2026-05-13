@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/date_filter.dart';
+import '../../widgets/date_filter_bar.dart';
 import '../../providers/staff_provider.dart';
 import '../../data/models/staff_model.dart';
 import '../../data/models/attendance_model.dart';
@@ -15,7 +17,10 @@ class StaffScreen extends StatefulWidget {
 }
 
 class _StaffScreenState extends State<StaffScreen> {
-  int _attendanceFilter = 0; // 0=Today, 1=Week, 2=Month
+  DateFilterType _dateFilter = DateFilterType.today;
+  DateTime? _customStart;
+  DateTime? _customEnd;
+  String? _selectedStaffId; // null = All Staff
 
   @override
   void initState() {
@@ -23,30 +28,55 @@ class _StaffScreenState extends State<StaffScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<StaffProvider>();
       provider.loadStaff();
-      provider.loadTodayAttendance();
-      // NOTE: cleanupOldAttendance removed — it was deleting records
-      // on every screen load. Data preservation is priority.
+      _loadAttendance(provider);
     });
   }
 
-  void _loadFilteredAttendance(StaffProvider provider) {
+  void _loadAttendance(StaffProvider provider) {
+    final range = DateFilterHelper.getRange(
+      _dateFilter,
+      customStart: _customStart,
+      customEnd: _customEnd,
+    );
+    // For "today" use the dedicated loader (faster, uses _todayDate)
+    if (_dateFilter == DateFilterType.today) {
+      provider.loadTodayAttendance();
+    } else {
+      provider.loadAttendanceHistory(from: range.start, to: range.end);
+    }
+  }
+
+  Future<void> _pickCustomRange(StaffProvider provider) async {
     final now = DateTime.now();
-    switch (_attendanceFilter) {
-      case 0: // Today
-        provider.loadTodayAttendance();
-        break;
-      case 1: // Week
-        provider.loadAttendanceHistory(
-          from: now.subtract(const Duration(days: 7)),
-          to: now,
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2024),
+      lastDate: now,
+      initialDateRange: DateTimeRange(
+        start: _customStart ?? now.subtract(const Duration(days: 7)),
+        end: _customEnd ?? now,
+      ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: AppColors.card(context),
+              onSurface: AppColors.textPrimary(context),
+            ),
+          ),
+          child: child!,
         );
-        break;
-      case 2: // Month
-        provider.loadAttendanceHistory(
-          from: now.subtract(const Duration(days: 30)),
-          to: now,
-        );
-        break;
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _customStart = picked.start;
+        _customEnd = picked.end;
+        _dateFilter = DateFilterType.custom;
+      });
+      provider.loadAttendanceHistory(from: picked.start, to: picked.end);
     }
   }
 
@@ -499,37 +529,36 @@ class _StaffScreenState extends State<StaffScreen> {
   }
 
   Widget _buildAttendanceLog(StaffProvider provider) {
-    // Get the right list based on filter
-    // For Week/Month, merge today's records with history to ensure
-    // nothing is lost when switching tabs.
-    List<AttendanceModel> records;
-    if (_attendanceFilter == 0) {
-      records = provider.todayAttendance;
-    } else {
-      // Combine history + today (deduplicate by id)
-      final historyIds = provider.attendanceHistory.map((r) => r.id).toSet();
-      records = [
-        ...provider.attendanceHistory,
-        ...provider.todayAttendance.where((r) => !historyIds.contains(r.id)),
-      ];
-      // Sort by date descending, then clock-in descending
-      records.sort((a, b) {
-        final dateComp = b.date.compareTo(a.date);
-        if (dateComp != 0) return dateComp;
-        return b.clockInTime.compareTo(a.clockInTime);
-      });
+    // Merge today + history, deduplicate by id
+    final historyIds = provider.attendanceHistory.map((r) => r.id).toSet();
+    var all = [
+      ...provider.attendanceHistory,
+      ...provider.todayAttendance.where((r) => !historyIds.contains(r.id)),
+    ];
+    all.sort((a, b) {
+      final d = b.date.compareTo(a.date);
+      return d != 0 ? d : b.clockInTime.compareTo(a.clockInTime);
+    });
+
+    // Staff filter
+    if (_selectedStaffId != null) {
+      all = all.where((r) => r.staffId == _selectedStaffId).toList();
     }
+
+    // Summary stats
+    final totalShifts = all.length;
+    final completedShifts = all.where((r) => r.clockOutTime != null).toList();
+    final totalHours = completedShifts.fold<double>(0, (s, r) => s + (r.totalHours ?? 0));
+    final uniqueDays = all.map((r) => r.date).toSet().length;
 
     // Group by date
     final Map<String, List<AttendanceModel>> grouped = {};
-    for (final r in records) {
-      final dateKey = r.date;
-      grouped.putIfAbsent(dateKey, () => []);
-      grouped[dateKey]!.add(r);
+    for (final r in all) {
+      grouped.putIfAbsent(r.date, () => []).add(r);
     }
 
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
@@ -538,48 +567,107 @@ class _StaffScreenState extends State<StaffScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text('Attendance Log',
-                  style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
-              Spacer(),
-              IconButton(
-                onPressed: () => _loadFilteredAttendance(provider),
-                icon: Icon(Icons.refresh_rounded, color: AppColors.textSecondary(context), size: 20),
-              ),
-            ],
+          // ─── Header ───
+          Row(children: [
+            Icon(Icons.fact_check_rounded, size: 18, color: AppColors.accent),
+            const SizedBox(width: 8),
+            Text('Attendance Log',
+                style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
+            const Spacer(),
+            IconButton(
+              onPressed: () => _loadAttendance(provider),
+              icon: Icon(Icons.refresh_rounded, color: AppColors.textSecondary(context), size: 20),
+              tooltip: 'Refresh',
+            ),
+          ]),
+          const SizedBox(height: 12),
+
+          // ─── Date Filter Bar ───
+          DateFilterBar(
+            selected: _dateFilter,
+            onChanged: (type) {
+              setState(() => _dateFilter = type);
+              _loadAttendance(provider);
+            },
+            onCustomTap: () => _pickCustomRange(provider),
           ),
           const SizedBox(height: 10),
 
-          // ─── Filter Tabs ───
-          Container(
-            padding: EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: AppColors.surface(context),
-              borderRadius: BorderRadius.circular(10),
+          // ─── Staff Filter Dropdown ───
+          if (provider.staff.length > 1) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.surface(context),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.cardBorder(context)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String?>(
+                  value: _selectedStaffId,
+                  isExpanded: true,
+                  dropdownColor: AppColors.card(context),
+                  style: AppTypography.bodySmall.copyWith(color: AppColors.textPrimary(context)),
+                  hint: Text('All Staff',
+                      style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary(context))),
+                  items: [
+                    DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('All Staff',
+                          style: AppTypography.bodySmall.copyWith(color: AppColors.textPrimary(context))),
+                    ),
+                    ...provider.staff.map((s) => DropdownMenuItem<String?>(
+                          value: s.id,
+                          child: Text(s.name,
+                              style: AppTypography.bodySmall.copyWith(color: AppColors.textPrimary(context))),
+                        )),
+                  ],
+                  onChanged: (v) => setState(() => _selectedStaffId = v),
+                ),
+              ),
             ),
-            child: Row(
-              children: [
-                _filterTab(0, 'Today', provider),
-                _filterTab(1, 'Week', provider),
-                _filterTab(2, 'Month', provider),
-              ],
-            ),
-          ),
-          SizedBox(height: 12),
+            const SizedBox(height: 10),
+          ],
 
-          // ─── Records ───
+          // ─── Summary Stats ───
+          if (all.isNotEmpty) ...[
+            Row(children: [
+              _statBadge(Icons.access_time_rounded, '${totalHours.toStringAsFixed(1)}h',
+                  'Total Hours', AppColors.accent, AppColors.infoBg),
+              const SizedBox(width: 8),
+              _statBadge(Icons.calendar_today_rounded, '$uniqueDays',
+                  uniqueDays == 1 ? 'Day' : 'Days', AppColors.success, AppColors.successBg),
+              const SizedBox(width: 8),
+              _statBadge(Icons.swap_horiz_rounded, '$totalShifts',
+                  totalShifts == 1 ? 'Shift' : 'Shifts', AppColors.warning, AppColors.warningBg),
+            ]),
+            const SizedBox(height: 10),
+            Divider(color: AppColors.cardBorder(context), height: 1),
+            const SizedBox(height: 8),
+          ],
+
+          // ─── Records List ───
           Expanded(
-            child: records.isEmpty
-                ? Center(child: Text(
-                    _attendanceFilter == 0 ? 'No attendance records today' : 'No records found',
-                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))))
+            child: all.isEmpty
+                ? Center(
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.event_busy_rounded, size: 48,
+                          color: AppColors.textTertiary(context).withValues(alpha: 0.3)),
+                      const SizedBox(height: 12),
+                      Text(
+                        _dateFilter == DateFilterType.today
+                            ? 'No attendance records today'
+                            : 'No records for this period',
+                        style: AppTypography.bodyMedium
+                            .copyWith(color: AppColors.textTertiary(context)),
+                      ),
+                    ]),
+                  )
                 : ListView.builder(
                     itemCount: grouped.keys.length,
                     itemBuilder: (_, i) {
                       final date = grouped.keys.elementAt(i);
-                      final dayRecords = grouped[date]!;
-                      return _dateGroup(date, dayRecords);
+                      return _dateGroup(date, grouped[date]!);
                     },
                   ),
           ),
@@ -588,116 +676,156 @@ class _StaffScreenState extends State<StaffScreen> {
     );
   }
 
-  Widget _filterTab(int index, String label, StaffProvider provider) {
-    final isActive = _attendanceFilter == index;
+  Widget _statBadge(IconData icon, String value, String label, Color color, Color bg) {
     return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() => _attendanceFilter = index);
-          _loadFilteredAttendance(provider);
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isActive ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            border: isActive ? Border.all(color: AppColors.primary, width: 1) : null,
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: AppTypography.labelSmall.copyWith(
-              color: isActive ? AppColors.primary : AppColors.textTertiary(context),
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
-              fontSize: 12,
-            ),
-          ),
-        ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+        child: Row(children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(value,
+                style: AppTypography.mono
+                    .copyWith(color: color, fontWeight: FontWeight.w700, fontSize: 14)),
+            Text(label,
+                style: AppTypography.labelSmall
+                    .copyWith(color: color.withValues(alpha: 0.7), fontSize: 9)),
+          ]),
+        ]),
       ),
     );
   }
 
   Widget _dateGroup(String date, List<AttendanceModel> records) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Row(children: [
-            Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.accent),
-            const SizedBox(width: 6),
-            Text('📅 $date',
-                style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 12)),
-          ]),
-        ),
-        ...records.map((record) => _attendanceRow(record)),
-        Divider(color: AppColors.cardBorder(context), height: 8),
-      ],
-    );
+    DateTime? parsed;
+    try { parsed = DateTime.parse(date); } catch (_) {}
+    final label = parsed != null ? DateFilterHelper.groupLabel(parsed) : date;
+    final dayHours = records
+        .where((r) => r.clockOutTime != null)
+        .fold<double>(0, (s, r) => s + (r.totalHours ?? 0));
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 6),
+        child: Row(children: [
+          Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.accent),
+          const SizedBox(width: 6),
+          Text(label,
+              style: AppTypography.labelMedium
+                  .copyWith(color: AppColors.accent, fontWeight: FontWeight.w700)),
+          const SizedBox(width: 6),
+          if (dayHours > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4)),
+              child: Text('${dayHours.toStringAsFixed(1)}h',
+                  style: AppTypography.mono.copyWith(color: AppColors.accent, fontSize: 10)),
+            ),
+          const Spacer(),
+          Text('${records.length} shift${records.length != 1 ? 's' : ''}',
+              style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
+        ]),
+      ),
+      ...records.map((r) => _attendanceCard(r)),
+      Divider(color: AppColors.cardBorder(context), height: 16),
+    ]);
   }
 
-  Widget _attendanceRow(AttendanceModel record) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: Column(
-        children: [
-          // Clock In row
-          Row(
-            children: [
-              Expanded(flex: 2, child: Text(record.staffName,
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary(context), fontSize: 13))),
-              Expanded(
-                flex: 1,
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text('IN',
-                      style: AppTypography.labelSmall.copyWith(color: AppColors.success, fontWeight: FontWeight.w700, fontSize: 10),
-                      textAlign: TextAlign.center),
-                ),
-              ),
-              Expanded(flex: 1, child: Text(
-                Formatters.time(record.clockInTime),
-                style: AppTypography.mono.copyWith(color: AppColors.textSecondary(context), fontSize: 12),
-                textAlign: TextAlign.right,
-              )),
-            ],
-          ),
-          // Clock Out row (if exists)
-          if (record.clockOutTime != null) ...[
-            SizedBox(height: 3),
-            Row(
-              children: [
-                Expanded(flex: 2, child: Text(record.staffName,
-                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary(context), fontSize: 13))),
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text('OUT',
-                        style: AppTypography.labelSmall.copyWith(color: AppColors.error, fontWeight: FontWeight.w700, fontSize: 10),
-                        textAlign: TextAlign.center),
-                  ),
-                ),
-                Expanded(flex: 1, child: Text(
-                  Formatters.time(record.clockOutTime!),
-                  style: AppTypography.mono.copyWith(color: AppColors.textSecondary(context), fontSize: 12),
-                  textAlign: TextAlign.right,
-                )),
-              ],
-            ),
-          ],
-        ],
+  Widget _attendanceCard(AttendanceModel record) {
+    final hasClockOut = record.clockOutTime != null;
+    final hours = record.totalHours ?? 0;
+    final isOpen = !hasClockOut;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+            color: isOpen
+                ? AppColors.success.withValues(alpha: 0.4)
+                : AppColors.cardBorder(context)),
       ),
+      child: Row(children: [
+        Stack(children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+            child: Text(
+              record.staffName.isNotEmpty ? record.staffName[0].toUpperCase() : '?',
+              style: AppTypography.mono
+                  .copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
+            ),
+          ),
+          if (isOpen)
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                    color: AppColors.success,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.card(context), width: 1.5)),
+              ),
+            ),
+        ]),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Text(record.staffName,
+                  style: AppTypography.bodyMedium.copyWith(
+                      color: AppColors.textPrimary(context),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13)),
+              const Spacer(),
+              if (isOpen)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                      color: AppColors.success.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4)),
+                  child: Text('ACTIVE',
+                      style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.success, fontWeight: FontWeight.w700, fontSize: 9)),
+                ),
+            ]),
+            const SizedBox(height: 6),
+            Row(children: [
+              Icon(Icons.login_rounded, size: 12, color: AppColors.success),
+              const SizedBox(width: 4),
+              Text(Formatters.time(record.clockInTime),
+                  style: AppTypography.mono
+                      .copyWith(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600)),
+              if (hasClockOut) ...[
+                const SizedBox(width: 10),
+                Icon(Icons.logout_rounded, size: 12, color: AppColors.error),
+                const SizedBox(width: 4),
+                Text(Formatters.time(record.clockOutTime!),
+                    style: AppTypography.mono
+                        .copyWith(color: AppColors.error, fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(width: 10),
+                Icon(Icons.timer_outlined, size: 12, color: AppColors.textTertiary(context)),
+                const SizedBox(width: 4),
+                Text('${hours.toStringAsFixed(1)}h',
+                    style: AppTypography.mono
+                        .copyWith(color: AppColors.textSecondary(context), fontSize: 12)),
+              ] else ...[
+                const SizedBox(width: 10),
+                Text('Still clocked in',
+                    style: AppTypography.labelSmall
+                        .copyWith(color: AppColors.success.withValues(alpha: 0.7))),
+              ],
+            ]),
+          ]),
+        ),
+      ]),
     );
   }
 }
