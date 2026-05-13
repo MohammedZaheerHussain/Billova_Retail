@@ -986,25 +986,25 @@ class DBHelper {
   }
 
   Future<void> clearAllData() async {
+    const tables = [
+      'items', 'sales', 'expenses', 'cash_till', 'sync_queue',
+      'customers', 'vendors', 'staff', 'attendance', 'purchases',
+      'categories', 'clearance_items', 'loyalty_transactions', 'settings',
+    ];
     if (kIsWeb) {
       final web = await _web;
-      await web.delete('items');
-      await web.delete('sales');
-      await web.delete('expenses');
-      await web.delete('cash_till');
-      await web.delete('sync_queue');
-      await web.insert('settings', {'key': 'last_invoice_number', 'value': '0'});
+      for (final t in tables) {
+        await web.delete(t);
+      }
+      // Reset the _WebDB initialization flag so it re-creates empty tables
+      _webDB = null;
       return;
     }
     final db = await database;
-    await db.delete('items');
-    await db.delete('sales');
-    await db.delete('expenses');
-    await db.delete('cash_till');
-    await db.delete('sync_queue');
-    await db.insert('settings', {
-      'key': 'last_invoice_number',
-      'value': '0',
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    for (final t in tables) {
+      try {
+        await db.delete(t);
+      } catch (_) {} // table might not exist yet
+    }
   }
 }

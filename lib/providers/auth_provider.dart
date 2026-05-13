@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/remote/supabase_service.dart';
+import '../data/local/db_helper.dart';
 import '../core/utils/rate_limiter.dart';
 
 enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
@@ -165,9 +166,29 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Full sign out — destroys Supabase session entirely
-  /// Only use this from Settings or explicit "disconnect device"
+  /// Full sign out — destroys Supabase session + wipes ALL local data.
+  /// Ensures the next user who logs in sees a clean, empty app.
+  /// Only use this from Settings or when switching user accounts.
   Future<void> fullSignOut() async {
+    // ─── STEP 1: Wipe all local DB data (in-memory on web) ───
+    try {
+      final db = DBHelper.instance;
+      await db.clearAllData();
+      debugPrint('🧹 Local DB cleared');
+    } catch (e) {
+      debugPrint('⚠️ Failed to clear local DB: $e');
+    }
+
+    // ─── STEP 2: Clear ALL SharedPreferences (settings, theme, etc.) ───
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      debugPrint('🧹 SharedPreferences cleared');
+    } catch (e) {
+      debugPrint('⚠️ Failed to clear SharedPreferences: $e');
+    }
+
+    // ─── STEP 3: Destroy Supabase session ───
     try {
       await _supabase.signOut();
     } catch (_) {}
@@ -175,9 +196,6 @@ class AuthProvider extends ChangeNotifier {
     _status = AuthStatus.unauthenticated;
     _userType = 'admin';
     _isSyncing = false;
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('staff_session_type');
 
     notifyListeners();
   }
