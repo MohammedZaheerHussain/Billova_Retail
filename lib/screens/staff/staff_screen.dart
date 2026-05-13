@@ -548,7 +548,7 @@ class _StaffScreenState extends State<StaffScreen> {
     // Summary stats
     final totalShifts = all.length;
     final completedShifts = all.where((r) => r.clockOutTime != null).toList();
-    final totalHours = completedShifts.fold<double>(0, (s, r) => s + (r.totalHours ?? 0));
+    final totalHours = completedShifts.fold<double>(0, (s, r) => s + r.totalHours);
     final uniqueDays = all.map((r) => r.date).toSet().length;
 
     // Group by date
@@ -703,7 +703,7 @@ class _StaffScreenState extends State<StaffScreen> {
     final label = parsed != null ? DateFilterHelper.groupLabel(parsed) : date;
     final dayHours = records
         .where((r) => r.clockOutTime != null)
-        .fold<double>(0, (s, r) => s + (r.totalHours ?? 0));
+        .fold<double>(0, (s, r) => s + r.totalHours);
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
@@ -736,7 +736,7 @@ class _StaffScreenState extends State<StaffScreen> {
 
   Widget _attendanceCard(AttendanceModel record) {
     final hasClockOut = record.clockOutTime != null;
-    final hours = record.totalHours ?? 0;
+    final hours = record.totalHours;
     final isOpen = !hasClockOut;
 
     return Container(
