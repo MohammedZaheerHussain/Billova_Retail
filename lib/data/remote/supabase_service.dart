@@ -56,18 +56,18 @@ class SupabaseService {
 
     try {
       // Sync priority order: items first, then dependent tables
-      await _pullTable('items');
-      await _pullTable('sales');
-      await _pullTable('purchases');
-      await _pullTable('expenses');
-      await _pullTable('vendors');
-      await _pullTable('staff');
-      await _pullTable('attendance');
-      await _pullTable('customers');
-      await _pullTable('cash_till');
-      await _pullTable('categories');
-      await _pullTable('clearance_items');
-      await _pullTable('loyalty_transactions');
+      await pullTable('items');
+      await pullTable('sales');
+      await pullTable('purchases');
+      await pullTable('expenses');
+      await pullTable('vendors');
+      await pullTable('staff');
+      await pullTable('attendance');
+      await pullTable('customers');
+      await pullTable('cash_till');
+      await pullTable('categories');
+      await pullTable('clearance_items');
+      await pullTable('loyalty_transactions');
       debugPrint('✅ Full data pull complete');
     } catch (e) {
       debugPrint('⚠️ Data pull had errors (non-fatal): $e');
@@ -75,7 +75,7 @@ class SupabaseService {
     }
   }
 
-  Future<void> _pullTable(String table) async {
+  Future<void> pullTable(String table) async {
     try {
       // Some tables (like attendance) don't have updated_at
       final orderCol = (table == 'attendance') ? 'created_at' : 'updated_at';

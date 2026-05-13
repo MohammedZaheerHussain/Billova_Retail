@@ -205,20 +205,11 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       pointsEarned: pointsEarned,
     );
 
-    if (sale != null && mounted) {
-      // Deduct stock
-      final inventory = context.read<InventoryProvider>();
-      for (final item in sale.items) {
-        await inventory.deductStock(item.itemId, item.quantity);
-      }
-
-      if (!mounted) return;
-      // Refresh cash till
-      context.read<CashTillProvider>().refresh();
-
-      // Auto-save customer + track purchase stats + loyalty
+    if (sale != null) {
+      // ─── CRITICAL: Save customer FIRST (before any mounted check) ───
+      // Customer data must NEVER be lost, even if the widget unmounts
+      final customerProvider = context.read<CustomerProvider>();
       if (sale.customerName.isNotEmpty && sale.customerName != 'Walk-in Customer') {
-        final customerProvider = context.read<CustomerProvider>();
         final earnRate = loyalty.isEnabled ? loyalty.earnRate : 0;
 
         // Redeem points first (if used)
@@ -256,6 +247,16 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
           }
         }
       }
+
+      // Deduct stock
+      final inventory = context.read<InventoryProvider>();
+      for (final item in sale.items) {
+        await inventory.deductStock(item.itemId, item.quantity);
+      }
+
+      if (!mounted) return;
+      // Refresh cash till
+      context.read<CashTillProvider>().refresh();
 
       // Capture payment values before clearing
       final cashPaid = double.tryParse(_cashPaidCtrl.text) ?? 0;

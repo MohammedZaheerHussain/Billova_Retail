@@ -51,6 +51,20 @@ class CustomerProvider extends ChangeNotifier {
 
   Future<bool> addCustomer({required String name, String phone = ''}) async {
     try {
+      // ─── Phone-based deduplication ───
+      // If phone is provided and already exists, update the existing customer name
+      if (phone.trim().isNotEmpty) {
+        final existing = findByPhone(phone.trim());
+        if (existing != null) {
+          debugPrint('📋 Customer with phone ${phone.trim()} already exists: ${existing.name}');
+          // Update name if different
+          if (existing.name != name.trim() && name.trim().isNotEmpty) {
+            await updateCustomer(existing.copyWith(name: name.trim()));
+          }
+          return true; // Customer already exists — not a failure
+        }
+      }
+
       final customer = CustomerModel(id: _uuid.v4(), name: name, phone: phone);
 
       debugPrint('➕ CustomerProvider: adding customer "${customer.name}" (${customer.id})');
