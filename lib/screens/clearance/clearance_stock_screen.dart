@@ -20,6 +20,16 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
   static const _reasons = ['Damaged', 'Slow Moving', 'Old Season', 'Returned Defective', 'End of Line'];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Ensure clearance audit records are loaded — without this,
+      // the edit button silently fails because findByItemId returns null.
+      context.read<ClearanceProvider>().loadClearanceRecords();
+    });
+  }
+
+  @override
   void dispose() { _searchCtrl.dispose(); super.dispose(); }
 
   List<ItemModel> _getClearanceItems(InventoryProvider inv) {
@@ -269,15 +279,29 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
   }
 
   // ─── Edit clearance item ───
-  void _showEditClearanceDialog(ItemModel item) {
+  void _showEditClearanceDialog(ItemModel item) async {
     final clearanceProvider = context.read<ClearanceProvider>();
     final inv = context.read<InventoryProvider>();
-    final record = clearanceProvider.findByItemId(item.id);
-    if (record == null) return;
+    var record = clearanceProvider.findByItemId(item.id);
+
+    // If record not found, try reloading clearance records first
+    if (record == null) {
+      await clearanceProvider.loadClearanceRecords();
+      record = clearanceProvider.findByItemId(item.id);
+    }
+
+    // If still null, show a direct-edit fallback dialog
+    if (record == null) {
+      _showDirectEditDialog(item);
+      return;
+    }
+
+    // record is guaranteed non-null from here
+    final rec = record;
 
     // Find original item to compute max available qty
     final originalItem = inv.items.firstWhere(
-      (i) => i.id == record.originalItemId,
+      (i) => i.id == rec.originalItemId,
       orElse: () => ItemModel(id: '', name: '', price: 0),
     );
     final maxQty = item.quantity + originalItem.quantity; // current clearance + remaining original
@@ -292,7 +316,7 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
       builder: (ctx) => StatefulBuilder(builder: (ctx, ss) {
         final cp = double.tryParse(cpCtrl.text) ?? 0;
         final qty = int.tryParse(qtyCtrl.text) ?? item.quantity;
-        final origPrice = item.originalPrice > 0 ? item.originalPrice : record.originalPrice;
+        final origPrice = item.originalPrice > 0 ? item.originalPrice : rec.originalPrice;
         final disc = origPrice > 0 ? ((1 - cp / origPrice) * 100).clamp(0.0, 100.0) : 0.0;
         final isValid = qty >= 1 && qty <= maxQty && cp > 0;
 
@@ -379,7 +403,7 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
               onPressed: !isValid ? null : () async {
                 try {
                   await clearanceProvider.updateClearanceItem(
-                    record: record,
+                    record: rec,
                     newPrice: cp,
                     newQty: qty,
                     newReason: reason,
@@ -389,6 +413,124 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text('${item.name} clearance updated'),
+                      backgroundColor: AppColors.accent, behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+                  }
+                } catch (e) {
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+                  }
+                }
+              },
+              icon: const Icon(Icons.save_rounded, size: 16),
+              label: const Text('Save Changes'),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  // ─── Fallback edit dialog when clearance audit record is missing ───
+  void _showDirectEditDialog(ItemModel item) {
+    final inv = context.read<InventoryProvider>();
+    final priceCtrl = TextEditingController(text: item.price.toStringAsFixed(0));
+    final qtyCtrl = TextEditingController(text: '${item.quantity}');
+
+    String reason = item.storageLocation.replaceFirst('CLEARANCE: ', '');
+    if (!_reasons.contains(reason)) reason = _reasons[0];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, ss) {
+        final newPrice = double.tryParse(priceCtrl.text) ?? 0;
+        final newQty = int.tryParse(qtyCtrl.text) ?? item.quantity;
+        final isValid = newQty >= 0 && newPrice >= 0;
+
+        return AlertDialog(
+          backgroundColor: AppColors.card(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(children: [
+            Icon(Icons.edit_rounded, color: AppColors.accent, size: 22),
+            const SizedBox(width: 8),
+            Text('Edit Clearance Item', style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
+          ]),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(item.name, style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textPrimary(context), fontWeight: FontWeight.w600)),
+            if (item.originalPrice > 0)
+              Text('Original MRP: ${Formatters.currency(item.originalPrice)}',
+                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
+            const SizedBox(height: 16),
+
+            // Quantity
+            Text('Quantity', style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context))),
+            const SizedBox(height: 4),
+            TextField(
+              controller: qtyCtrl, keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 16),
+              onChanged: (_) => ss(() {}),
+              decoration: InputDecoration(
+                filled: true, fillColor: AppColors.surface(context),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Reason
+            Text('Reason', style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context))),
+            const SizedBox(height: 4),
+            DropdownButtonFormField<String>(
+              value: reason, dropdownColor: AppColors.card(context),
+              style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
+              items: _reasons.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+              onChanged: (v) => ss(() => reason = v!),
+              decoration: InputDecoration(
+                filled: true, fillColor: AppColors.surface(context),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+            ),
+            const SizedBox(height: 12),
+
+            // Price
+            Text('Clearance Price (₹)', style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context))),
+            const SizedBox(height: 4),
+            TextField(
+              controller: priceCtrl, keyboardType: TextInputType.number,
+              style: TextStyle(color: AppColors.textPrimary(context), fontSize: 14),
+              onChanged: (_) => ss(() {}),
+              decoration: InputDecoration(
+                filled: true, fillColor: AppColors.surface(context),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+            ),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx),
+                child: Text('Cancel', style: TextStyle(color: AppColors.textTertiary(context)))),
+            ElevatedButton.icon(
+              onPressed: !isValid ? null : () async {
+                try {
+                  await inv.updateItem(item.copyWith(
+                    price: newPrice,
+                    quantity: newQty,
+                    storageLocation: 'CLEARANCE: $reason',
+                  ));
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('${item.name} updated'),
                       backgroundColor: AppColors.accent, behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                   }

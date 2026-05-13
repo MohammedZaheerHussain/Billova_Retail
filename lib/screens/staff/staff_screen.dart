@@ -24,7 +24,8 @@ class _StaffScreenState extends State<StaffScreen> {
       final provider = context.read<StaffProvider>();
       provider.loadStaff();
       provider.loadTodayAttendance();
-      provider.cleanupOldAttendance();
+      // NOTE: cleanupOldAttendance removed — it was deleting records
+      // on every screen load. Data preservation is priority.
     });
   }
 
@@ -499,9 +500,25 @@ class _StaffScreenState extends State<StaffScreen> {
 
   Widget _buildAttendanceLog(StaffProvider provider) {
     // Get the right list based on filter
-    final records = _attendanceFilter == 0
-        ? provider.todayAttendance
-        : provider.attendanceHistory;
+    // For Week/Month, merge today's records with history to ensure
+    // nothing is lost when switching tabs.
+    List<AttendanceModel> records;
+    if (_attendanceFilter == 0) {
+      records = provider.todayAttendance;
+    } else {
+      // Combine history + today (deduplicate by id)
+      final historyIds = provider.attendanceHistory.map((r) => r.id).toSet();
+      records = [
+        ...provider.attendanceHistory,
+        ...provider.todayAttendance.where((r) => !historyIds.contains(r.id)),
+      ];
+      // Sort by date descending, then clock-in descending
+      records.sort((a, b) {
+        final dateComp = b.date.compareTo(a.date);
+        if (dateComp != 0) return dateComp;
+        return b.clockInTime.compareTo(a.clockInTime);
+      });
+    }
 
     // Group by date
     final Map<String, List<AttendanceModel>> grouped = {};

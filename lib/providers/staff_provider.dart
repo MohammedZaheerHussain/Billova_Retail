@@ -291,7 +291,9 @@ class StaffProvider extends ChangeNotifier {
         orderBy: 'date DESC, clock_in_time DESC',
       );
       _attendanceHistory = maps.map((m) => AttendanceModel.fromMap(m)).toList();
-      notifyListeners();
+
+      // Also refresh today's data to keep it in sync
+      await loadTodayAttendance();
     } catch (e) {
       debugPrint('Failed to load attendance history: $e');
     }
