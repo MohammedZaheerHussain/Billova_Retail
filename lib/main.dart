@@ -29,10 +29,14 @@ void main() async {
     anonKey: AppConstants.supabaseAnonKey,
   );
 
+  // Pre-load theme BEFORE UI renders to prevent flicker
+  final themeProvider = ThemeProvider();
+  await themeProvider.loadSavedTheme();
+
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider.value(value: themeProvider),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
         ChangeNotifierProvider(create: (_) => SalesProvider()),
