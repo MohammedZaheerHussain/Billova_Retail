@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants.dart';
 
 /// In-memory database implementation for web platform.
@@ -687,12 +688,13 @@ class DBHelper {
   }
 
   // ─── Settings ───
+  // On web, use SharedPreferences (localStorage) which survives hard refresh.
+  // _WebDB is in-memory only and gets wiped on reload.
 
   Future<String?> getSetting(String key) async {
     if (kIsWeb) {
-      final web = await _web;
-      final results = await web.query('settings', where: 'key = ?', whereArgs: [key]);
-      return results.isNotEmpty ? results.first['value'] as String : null;
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('setting_$key');
     }
     final db = await database;
     final results = await db.query('settings', where: 'key = ?', whereArgs: [key]);
@@ -701,8 +703,8 @@ class DBHelper {
 
   Future<void> setSetting(String key, String value) async {
     if (kIsWeb) {
-      final web = await _web;
-      await web.insert('settings', {'key': key, 'value': value});
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('setting_$key', value);
       return;
     }
     final db = await database;
