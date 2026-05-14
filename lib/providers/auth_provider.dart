@@ -148,10 +148,19 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Sign out — navigates to login, but keeps Supabase session alive
-  /// The Supabase session is a BUSINESS session (not per-user)
-  /// Staff needs it to sync data even when admin isn't present
+  /// Sign out — clears local data and navigates to login.
+  /// Keeps Supabase session alive for staff sync capability.
+  /// CRITICAL: Must wipe local DB to prevent cross-user data leakage.
   Future<void> signOut() async {
+    // ─── Wipe local DB to prevent cross-user data leakage ───
+    try {
+      final db = DBHelper.instance;
+      await db.clearAllData();
+      debugPrint('🧹 Local DB cleared on sign-out (data isolation)');
+    } catch (e) {
+      debugPrint('⚠️ Failed to clear local DB on sign-out: $e');
+    }
+
     // Do NOT call _supabase.signOut() — keep business session alive
     // Staff needs the Supabase connection to pull/sync data
 

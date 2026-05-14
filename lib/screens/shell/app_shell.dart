@@ -18,6 +18,7 @@ import '../../providers/purchase_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/clearance_provider.dart';
 import '../../data/remote/supabase_service.dart';
+import '../../data/local/db_helper.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../inventory/inventory_screen.dart';
 import '../sales/sales_terminal_screen.dart';
@@ -194,10 +195,15 @@ class _AppShellState extends State<AppShell> {
     // ─── STEP 1: Pull from Supabase FIRST (cloud → local) ───
     // On web, _WebDB is in-memory — starts empty every restart.
     // We MUST pull cloud data before providers try to read local DB.
+    // CRITICAL: Clear local DB first to prevent cross-user data leakage.
+    // Without this, switching users would accumulate data from multiple users.
     try {
       final supabase = SupabaseService.instance;
       if (supabase.isLoggedIn) {
-        debugPrint('📥 Pulling data from Supabase...');
+        debugPrint('🧹 Clearing local DB before pull (data isolation)...');
+        final db = DBHelper.instance;
+        await db.clearAllData();
+        debugPrint('📥 Pulling data from Supabase for user: ${supabase.userId}...');
         await supabase.pullAllData();
         debugPrint('📥 Pull complete — now loading providers');
       }
