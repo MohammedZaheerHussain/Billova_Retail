@@ -77,13 +77,18 @@ class SupabaseService {
 
   Future<void> pullTable(String table) async {
     try {
-      // Some tables (like attendance) don't have updated_at
-      final orderCol = (table == 'attendance') ? 'created_at' : 'updated_at';
-      final data = await _client
-          .from(table)
-          .select()
-          .eq('user_id', userId!)
-          .order(orderCol);
+      // Tables without updated_at — order by created_at instead
+      const noUpdatedAt = {'attendance', 'loyalty_transactions'};
+      final orderCol = noUpdatedAt.contains(table) ? 'created_at' : 'updated_at';
+
+      // Tables without user_id column — rely on RLS only
+      const noUserId = {'clearance_items'};
+
+      var query = _client.from(table).select();
+      if (!noUserId.contains(table)) {
+        query = query.eq('user_id', userId!);
+      }
+      final data = await query.order(orderCol);
 
       if (data.isNotEmpty) {
         // Convert Supabase records to local SQLite format
