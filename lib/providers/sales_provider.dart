@@ -32,6 +32,13 @@ class SalesProvider extends ChangeNotifier {
   String _customerPhone = '';
   String _paymentMode = 'Cash';
   double _discountPercent = 0;
+  bool _gstEnabled = false;
+
+  /// Load GST setting from DB
+  Future<void> loadGstSetting() async {
+    _gstEnabled = (await _db.getSetting('gst_enabled') ?? 'false') == 'true';
+    notifyListeners();
+  }
 
   // Getters — History
   List<SaleModel> get sales => _filteredSales;
@@ -94,6 +101,18 @@ class SalesProvider extends ChangeNotifier {
 
   double get subtotal => _cart.fold(0, (sum, item) => sum + item.total);
   double get total => (subtotal - discountAmount).clamp(0, double.infinity);
+
+  // ─── GST Getters ───
+  bool get gstEnabled => _gstEnabled;
+  /// Total GST across all cart items (only when enabled)
+  double get gstAmount => _gstEnabled
+      ? _cart.fold(0.0, (sum, item) => sum + item.gstAmount)
+      : 0;
+  double get cgst => gstAmount / 2;
+  double get sgst => gstAmount / 2;
+  /// Grand total = subtotal - discount + GST
+  double get grandTotal => total + gstAmount;
+
   int get cartItemCount => _cart.fold(0, (sum, item) => sum + item.quantity);
   bool get isCartEmpty => _cart.isEmpty;
 
@@ -110,6 +129,7 @@ class SalesProvider extends ChangeNotifier {
         price: existing.price,
         quantity: existing.quantity + qty,
         total: existing.price * (existing.quantity + qty),
+        gstRate: existing.gstRate,
       );
     } else {
       _cart.add(SaleItem(
@@ -118,6 +138,7 @@ class SalesProvider extends ChangeNotifier {
         price: item.price,
         quantity: qty,
         total: item.price * qty,
+        gstRate: item.gstRate,
       ));
     }
 
@@ -136,6 +157,7 @@ class SalesProvider extends ChangeNotifier {
         price: item.price,
         quantity: qty,
         total: item.price * qty,
+        gstRate: item.gstRate,
       );
     }
     notifyListeners();
@@ -233,6 +255,12 @@ class SalesProvider extends ChangeNotifier {
       // Apply loyalty discount to the final total
       final finalTotal = (total - loyaltyDiscount).clamp(0.0, double.infinity);
 
+      // Calculate GST on the final total after discount
+      final saleGstAmount = _gstEnabled ? gstAmount : 0.0;
+      final saleCgst = saleGstAmount / 2;
+      final saleSgst = saleGstAmount / 2;
+      final saleGrandTotal = finalTotal + saleGstAmount;
+
       final sale = SaleModel(
         id: _uuid.v4(),
         invoiceNumber: invoiceNumber,
@@ -241,7 +269,10 @@ class SalesProvider extends ChangeNotifier {
         items: List.from(_cart),
         subtotal: subtotal,
         discount: discountAmount,
-        total: finalTotal,
+        total: saleGrandTotal,
+        gstAmount: saleGstAmount,
+        cgst: saleCgst,
+        sgst: saleSgst,
         paymentMode: _paymentMode,
         staffId: staffId,
         staffName: staffName,

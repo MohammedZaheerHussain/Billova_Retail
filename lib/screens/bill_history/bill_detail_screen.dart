@@ -187,6 +187,10 @@ class BillDetailDialog extends StatelessWidget {
               // ─── Totals ───
               _row(context, 'Subtotal', Formatters.currency(sale.subtotal)),
               if (sale.discount > 0) _row(context, 'Discount', '- ${Formatters.currency(sale.discount)}', color: AppColors.error),
+              if (sale.gstAmount > 0) ...[
+                _row(context, 'CGST', '+ ${Formatters.currency(sale.cgst)}', color: AppColors.accent),
+                _row(context, 'SGST', '+ ${Formatters.currency(sale.sgst)}', color: AppColors.accent),
+              ],
               Divider(color: AppColors.cardBorder(context)),
               _row(context, 'Total', Formatters.currency(sale.total), isBold: true, color: AppColors.success),
               _row(context, 'Payment', sale.paymentMode, fontSize: 12),
@@ -266,7 +270,7 @@ ${sale.customerName.isNotEmpty ? 'Customer: ${sale.customerName}\n' : ''}
 $items
 ━━━━━━━━━━━━━━
 Subtotal: ${Formatters.currency(sale.subtotal)}
-${sale.discount > 0 ? 'Discount: -${Formatters.currency(sale.discount)}\n' : ''}*Total: ${Formatters.currency(sale.total)}*
+${sale.discount > 0 ? 'Discount: -${Formatters.currency(sale.discount)}\n' : ''}${sale.gstAmount > 0 ? 'CGST: +${Formatters.currency(sale.cgst)}\nSGST: +${Formatters.currency(sale.sgst)}\n' : ''}*Total: ${Formatters.currency(sale.total)}*
 Payment: ${sale.paymentMode}
 
 Thank you for your purchase! 🙏

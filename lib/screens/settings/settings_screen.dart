@@ -45,6 +45,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _receiptFooterCtrl = TextEditingController();
   bool _autoPrint = false;
 
+  // GST Settings
+  bool _gstEnabled = false;
+  final _gstNumberCtrl = TextEditingController();
+  final _gstBusinessNameCtrl = TextEditingController();
+  final _gstStateCodeCtrl = TextEditingController();
+
   // Category Manager
   final _categoryNameCtrl = TextEditingController();
   bool _requiresSize = false;
@@ -69,6 +75,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _shopPhoneCtrl.dispose();
     _shopLogoCtrl.dispose();
     _receiptFooterCtrl.dispose();
+    _gstNumberCtrl.dispose();
+    _gstBusinessNameCtrl.dispose();
+    _gstStateCodeCtrl.dispose();
     _categoryNameCtrl.dispose();
     _categorySearchCtrl.dispose();
     super.dispose();
@@ -83,6 +92,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _shopLogoCtrl.text = await db.getSetting('shop_logo') ?? '';
     _receiptFooterCtrl.text = await db.getSetting('receipt_footer') ?? 'Thank you! Visit again';
     _autoPrint = (await db.getSetting('auto_print') ?? 'false') == 'true';
+    // GST settings
+    _gstEnabled = (await db.getSetting('gst_enabled') ?? 'false') == 'true';
+    _gstNumberCtrl.text = await db.getSetting('gst_number') ?? '';
+    _gstBusinessNameCtrl.text = await db.getSetting('gst_business_name') ?? '';
+    _gstStateCodeCtrl.text = await db.getSetting('gst_state_code') ?? '';
     if (mounted) setState(() {});
   }
 
@@ -93,6 +107,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await db.setSetting('shop_phone', _shopPhoneCtrl.text.trim());
     await db.setSetting('shop_logo', _shopLogoCtrl.text);
     await db.setSetting('receipt_footer', _receiptFooterCtrl.text.trim());
+    // GST settings
+    await db.setSetting('gst_enabled', _gstEnabled.toString());
+    await db.setSetting('gst_number', _gstNumberCtrl.text.trim());
+    await db.setSetting('gst_business_name', _gstBusinessNameCtrl.text.trim());
+    await db.setSetting('gst_state_code', _gstStateCodeCtrl.text.trim());
+    // Refresh GST in SalesProvider
+    if (mounted) {
+      context.read<SalesProvider>().loadGstSetting();
+    }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('Settings saved'),
@@ -581,6 +604,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
               ),
+            ]),
+            const SizedBox(height: 16),
+
+            // ─── GST Settings ───
+            _buildSection(isDark, 'GST Settings', Icons.receipt_long_rounded, [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: Row(children: [
+                  Icon(Icons.percent_rounded, size: 18,
+                      color: isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text('Enable GST', style: AppTypography.bodyMedium.copyWith(
+                      color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight))),
+                  Switch(
+                    value: _gstEnabled,
+                    activeColor: AppColors.accent,
+                    onChanged: (v) => setState(() => _gstEnabled = v),
+                  ),
+                ]),
+              ),
+              if (_gstEnabled) ...[
+                _buildTextField('GSTIN Number', _gstNumberCtrl, isDark),
+                _buildTextField('Registered Business Name', _gstBusinessNameCtrl, isDark),
+                _buildTextField('State Code (e.g. 36)', _gstStateCodeCtrl, isDark),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.info_outline_rounded, size: 16, color: AppColors.accent),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'GST will be auto-calculated per item based on the GST rate set in each product. '
+                          'CGST + SGST split (same state) will appear on invoices.',
+                          style: TextStyle(
+                            fontSize: 11, color: AppColors.accent,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ]),
+                  ),
+                ),
+              ],
             ]),
             const SizedBox(height: 16),
             _buildCategoryManagerAccordion(isDark),

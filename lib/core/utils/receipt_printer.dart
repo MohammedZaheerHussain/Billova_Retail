@@ -26,11 +26,16 @@ class ReceiptPrinter {
     final shopPhone = await _db.getSetting('shop_phone') ?? '';
     final shopLogo = await _db.getSetting('shop_logo') ?? '';
     final footerText = await _db.getSetting('receipt_footer') ?? 'Thank you! Visit again';
+    // GST settings
+    final gstEnabled = (await _db.getSetting('gst_enabled') ?? 'false') == 'true';
+    final gstNumber = await _db.getSetting('gst_number') ?? '';
+    final gstStateCode = await _db.getSetting('gst_state_code') ?? '';
 
     final receiptHtml = _buildReceiptHtml(
       sale: sale, shopName: shopName, shopAddress: shopAddress,
       shopPhone: shopPhone, shopLogo: shopLogo, footerText: footerText,
       cashPaid: cashPaid, upiPaid: upiPaid,
+      gstEnabled: gstEnabled, gstNumber: gstNumber, gstStateCode: gstStateCode,
     );
 
     // Use JavaScript to open popup, write, print, close
@@ -63,6 +68,9 @@ class ReceiptPrinter {
     required String footerText,
     required double cashPaid,
     required double upiPaid,
+    bool gstEnabled = false,
+    String gstNumber = '',
+    String gstStateCode = '',
   }) {
     final date = sale.createdAt;
     final dateStr = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
@@ -84,6 +92,18 @@ class ReceiptPrinter {
 
     final discountRow = discountAmt > 0
         ? '<tr><td>Discount (${discountPct.toStringAsFixed(discountPct.truncateToDouble() == discountPct ? 0 : 1)}%)</td><td style="text-align:right;">-${Formatters.currency(discountAmt)}</td></tr>'
+        : '';
+
+    // GST rows — show only when enabled and GST amount > 0
+    final gstRows = StringBuffer();
+    if (gstEnabled && sale.gstAmount > 0) {
+      gstRows.write('<tr><td>CGST</td><td style="text-align:right;">+${Formatters.currency(sale.cgst)}</td></tr>');
+      gstRows.write('<tr><td>SGST</td><td style="text-align:right;">+${Formatters.currency(sale.sgst)}</td></tr>');
+    }
+
+    // GSTIN line in header
+    final gstinHtml = (gstEnabled && gstNumber.isNotEmpty)
+        ? '<div style="font-size:10px;">GSTIN: $gstNumber${gstStateCode.isNotEmpty ? ' | State: $gstStateCode' : ''}</div>'
         : '';
 
     final paymentRows = StringBuffer();
@@ -108,7 +128,8 @@ class ReceiptPrinter {
         '</style></head><body>'
         '<div class="center">$logoHtml<div class="shop-name">$shopName</div>'
         '${shopAddress.isNotEmpty ? "<div>$shopAddress</div>" : ""}'
-        '${shopPhone.isNotEmpty ? "<div>Ph: $shopPhone</div>" : ""}</div>'
+        '${shopPhone.isNotEmpty ? "<div>Ph: $shopPhone</div>" : ""}'
+        '$gstinHtml</div>'
         '<div class="divider"></div>'
         '<div><div class="bold">${sale.invoiceNumber}</div>'
         '<div>Date: $dateStr $timeStr</div>'
@@ -119,6 +140,7 @@ class ReceiptPrinter {
         '<div class="divider"></div>'
         '<table><tr><td>Subtotal</td><td style="text-align:right;">${Formatters.currency(sale.subtotal)}</td></tr>'
         '$discountRow'
+        '${gstRows.toString()}'
         '<tr class="total-row"><td>TOTAL</td><td style="text-align:right;">${Formatters.currency(sale.total)}</td></tr></table>'
         '${paymentRows.toString()}'
         '<div class="divider"></div>'

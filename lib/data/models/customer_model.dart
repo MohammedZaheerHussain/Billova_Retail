@@ -6,6 +6,7 @@ class CustomerModel {
   final String phone;
   final int totalOrders;
   final double totalSpent;
+  final String gstNumber;       // Customer GSTIN (optional, for B2B)
   final int loyaltyPoints;
   final DateTime? lastPurchaseDate;
   final bool isDeleted;
@@ -18,6 +19,7 @@ class CustomerModel {
     this.phone = '',
     this.totalOrders = 0,
     this.totalSpent = 0,
+    this.gstNumber = '',
     this.loyaltyPoints = 0,
     this.lastPurchaseDate,
     this.isDeleted = false,
@@ -33,6 +35,7 @@ class CustomerModel {
       'phone': phone,
       'total_orders': totalOrders,
       'total_spent': totalSpent,
+      'gst_number': gstNumber,
       'loyalty_points': loyaltyPoints,
       'last_purchase_date': lastPurchaseDate?.toIso8601String(),
       'is_deleted': isDeleted ? 1 : 0,
@@ -48,6 +51,7 @@ class CustomerModel {
       phone: map['phone'] as String? ?? '',
       totalOrders: (map['total_orders'] as num?)?.toInt() ?? 0,
       totalSpent: (map['total_spent'] as num?)?.toDouble() ?? 0,
+      gstNumber: (map['gst_number'] as String?) ?? '',
       loyaltyPoints: (map['loyalty_points'] as num?)?.toInt() ?? 0,
       lastPurchaseDate: map['last_purchase_date'] != null
           ? DateTime.tryParse(map['last_purchase_date'] as String)
@@ -63,6 +67,7 @@ class CustomerModel {
     String? phone,
     int? totalOrders,
     double? totalSpent,
+    String? gstNumber,
     int? loyaltyPoints,
     DateTime? lastPurchaseDate,
     bool? isDeleted,
@@ -74,6 +79,7 @@ class CustomerModel {
       phone: phone ?? this.phone,
       totalOrders: totalOrders ?? this.totalOrders,
       totalSpent: totalSpent ?? this.totalSpent,
+      gstNumber: gstNumber ?? this.gstNumber,
       loyaltyPoints: loyaltyPoints ?? this.loyaltyPoints,
       lastPurchaseDate: lastPurchaseDate ?? this.lastPurchaseDate,
       isDeleted: isDeleted ?? this.isDeleted,
