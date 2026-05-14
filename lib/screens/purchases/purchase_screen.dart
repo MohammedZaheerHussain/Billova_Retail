@@ -53,15 +53,16 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   double get _paidAmount => double.tryParse(_paidCtrl.text) ?? 0;
   double get _dueAmount => (_totalAmount - _paidAmount).clamp(0, double.infinity);
 
-  void _addItemToEntries(ItemModel item) {
+  void _addItemToEntries(ItemModel item, {int qty = 1}) {
+    final safeQty = qty < 1 ? 1 : qty;
     final existing = _entries.indexWhere((e) => e.itemId == item.id);
     if (existing != -1) {
-      setState(() => _entries[existing].quantity++);
+      setState(() => _entries[existing].quantity += safeQty);
     } else {
       setState(() => _entries.add(_PurchaseEntry(
         itemId: item.id,
         name: item.name,
-        quantity: 1,
+        quantity: safeQty,
         costPrice: item.costPrice > 0 ? item.costPrice : item.price,
       )));
     }
@@ -312,11 +313,12 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                       );
                       if (ctx.mounted) Navigator.pop(ctx);
                       await inv.loadItems();
+                      final enteredQty = int.tryParse(qtyCtrl.text) ?? 1;
                       final newItem = inv.items.firstWhere(
                         (i) => i.name == nameCtrl.text.trim(),
                         orElse: () => ItemModel(id: '', name: '', price: 0),
                       );
-                      if (newItem.id.isNotEmpty) _addItemToEntries(newItem);
+                      if (newItem.id.isNotEmpty) _addItemToEntries(newItem, qty: enteredQty);
                     },
                     icon: const Icon(Icons.check_rounded, size: 18),
                     label: const Text('Add to Purchase'),
@@ -741,16 +743,34 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             flex: 3,
             child: Text(entry.name, style: TextStyle(color: AppColors.textPrimary(context), fontSize: 14)),
           ),
-          // Qty controls
+          // Qty controls — editable field with +/- buttons
           SizedBox(
-            width: 80,
+            width: 100,
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               _smallIconBtn(Icons.remove, () => setState(() {
                 if (entry.quantity > 1) entry.quantity--;
               })),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6),
-                child: Text('${entry.quantity}', style: AppTypography.mono.copyWith(color: AppColors.textPrimary(context), fontSize: 13)),
+              Expanded(
+                child: TextFormField(
+                  key: ValueKey('qty_${entry.itemId}_${entry.quantity}'),
+                  initialValue: '${entry.quantity}',
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  onChanged: (v) {
+                    final parsed = int.tryParse(v);
+                    if (parsed != null && parsed >= 1) {
+                      setState(() => entry.quantity = parsed);
+                    }
+                  },
+                  style: AppTypography.mono.copyWith(color: AppColors.textPrimary(context), fontSize: 13),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                    filled: true,
+                    fillColor: AppColors.card(context),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide.none),
+                  ),
+                ),
               ),
               _smallIconBtn(Icons.add, () => setState(() => entry.quantity++)),
             ]),
