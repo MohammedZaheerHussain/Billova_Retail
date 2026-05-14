@@ -20,6 +20,7 @@ import '../../data/local/db_helper.dart';
 import '../../data/remote/supabase_service.dart';
 import '../../core/utils/data_export_service.dart';
 import '../../core/utils/formatters.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -875,57 +876,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 16),
 
             // ─── About ───
-            _buildSection(isDark, 'About', Icons.info_rounded, [
-              _SettingsTile(
-                icon: Icons.storefront_rounded,
-                title: 'SKYWALK Billing',
-                subtitle: 'Version 2.0.0 - Built for commercial retail',
-                isDark: isDark,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [AppColors.primary.withValues(alpha: 0.05), AppColors.accent.withValues(alpha: 0.05)],
-                      begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: isDark ? AppColors.cardBorder(context).withValues(alpha: 0.5) : AppColors.cardBorderLight),
-                  ),
-                  child: Column(children: [
-                    Container(
-                      width: 48, height: 48,
-                      decoration: BoxDecoration(gradient: AppColors.primaryGradient, borderRadius: BorderRadius.circular(14)),
-                      child: const Icon(Icons.receipt_long_rounded, color: Colors.white, size: 24),
-                    ),
-                    const SizedBox(height: 12),
-                    ShaderMask(
-                      shaderCallback: (bounds) => AppColors.primaryGradient.createShader(bounds),
-                      child: Text('SKYWALK', style: AppTypography.h3.copyWith(
-                        color: Colors.white, letterSpacing: 4, fontWeight: FontWeight.w800)),
-                    ),
-                    const SizedBox(height: 4),
-                    Text('Billing Software', style: AppTypography.bodySmall.copyWith(
-                      color: isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight)),
-                    const SizedBox(height: 16),
-                    Container(width: 40, height: 1, color: (isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight).withValues(alpha: 0.5)),
-                    const SizedBox(height: 14),
-                    Text('Powered & Developed by', style: AppTypography.labelSmall.copyWith(
-                      color: isDark ? AppColors.textTertiary(context) : AppColors.textTertiaryLight, fontSize: 10)),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.asset('assets/images/barakah_logo.png', width: 44, height: 44, fit: BoxFit.contain),
-                    ),
-                    const SizedBox(height: 6),
-                    Text('Barakah Tech', style: AppTypography.h4.copyWith(
-                      color: AppColors.primary, fontWeight: FontWeight.w700, letterSpacing: 1)),
-                  ]),
-                ),
-              ),
-            ]),
+            _buildAboutSection(isDark),
           ],
         ),
       ),
@@ -1554,6 +1505,188 @@ class _SettingsScreenState extends State<SettingsScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       onPressed: () => _exportSingleTable(tableName),
       padding: const EdgeInsets.symmetric(horizontal: 4),
+    );
+  }
+
+  // ─── About Section (Premium Branding) ───
+
+  Widget _buildAboutSection(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.card(context) : AppColors.cardLight,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? AppColors.cardBorder(context) : AppColors.cardBorderLight),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Header
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+          child: Row(children: [
+            Icon(Icons.info_rounded, size: 18, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text('About', style: AppTypography.labelLarge.copyWith(
+              color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight,
+              fontSize: 13, letterSpacing: 0.5)),
+          ]),
+        ),
+
+        // App Info
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+            leading: Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.storefront_rounded, size: 20, color: Colors.white),
+            ),
+            title: Text('SKYWALK Billing', style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.textPrimary(context), fontWeight: FontWeight.w600)),
+            subtitle: Text('Version 2.0.0 — Built for commercial retail',
+              style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text('v2.0', style: TextStyle(
+                color: AppColors.success, fontSize: 10, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ),
+
+        // Branding Card
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [AppColors.primary.withValues(alpha: 0.08), AppColors.accent.withValues(alpha: 0.06)]
+                    : [AppColors.primary.withValues(alpha: 0.04), AppColors.accent.withValues(alpha: 0.03)],
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark
+                    ? AppColors.primary.withValues(alpha: 0.2)
+                    : AppColors.primary.withValues(alpha: 0.12)),
+            ),
+            child: Column(children: [
+              // SKYWALK Logo Icon
+              Container(
+                width: 56, height: 56,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 16, offset: const Offset(0, 6)),
+                  ],
+                ),
+                child: const Icon(Icons.receipt_long_rounded, color: Colors.white, size: 28),
+              ),
+              const SizedBox(height: 16),
+
+              // SKYWALK text
+              ShaderMask(
+                shaderCallback: (bounds) => AppColors.primaryGradient.createShader(bounds),
+                child: Text('SKYWALK', style: AppTypography.h3.copyWith(
+                  color: Colors.white, letterSpacing: 5, fontWeight: FontWeight.w800, fontSize: 22)),
+              ),
+              const SizedBox(height: 4),
+              Text('Billing Software', style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textSecondary(context), letterSpacing: 1)),
+
+              const SizedBox(height: 20),
+
+              // Divider
+              Container(
+                width: 50, height: 1,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [
+                    AppColors.primary.withValues(alpha: 0),
+                    AppColors.primary.withValues(alpha: 0.4),
+                    AppColors.primary.withValues(alpha: 0),
+                  ]),
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              // "Powered & Developed by" label
+              Text('Powered & Developed by', style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textTertiary(context), fontSize: 10, letterSpacing: 0.5)),
+
+              const SizedBox(height: 14),
+
+              // Clickable Barakah Tech branding
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () => launchUrl(
+                    Uri.parse('https://www.barakahtechnologies.com/'),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  child: Column(children: [
+                    // Logo with fallback
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        'assets/images/barakah_logo.jpg',
+                        width: 52, height: 52,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 52, height: 52,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Center(child: Text('B',
+                            style: TextStyle(color: AppColors.primary,
+                              fontSize: 24, fontWeight: FontWeight.w800))),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Company name
+                    Text('Barakah Tech', style: AppTypography.h4.copyWith(
+                      color: AppColors.primary, fontWeight: FontWeight.w700, letterSpacing: 1, fontSize: 16)),
+
+                    const SizedBox(height: 12),
+
+                    // Visit Website button
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.language_rounded, size: 14, color: AppColors.primary),
+                        const SizedBox(width: 6),
+                        Text('Visit Website', style: TextStyle(
+                          color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 4),
+                        Icon(Icons.arrow_forward_rounded, size: 12, color: AppColors.primary),
+                      ]),
+                    ),
+                  ]),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ]),
     );
   }
 
