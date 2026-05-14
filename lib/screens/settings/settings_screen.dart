@@ -19,7 +19,7 @@ import '../../providers/category_provider.dart';
 import '../../data/models/category_model.dart';
 import '../../data/local/db_helper.dart';
 import '../../data/remote/supabase_service.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../core/utils/data_export_service.dart';
 import '../../core/utils/formatters.dart';
 
@@ -116,21 +116,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// Pick a logo image from device (PNG/JPEG supported)
   Future<void> _pickLogo() async {
     try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 400,
-        maxHeight: 400,
-        imageQuality: 85,
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg'],
+        withData: true, // required for web — loads bytes into memory
       );
-      if (picked != null) {
-        final bytes = await picked.readAsBytes();
-        final name = picked.name.toLowerCase();
-        final mime = name.endsWith('.png') ? 'image/png' : 'image/jpeg';
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        final bytes = file.bytes;
+        if (bytes == null || bytes.isEmpty) {
+          _showToast('Could not read file data', isError: true);
+          return;
+        }
+        final ext = (file.extension ?? '').toLowerCase();
+        final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
         final b64 = base64Encode(bytes);
         final dataUri = 'data:$mime;base64,$b64';
         setState(() => _shopLogoCtrl.text = dataUri);
-        _showToast('Logo uploaded — press Save to apply');
+        _showToast('Logo selected — press Save to apply');
       }
     } catch (e) {
       debugPrint('Logo pick error: $e');
