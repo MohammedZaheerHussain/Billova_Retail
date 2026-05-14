@@ -19,7 +19,7 @@ import '../../providers/category_provider.dart';
 import '../../data/models/category_model.dart';
 import '../../data/local/db_helper.dart';
 import '../../data/remote/supabase_service.dart';
-import 'package:file_picker/file_picker.dart';
+import 'dart:html' as html;
 import '../../core/utils/data_export_service.dart';
 import '../../core/utils/formatters.dart';
 
@@ -113,38 +113,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ));
   }
 
-  /// Pick a logo image from device (PNG/JPEG supported)
-  Future<void> _pickLogo() async {
-    try {
-      // FileType.image uses native HTML accept="image/*" on web
-      // (FileType.custom with allowedExtensions does NOT work on Flutter web)
-      final result = await FilePicker.pickFiles(
-        type: FileType.image,
-        withData: true, // required for web — loads bytes into memory
-      );
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
-        final bytes = file.bytes;
-        if (bytes == null || bytes.isEmpty) {
-          _showToast('Could not read file data', isError: true);
-          return;
-        }
-        // Validate file type
-        final ext = (file.extension ?? '').toLowerCase();
-        if (!['png', 'jpg', 'jpeg'].contains(ext)) {
-          _showToast('Only PNG and JPEG logos are supported', isError: true);
-          return;
-        }
-        final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
-        final b64 = base64Encode(bytes);
-        final dataUri = 'data:$mime;base64,$b64';
-        setState(() => _shopLogoCtrl.text = dataUri);
-        _showToast('Logo selected — press Save to apply');
+  /// Pick a logo image from device using native HTML file input
+  void _pickLogo() {
+    final input = html.FileUploadInputElement()..accept = 'image/png,image/jpeg';
+    input.click();
+
+    input.onChange.listen((event) {
+      final file = input.files?.first;
+      if (file == null) return;
+
+      // Validate size (max 500KB for receipt logo)
+      if (file.size > 512000) {
+        _showToast('Logo too large (max 500KB)', isError: true);
+        return;
       }
-    } catch (e) {
-      debugPrint('Logo pick error: $e');
-      _showToast('Failed to load image. Try a different file.', isError: true);
-    }
+
+      final reader = html.FileReader();
+      reader.readAsDataUrl(file);
+      reader.onLoadEnd.listen((_) {
+        final dataUri = reader.result as String?;
+        if (dataUri != null && dataUri.isNotEmpty) {
+          setState(() => _shopLogoCtrl.text = dataUri);
+          _showToast('Logo selected — press Save to apply');
+        }
+      });
+      reader.onError.listen((_) {
+        _showToast('Failed to read image file', isError: true);
+      });
+    });
   }
 
   Future<void> _addCategory() async {
