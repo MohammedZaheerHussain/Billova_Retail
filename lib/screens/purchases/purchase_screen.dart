@@ -12,6 +12,7 @@ import '../../providers/category_provider.dart';
 import '../../data/models/vendor_model.dart';
 import '../../data/models/item_model.dart';
 import '../../data/models/purchase_model.dart';
+import '../../widgets/stock_alert_drawer.dart';
 
 class PurchaseScreen extends StatefulWidget {
   const PurchaseScreen({super.key});
@@ -35,15 +36,29 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   @override
   void initState() {
     super.initState();
+    // Listen for reorder items from the Stock Alert Drawer
+    StockAlertDrawer.reorderItem.addListener(_onReorderItem);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<VendorProvider>().loadVendors();
       context.read<InventoryProvider>().loadItems();
       context.read<PurchaseProvider>().loadPurchases();
+      // Check if there's a pending reorder item (navigated from dashboard)
+      _onReorderItem();
     });
+  }
+
+  /// Auto-add item when redirected from Stock Alert Drawer "Reorder" button
+  void _onReorderItem() {
+    final item = StockAlertDrawer.reorderItem.value;
+    if (item != null && item.id.isNotEmpty) {
+      StockAlertDrawer.reorderItem.value = null; // consume it
+      _addItemToEntries(item);
+    }
   }
 
   @override
   void dispose() {
+    StockAlertDrawer.reorderItem.removeListener(_onReorderItem);
     _paidCtrl.dispose();
     _itemSearchCtrl.dispose();
     super.dispose();

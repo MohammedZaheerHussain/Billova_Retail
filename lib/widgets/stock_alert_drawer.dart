@@ -5,11 +5,17 @@ import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/item_model.dart';
 import '../../providers/inventory_provider.dart';
+import '../screens/shell/app_shell.dart';
 
-/// Professional Stock Alert Drawer for Low Stock / Out of Stock items
+/// Professional Stock Alert Drawer for Low Stock / Out of Stock items.
+/// Reorder button navigates to Purchases (In) screen — no direct stock updates.
 class StockAlertDrawer extends StatefulWidget {
   final String mode; // 'low' or 'out'
   const StockAlertDrawer({super.key, required this.mode});
+
+  /// Item to pre-fill on the Purchases screen when navigating via Reorder.
+  /// PurchaseScreen reads this on load and auto-adds the item to the purchase list.
+  static final ValueNotifier<ItemModel?> reorderItem = ValueNotifier(null);
 
   @override
   State<StockAlertDrawer> createState() => _StockAlertDrawerState();
@@ -197,7 +203,7 @@ class _StockAlertDrawerState extends State<StockAlertDrawer> {
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                       itemCount: items.length,
-                      itemBuilder: (_, i) => _buildProductCard(items[i], accentColor, inventory),
+                      itemBuilder: (_, i) => _buildProductCard(items[i], accentColor),
                     ),
             ),
           ]),
@@ -232,7 +238,7 @@ class _StockAlertDrawerState extends State<StockAlertDrawer> {
     ]));
   }
 
-  Widget _buildProductCard(ItemModel item, Color accent, InventoryProvider inventory) {
+  Widget _buildProductCard(ItemModel item, Color accent) {
     final isOut = item.isOutOfStock;
     final statusColor = isOut ? AppColors.error : AppColors.warning;
     final statusText = isOut ? 'OUT OF STOCK' : 'LOW STOCK';
@@ -251,7 +257,6 @@ class _StockAlertDrawerState extends State<StockAlertDrawer> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // Top row: name + status badge
         Row(children: [
-          // Product avatar
           Container(
             width: 40, height: 40,
             decoration: BoxDecoration(
@@ -317,24 +322,40 @@ class _StockAlertDrawerState extends State<StockAlertDrawer> {
         ]),
         const SizedBox(height: 10),
 
-        // Action buttons
-        Row(children: [
-          Expanded(child: _actionButton(
-            icon: Icons.add_rounded,
-            label: 'Restock',
-            color: AppColors.success,
-            onTap: () => _showRestockDialog(item, inventory),
-          )),
-          const SizedBox(width: 8),
-          Expanded(child: _actionButton(
-            icon: Icons.edit_rounded,
-            label: 'Update Qty',
-            color: AppColors.primary,
-            onTap: () => _showUpdateQtyDialog(item, inventory),
-          )),
-        ]),
+        // Single Reorder button — navigates to Purchases (In) screen
+        _actionButton(
+          icon: Icons.shopping_cart_checkout_rounded,
+          label: 'Reorder from Vendor',
+          color: AppColors.accent,
+          onTap: () => _navigateToPurchase(item),
+        ),
       ]),
     );
+  }
+
+  /// Navigate to Purchases (In) screen with this item pre-filled
+  void _navigateToPurchase(ItemModel item) {
+    // Set the item to auto-add on the Purchase screen
+    StockAlertDrawer.reorderItem.value = item;
+
+    // Close this drawer
+    Navigator.pop(context);
+
+    // Navigate to Purchases (In) — index 4
+    AppShell.navigateTo.value = 'Purchases (In)';
+
+    // Show confirmation
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(children: [
+        const Icon(Icons.shopping_cart_checkout_rounded, color: Colors.white, size: 18),
+        const SizedBox(width: 8),
+        Expanded(child: Text('Redirecting to Purchase — ${item.name} ready to reorder')),
+      ]),
+      backgroundColor: AppColors.accent,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      duration: const Duration(seconds: 3),
+    ));
   }
 
   Widget _detailChip(IconData icon, String text) {
@@ -358,17 +379,17 @@ class _StockAlertDrawerState extends State<StockAlertDrawer> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: color.withValues(alpha: 0.25)),
           ),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 6),
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
             Text(label, style: AppTypography.labelSmall.copyWith(
-                color: color, fontWeight: FontWeight.w600, fontSize: 11)),
+                color: color, fontWeight: FontWeight.w600, fontSize: 12)),
           ]),
         ),
       ),
@@ -378,137 +399,5 @@ class _StockAlertDrawerState extends State<StockAlertDrawer> {
   String _fmtDate(DateTime d) {
     const m = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${d.day} ${m[d.month]}';
-  }
-
-  // Restock dialog
-  void _showRestockDialog(ItemModel item, InventoryProvider inventory) {
-    final qtyCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card(context),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [
-          Icon(Icons.add_circle_rounded, color: AppColors.success, size: 22),
-          const SizedBox(width: 8),
-          Expanded(child: Text('Restock - ${item.name}',
-              style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context)))),
-        ]),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          // Current stock info
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.surface(context),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('Current Stock', style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textSecondary(context))),
-              Text('${item.quantity} pcs', style: AppTypography.mono.copyWith(
-                  color: item.isOutOfStock ? AppColors.error : AppColors.warning,
-                  fontWeight: FontWeight.w700)),
-            ]),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: qtyCtrl,
-            keyboardType: TextInputType.number,
-            autofocus: true,
-            style: TextStyle(color: AppColors.textPrimary(context), fontSize: 14),
-            decoration: InputDecoration(
-              labelText: 'Add Quantity',
-              labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 12),
-              filled: true, fillColor: AppColors.surface(context),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-              prefixIcon: Icon(Icons.add_rounded, color: AppColors.success, size: 20),
-            ),
-          ),
-        ]),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: AppColors.textSecondary(context))),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final addQty = int.tryParse(qtyCtrl.text) ?? 0;
-              if (addQty > 0) {
-                inventory.restockItem(item.id, addQty);
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('Restocked ${item.name} (+$addQty)'),
-                  backgroundColor: AppColors.success,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ));
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Restock'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Update quantity dialog
-  void _showUpdateQtyDialog(ItemModel item, InventoryProvider inventory) {
-    final qtyCtrl = TextEditingController(text: '${item.quantity}');
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card(context),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [
-          Icon(Icons.edit_rounded, color: AppColors.primary, size: 22),
-          const SizedBox(width: 8),
-          Expanded(child: Text('Update - ${item.name}',
-              style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context)))),
-        ]),
-        content: TextField(
-          controller: qtyCtrl,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          style: TextStyle(color: AppColors.textPrimary(context), fontSize: 14),
-          decoration: InputDecoration(
-            labelText: 'New Quantity',
-            labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 12),
-            filled: true, fillColor: AppColors.surface(context),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-            prefixIcon: Icon(Icons.inventory_2_rounded, color: AppColors.primary, size: 20),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: AppColors.textSecondary(context))),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final newQty = int.tryParse(qtyCtrl.text) ?? item.quantity;
-              inventory.updateStock(item.id, newQty);
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text('Updated ${item.name} to $newQty pcs'),
-                backgroundColor: AppColors.primary,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ));
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Update'),
-          ),
-        ],
-      ),
-    );
   }
 }
