@@ -81,13 +81,9 @@ class SupabaseService {
       const noUpdatedAt = {'attendance', 'loyalty_transactions'};
       final orderCol = noUpdatedAt.contains(table) ? 'created_at' : 'updated_at';
 
-      // Tables without user_id column — rely on RLS only
-      const noUserId = {'clearance_items'};
-
+      // All tables now have user_id — filter by current user for data isolation
       var query = _client.from(table).select();
-      if (!noUserId.contains(table)) {
-        query = query.eq('user_id', userId!);
-      }
+      query = query.eq('user_id', userId!);
       final data = await query.order(orderCol);
 
       if (data.isNotEmpty) {
