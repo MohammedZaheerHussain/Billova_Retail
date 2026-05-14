@@ -127,6 +127,7 @@ class SalesProvider extends ChangeNotifier {
         itemId: existing.itemId,
         name: existing.name,
         price: existing.price,
+        costPrice: existing.costPrice,  // Preserve cost captured at first add
         quantity: existing.quantity + qty,
         total: existing.price * (existing.quantity + qty),
         gstRate: existing.gstRate,
@@ -136,6 +137,7 @@ class SalesProvider extends ChangeNotifier {
         itemId: item.id,
         name: item.name,
         price: item.price,
+        costPrice: item.costPrice,  // Capture cost at time of sale
         quantity: qty,
         total: item.price * qty,
         gstRate: item.gstRate,
@@ -155,6 +157,7 @@ class SalesProvider extends ChangeNotifier {
         itemId: item.itemId,
         name: item.name,
         price: item.price,
+        costPrice: item.costPrice,  // Preserve cost price on qty change
         quantity: qty,
         total: item.price * qty,
         gstRate: item.gstRate,
