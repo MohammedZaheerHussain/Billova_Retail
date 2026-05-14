@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -18,6 +20,7 @@ import '../../providers/category_provider.dart';
 import '../../data/models/category_model.dart';
 import '../../data/local/db_helper.dart';
 import '../../data/remote/supabase_service.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/utils/data_export_service.dart';
 import '../../core/utils/formatters.dart';
 
@@ -493,7 +496,99 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildTextField('Shop Name (on receipt)', _shopNameCtrl, isDark),
               _buildTextField('Shop Address', _shopAddressCtrl, isDark),
               _buildTextField('Shop Phone', _shopPhoneCtrl, isDark),
-              _buildTextField('Logo URL (optional)', _shopLogoCtrl, isDark),
+              // ─── Logo Upload ───
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Receipt Logo', style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w500,
+                      color: isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight,
+                    )),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        // Preview
+                        Container(
+                          width: 56, height: 56,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                          ),
+                          child: _shopLogoCtrl.text.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(9),
+                                  child: _shopLogoCtrl.text.startsWith('data:')
+                                      ? Image.memory(
+                                          base64Decode(_shopLogoCtrl.text.split(',').last),
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (_, __, ___) => Icon(Icons.broken_image_rounded,
+                                              color: AppColors.textTertiary(context), size: 24),
+                                        )
+                                      : Image.network(
+                                          _shopLogoCtrl.text,
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (_, __, ___) => Icon(Icons.broken_image_rounded,
+                                              color: AppColors.textTertiary(context), size: 24),
+                                        ),
+                                )
+                              : Icon(Icons.image_outlined,
+                                  color: AppColors.textTertiary(context), size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        // Upload button
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              final picker = ImagePicker();
+                              final picked = await picker.pickImage(
+                                source: ImageSource.gallery,
+                                maxWidth: 400,
+                                maxHeight: 400,
+                                imageQuality: 85,
+                              );
+                              if (picked != null) {
+                                final bytes = await picked.readAsBytes();
+                                final ext = picked.name.toLowerCase();
+                                final mime = ext.endsWith('.png') ? 'image/png' : 'image/jpeg';
+                                final b64 = base64Encode(bytes);
+                                final dataUri = 'data:$mime;base64,$b64';
+                                setState(() => _shopLogoCtrl.text = dataUri);
+                              }
+                            },
+                            icon: const Icon(Icons.upload_file_rounded, size: 18),
+                            label: Text(
+                              _shopLogoCtrl.text.isNotEmpty ? 'Change Logo' : 'Upload Logo (PNG/JPG)',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade100,
+                              foregroundColor: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Remove button
+                        if (_shopLogoCtrl.text.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () => setState(() => _shopLogoCtrl.text = ''),
+                            icon: Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+                            tooltip: 'Remove logo',
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
               _buildTextField('Receipt Footer', _receiptFooterCtrl, isDark),
               const SizedBox(height: 8),
               Padding(

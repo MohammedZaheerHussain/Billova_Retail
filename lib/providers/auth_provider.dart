@@ -179,11 +179,17 @@ class AuthProvider extends ChangeNotifier {
       debugPrint('⚠️ Failed to clear local DB: $e');
     }
 
-    // ─── STEP 2: Clear ALL SharedPreferences (settings, theme, etc.) ───
+    // ─── STEP 2: Clear SharedPreferences BUT preserve theme ───
     try {
       final prefs = await SharedPreferences.getInstance();
+      // Save theme before clearing — theme is a device preference, not user data
+      final savedTheme = prefs.getString('app_theme_mode');
       await prefs.clear();
-      debugPrint('🧹 SharedPreferences cleared');
+      // Restore theme so it survives user switch
+      if (savedTheme != null) {
+        await prefs.setString('app_theme_mode', savedTheme);
+      }
+      debugPrint('🧹 SharedPreferences cleared (theme preserved)');
     } catch (e) {
       debugPrint('⚠️ Failed to clear SharedPreferences: $e');
     }
