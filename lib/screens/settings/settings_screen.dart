@@ -116,9 +116,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// Pick a logo image from device (PNG/JPEG supported)
   Future<void> _pickLogo() async {
     try {
+      // FileType.image uses native HTML accept="image/*" on web
+      // (FileType.custom with allowedExtensions does NOT work on Flutter web)
       final result = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['png', 'jpg', 'jpeg'],
+        type: FileType.image,
         withData: true, // required for web — loads bytes into memory
       );
       if (result != null && result.files.isNotEmpty) {
@@ -128,7 +129,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _showToast('Could not read file data', isError: true);
           return;
         }
+        // Validate file type
         final ext = (file.extension ?? '').toLowerCase();
+        if (!['png', 'jpg', 'jpeg'].contains(ext)) {
+          _showToast('Only PNG and JPEG logos are supported', isError: true);
+          return;
+        }
         final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
         final b64 = base64Encode(bytes);
         final dataUri = 'data:$mime;base64,$b64';
