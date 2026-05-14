@@ -195,7 +195,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _chartData = chartData;
         _lowStockItems = results[6] as List<Map<String, dynamic>>;
         _lowStockCount = _lowStockItems.length;
-        _todayProfit = _todaySales - _todayExpenses;
+        // Calculate gross profit from today's sales (per-item: selling - cost * qty)
+        final salesProv = context.read<SalesProvider>();
+        final now = DateTime.now();
+        final todayStart = DateTime(now.year, now.month, now.day);
+        final todaySales = salesProv.sales.where((s) {
+          final local = s.createdAt.toLocal();
+          return !local.isBefore(todayStart);
+        }).toList();
+        _todayProfit = todaySales.fold(0.0, (sum, s) => sum + s.grossProfit);
         _topProducts = topProducts;
         _paymentDistribution = paymentDist;
         _vendorsWithDues = vendorsWithDues;

@@ -4,6 +4,7 @@ class SaleItem {
   final String itemId;
   final String name;
   final double price;
+  final double costPrice;   // Purchase/cost price at time of sale (for profit calc)
   final int quantity;
   final double total;
   final double gstRate;     // GST % for this item (0/5/12/18/28)
@@ -12,11 +13,14 @@ class SaleItem {
     required this.itemId,
     required this.name,
     required this.price,
+    this.costPrice = 0,
     required this.quantity,
     required this.total,
     this.gstRate = 0,
   });
 
+  /// Gross profit for this line item: (selling_price - cost_price) * quantity
+  double get profit => (price - costPrice) * quantity;
   /// GST amount for this line item
   double get gstAmount => total * gstRate / 100;
   /// Taxable value (item total before GST)
@@ -26,6 +30,7 @@ class SaleItem {
         'item_id': itemId,
         'name': name,
         'price': price,
+        'cost_price': costPrice,
         'quantity': quantity,
         'total': total,
         'gst_rate': gstRate,
@@ -35,6 +40,7 @@ class SaleItem {
         itemId: map['item_id'] as String,
         name: map['name'] as String,
         price: (map['price'] as num).toDouble(),
+        costPrice: (map['cost_price'] as num?)?.toDouble() ?? 0,
         quantity: (map['quantity'] as num).toInt(),
         total: (map['total'] as num).toDouble(),
         gstRate: (map['gst_rate'] as num?)?.toDouble() ?? 0,
@@ -89,6 +95,13 @@ class SaleModel {
 
   int get totalItems => items.fold(0, (sum, item) => sum + item.quantity);
   double get discountPercent => subtotal > 0 ? (discount / subtotal) * 100 : 0;
+
+  /// Total cost of goods sold (sum of cost_price * quantity for each item)
+  double get totalCostPrice => items.fold(0.0, (sum, item) => sum + (item.costPrice * item.quantity));
+
+  /// Gross profit = sum of per-item profits - discount
+  /// Per-item profit = (selling_price - cost_price) * quantity
+  double get grossProfit => items.fold(0.0, (sum, item) => sum + item.profit) - discount;
 
   Map<String, dynamic> toMap() {
     return {

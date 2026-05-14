@@ -206,7 +206,9 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
       return e.createdAt.isAfter(range.start) && e.createdAt.isBefore(range.end);
     }).fold(0.0, (sum, e) => sum + e.amount);
 
-    final profit = totalRevenue - totalExpenses;
+    // Gross Profit = sum of per-item (selling_price - cost_price) * quantity - discount
+    // NOT revenue - expenses (that's net profit, and expenses != cost of goods)
+    final profit = filteredSales.fold(0.0, (sum, s) => sum + s.grossProfit);
     final totalStock = inventory.items.fold(0, (sum, i) => sum + i.quantity);
     final lowStockItems = inventory.items.where((i) => i.isLowStock && i.quantity > 0).length;
     final outOfStock = inventory.items.where((i) => i.quantity == 0).length;
