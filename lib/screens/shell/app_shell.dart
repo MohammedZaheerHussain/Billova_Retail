@@ -680,7 +680,13 @@ class _AppShellState extends State<AppShell> {
                     navigator.pushNamedAndRemoveUntil('/login', (_) => false);
 
                     // Now safe to update provider state (no mounted dependents)
-                    auth.signOut();
+                    if (isStaffSession) {
+                      // Staff logout — keep Supabase session alive for the shop
+                      auth.signOut();
+                    } else {
+                      // Admin / full sign out — wipe local data for clean user switch
+                      auth.fullSignOut();
+                    }
                   }
                 },
                 child: Container(

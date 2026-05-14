@@ -70,6 +70,7 @@ class InventoryProvider extends ChangeNotifier {
     String storageLocation = '',
     required double price,
     double costPrice = 0,
+    double gstRate = 0,
     int quantity = 0,
     int lowStockThreshold = 5,
   }) async {
@@ -85,6 +86,7 @@ class InventoryProvider extends ChangeNotifier {
         storageLocation: storageLocation,
         price: price,
         costPrice: costPrice,
+        gstRate: gstRate,
         quantity: quantity,
         lowStockThreshold: lowStockThreshold,
       );

@@ -6,6 +6,7 @@ class SaleItem {
   final double price;
   final int quantity;
   final double total;
+  final double gstRate;     // GST % for this item (0/5/12/18/28)
 
   SaleItem({
     required this.itemId,
@@ -13,7 +14,13 @@ class SaleItem {
     required this.price,
     required this.quantity,
     required this.total,
+    this.gstRate = 0,
   });
+
+  /// GST amount for this line item
+  double get gstAmount => total * gstRate / 100;
+  /// Taxable value (item total before GST)
+  double get taxableValue => total;
 
   Map<String, dynamic> toMap() => {
         'item_id': itemId,
@@ -21,6 +28,7 @@ class SaleItem {
         'price': price,
         'quantity': quantity,
         'total': total,
+        'gst_rate': gstRate,
       };
 
   factory SaleItem.fromMap(Map<String, dynamic> map) => SaleItem(
@@ -29,6 +37,7 @@ class SaleItem {
         price: (map['price'] as num).toDouble(),
         quantity: (map['quantity'] as num).toInt(),
         total: (map['total'] as num).toDouble(),
+        gstRate: (map['gst_rate'] as num?)?.toDouble() ?? 0,
       );
 }
 
@@ -41,6 +50,9 @@ class SaleModel {
   final double subtotal;
   final double discount;
   final double total;
+  final double gstAmount;        // total GST across all items
+  final double cgst;             // CGST (half of GST — same state)
+  final double sgst;             // SGST (half of GST — same state)
   final String paymentMode;
   final bool isDeleted;
   final DateTime createdAt;
@@ -60,6 +72,9 @@ class SaleModel {
     required this.subtotal,
     this.discount = 0,
     required this.total,
+    this.gstAmount = 0,
+    this.cgst = 0,
+    this.sgst = 0,
     this.paymentMode = 'Cash',
     this.staffId = '',
     this.staffName = '',
@@ -85,6 +100,9 @@ class SaleModel {
       'subtotal': subtotal,
       'discount': discount,
       'total': total,
+      'gst_amount': gstAmount,
+      'cgst': cgst,
+      'sgst': sgst,
       'payment_mode': paymentMode,
       'staff_id': staffId,
       'staff_name': staffName,
@@ -119,6 +137,9 @@ class SaleModel {
       subtotal: (map['subtotal'] as num).toDouble(),
       discount: (map['discount'] as num?)?.toDouble() ?? 0,
       total: (map['total'] as num).toDouble(),
+      gstAmount: (map['gst_amount'] as num?)?.toDouble() ?? 0,
+      cgst: (map['cgst'] as num?)?.toDouble() ?? 0,
+      sgst: (map['sgst'] as num?)?.toDouble() ?? 0,
       paymentMode: map['payment_mode'] as String? ?? 'Cash',
       staffId: map['staff_id'] as String? ?? '',
       staffName: map['staff_name'] as String? ?? '',
@@ -138,6 +159,9 @@ class SaleModel {
     double? subtotal,
     double? discount,
     double? total,
+    double? gstAmount,
+    double? cgst,
+    double? sgst,
     String? paymentMode,
     double? loyaltyDiscount,
     int? pointsRedeemed,
@@ -154,6 +178,9 @@ class SaleModel {
       subtotal: subtotal ?? this.subtotal,
       discount: discount ?? this.discount,
       total: total ?? this.total,
+      gstAmount: gstAmount ?? this.gstAmount,
+      cgst: cgst ?? this.cgst,
+      sgst: sgst ?? this.sgst,
       paymentMode: paymentMode ?? this.paymentMode,
       staffId: staffId,
       staffName: staffName,

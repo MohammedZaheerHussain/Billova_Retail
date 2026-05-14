@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -18,6 +19,7 @@ import '../../providers/category_provider.dart';
 import '../../data/models/category_model.dart';
 import '../../data/local/db_helper.dart';
 import '../../data/remote/supabase_service.dart';
+import 'dart:html' as html;
 import '../../core/utils/data_export_service.dart';
 import '../../core/utils/formatters.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -36,10 +38,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _exportStatus = '';
   bool _showMonthlyReminder = false;
 
-  // Store Profile controllers
-  final _storeNameCtrl = TextEditingController();
-  final _addressCtrl = TextEditingController();
-  final _receiptTermsCtrl = TextEditingController();
+  // Store Profile + Receipt Settings (unified — single source of truth)
+  final _shopNameCtrl = TextEditingController();
+  final _shopAddressCtrl = TextEditingController();
+  final _shopPhoneCtrl = TextEditingController();
+  final _shopLogoCtrl = TextEditingController();
+  final _receiptFooterCtrl = TextEditingController();
+  bool _autoPrint = false;
+
+  // GST Settings
+  bool _gstEnabled = false;
+  final _gstNumberCtrl = TextEditingController();
+  final _gstBusinessNameCtrl = TextEditingController();
+  final _gstStateCodeCtrl = TextEditingController();
 
   // Category Manager
   final _categoryNameCtrl = TextEditingController();
@@ -48,14 +59,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _categoryExpanded = false;
   final _categorySearchCtrl = TextEditingController();
   String _categorySearch = '';
-
-  // Printer Config
-  final _shopNameCtrl = TextEditingController();
-  final _shopPhoneCtrl = TextEditingController();
-  final _shopAddressCtrl = TextEditingController();
-  final _shopLogoCtrl = TextEditingController();
-  final _receiptFooterCtrl = TextEditingController();
-  bool _autoPrint = false;
 
   @override
   void initState() {
@@ -68,39 +71,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
-    _storeNameCtrl.dispose();
-    _addressCtrl.dispose();
-    _receiptTermsCtrl.dispose();
-    _categoryNameCtrl.dispose();
-    _categorySearchCtrl.dispose();
     _shopNameCtrl.dispose();
-    _shopPhoneCtrl.dispose();
     _shopAddressCtrl.dispose();
+    _shopPhoneCtrl.dispose();
     _shopLogoCtrl.dispose();
     _receiptFooterCtrl.dispose();
+    _gstNumberCtrl.dispose();
+    _gstBusinessNameCtrl.dispose();
+    _gstStateCodeCtrl.dispose();
+    _categoryNameCtrl.dispose();
+    _categorySearchCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _loadSettings() async {
     final db = DBHelper.instance;
-    _storeNameCtrl.text = await db.getSetting('store_name') ?? '';
-    _addressCtrl.text = await db.getSetting('store_address') ?? '';
-    _receiptTermsCtrl.text = await db.getSetting('receipt_terms') ?? 'Thank you for your business!\nGoods once sold cannot be returned.';
-    // Printer settings
+    // Unified store/receipt settings — single source of truth
     _shopNameCtrl.text = await db.getSetting('shop_name') ?? '';
-    _shopPhoneCtrl.text = await db.getSetting('shop_phone') ?? '';
     _shopAddressCtrl.text = await db.getSetting('shop_address') ?? '';
+    _shopPhoneCtrl.text = await db.getSetting('shop_phone') ?? '';
     _shopLogoCtrl.text = await db.getSetting('shop_logo') ?? '';
     _receiptFooterCtrl.text = await db.getSetting('receipt_footer') ?? 'Thank you! Visit again';
     _autoPrint = (await db.getSetting('auto_print') ?? 'false') == 'true';
+    // GST settings
+    _gstEnabled = (await db.getSetting('gst_enabled') ?? 'false') == 'true';
+    _gstNumberCtrl.text = await db.getSetting('gst_number') ?? '';
+    _gstBusinessNameCtrl.text = await db.getSetting('gst_business_name') ?? '';
+    _gstStateCodeCtrl.text = await db.getSetting('gst_state_code') ?? '';
     if (mounted) setState(() {});
   }
 
   Future<void> _saveSettings() async {
     final db = DBHelper.instance;
-    await db.setSetting('store_name', _storeNameCtrl.text.trim());
-    await db.setSetting('store_address', _addressCtrl.text.trim());
-    await db.setSetting('receipt_terms', _receiptTermsCtrl.text.trim());
+    await db.setSetting('shop_name', _shopNameCtrl.text.trim());
+    await db.setSetting('shop_address', _shopAddressCtrl.text.trim());
+    await db.setSetting('shop_phone', _shopPhoneCtrl.text.trim());
+    await db.setSetting('shop_logo', _shopLogoCtrl.text);
+    await db.setSetting('receipt_footer', _receiptFooterCtrl.text.trim());
+    // GST settings
+    await db.setSetting('gst_enabled', _gstEnabled.toString());
+    await db.setSetting('gst_number', _gstNumberCtrl.text.trim());
+    await db.setSetting('gst_business_name', _gstBusinessNameCtrl.text.trim());
+    await db.setSetting('gst_state_code', _gstStateCodeCtrl.text.trim());
+    // Refresh GST in SalesProvider
+    if (mounted) {
+      context.read<SalesProvider>().loadGstSetting();
+    }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('Settings saved'),
@@ -119,6 +135,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
+  }
+
+  /// Pick a logo image from device using native HTML file input
+  void _pickLogo() {
+    final input = html.FileUploadInputElement()..accept = 'image/png,image/jpeg';
+    input.click();
+
+    input.onChange.listen((event) {
+      final file = input.files?.first;
+      if (file == null) return;
+
+      // Validate size (max 500KB for receipt logo)
+      if (file.size > 512000) {
+        _showToast('Logo too large (max 500KB)', isError: true);
+        return;
+      }
+
+      final reader = html.FileReader();
+      reader.readAsDataUrl(file);
+      reader.onLoadEnd.listen((_) {
+        final dataUri = reader.result as String?;
+        if (dataUri != null && dataUri.isNotEmpty) {
+          setState(() => _shopLogoCtrl.text = dataUri);
+          _showToast('Logo selected — press Save to apply');
+        }
+      });
+      reader.onError.listen((_) {
+        _showToast('Failed to read image file', isError: true);
+      });
+    });
   }
 
   Future<void> _addCategory() async {
@@ -440,46 +486,97 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 )),
             const SizedBox(height: 24),
 
-            // ─── Store Profile ───
-            _buildSection(isDark, 'Store Profile', Icons.storefront_rounded, [
-              _buildTextField('Store Name', _storeNameCtrl, isDark),
-              _buildTextField('Address', _addressCtrl, isDark),
-              _buildLabel('Receipt Terms & Conditions', isDark),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: TextField(
-                  controller: _receiptTermsCtrl,
-                  maxLines: 3,
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight),
-                  decoration: _inputDeco(isDark, 'e.g. Thank you for your business!'),
-                ),
-              ),
-              const SizedBox(height: 12),
+            // ─── Store & Receipt Settings (Unified) ───
+            _buildSection(isDark, 'Store & Receipt Settings', Icons.storefront_rounded, [
+              _buildTextField('Store Name', _shopNameCtrl, isDark),
+              _buildTextField('Address', _shopAddressCtrl, isDark),
+              _buildTextField('Phone', _shopPhoneCtrl, isDark),
+              // ─── Logo Upload ───
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                child: SizedBox(
-                  width: double.infinity, height: 48,
-                  child: ElevatedButton(
-                    onPressed: _saveSettings,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Receipt Logo', style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w500,
+                      color: isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight,
+                    )),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        // Preview
+                        Container(
+                          width: 56, height: 56,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                          ),
+                          child: _shopLogoCtrl.text.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(9),
+                                  child: _shopLogoCtrl.text.startsWith('data:')
+                                      ? Image.memory(
+                                          base64Decode(_shopLogoCtrl.text.split(',').last),
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (_, __, ___) => Icon(Icons.broken_image_rounded,
+                                              color: AppColors.textTertiary(context), size: 24),
+                                        )
+                                      : Image.network(
+                                          _shopLogoCtrl.text,
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (_, __, ___) => Icon(Icons.broken_image_rounded,
+                                              color: AppColors.textTertiary(context), size: 24),
+                                        ),
+                                )
+                              : Icon(Icons.image_outlined,
+                                  color: AppColors.textTertiary(context), size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        // Upload button
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _pickLogo(),
+                            icon: const Icon(Icons.upload_file_rounded, size: 18),
+                            label: Text(
+                              _shopLogoCtrl.text.isNotEmpty ? 'Change Logo' : 'Upload Logo (PNG/JPG)',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade100,
+                              foregroundColor: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Remove button
+                        if (_shopLogoCtrl.text.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () => setState(() => _shopLogoCtrl.text = ''),
+                            icon: Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+                            tooltip: 'Remove logo',
+                          ),
+                        ],
+                      ],
                     ),
-                    child: Text('Save Settings', style: AppTypography.button.copyWith(color: Colors.white)),
-                  ),
+                  ],
                 ),
               ),
-            ]),
-            const SizedBox(height: 16),
-
-            // ─── Thermal Printer Config ───
-            _buildSection(isDark, 'Thermal Printer (80mm)', Icons.print_rounded, [
+              _buildTextField('Receipt Footer', _receiptFooterCtrl, isDark),
+              // ─── Auto-Print Toggle ───
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                 child: Row(children: [
-                  Expanded(child: Text('Auto-Print on Sale', style: AppTypography.bodyMedium.copyWith(
+                  Icon(Icons.print_rounded, size: 18,
+                      color: isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text('Auto-Print Receipt on Sale', style: AppTypography.bodyMedium.copyWith(
                       color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight))),
                   Switch(
                     value: _autoPrint,
@@ -491,43 +588,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ]),
               ),
-              _buildTextField('Shop Name (on receipt)', _shopNameCtrl, isDark),
-              _buildTextField('Shop Address', _shopAddressCtrl, isDark),
-              _buildTextField('Shop Phone', _shopPhoneCtrl, isDark),
-              _buildTextField('Logo URL (optional)', _shopLogoCtrl, isDark),
-              _buildTextField('Receipt Footer', _receiptFooterCtrl, isDark),
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: SizedBox(
                   width: double.infinity, height: 48,
                   child: ElevatedButton.icon(
-                    onPressed: () async {
-                      final db = DBHelper.instance;
-                      await db.setSetting('shop_name', _shopNameCtrl.text.trim());
-                      await db.setSetting('shop_address', _shopAddressCtrl.text.trim());
-                      await db.setSetting('shop_phone', _shopPhoneCtrl.text.trim());
-                      await db.setSetting('shop_logo', _shopLogoCtrl.text.trim());
-                      await db.setSetting('receipt_footer', _receiptFooterCtrl.text.trim());
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: const Text('Printer settings saved'),
-                          backgroundColor: AppColors.success,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ));
-                      }
-                    },
+                    onPressed: _saveSettings,
                     icon: const Icon(Icons.save_rounded, size: 18),
-                    label: Text('Save Printer Settings', style: AppTypography.button.copyWith(color: Colors.white)),
+                    label: Text('Save Settings', style: AppTypography.button.copyWith(color: Colors.white)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
               ),
+            ]),
+            const SizedBox(height: 16),
+
+            // ─── GST Settings ───
+            _buildSection(isDark, 'GST Settings', Icons.receipt_long_rounded, [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: Row(children: [
+                  Icon(Icons.percent_rounded, size: 18,
+                      color: isDark ? AppColors.textSecondary(context) : AppColors.textSecondaryLight),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text('Enable GST', style: AppTypography.bodyMedium.copyWith(
+                      color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight))),
+                  Switch(
+                    value: _gstEnabled,
+                    activeColor: AppColors.accent,
+                    onChanged: (v) => setState(() => _gstEnabled = v),
+                  ),
+                ]),
+              ),
+              if (_gstEnabled) ...[
+                _buildTextField('GSTIN Number', _gstNumberCtrl, isDark),
+                _buildTextField('Registered Business Name', _gstBusinessNameCtrl, isDark),
+                _buildTextField('State Code (e.g. 36)', _gstStateCodeCtrl, isDark),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.info_outline_rounded, size: 16, color: AppColors.accent),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'GST will be auto-calculated per item based on the GST rate set in each product. '
+                          'CGST + SGST split (same state) will appear on invoices.',
+                          style: TextStyle(
+                            fontSize: 11, color: AppColors.accent,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ]),
+                  ),
+                ),
+              ],
             ]),
             const SizedBox(height: 16),
             _buildCategoryManagerAccordion(isDark),

@@ -50,6 +50,8 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _searchFocus.requestFocus();
     });
+    // Load GST setting
+    Future.microtask(() => context.read<SalesProvider>().loadGstSetting());
   }
 
   @override
@@ -205,20 +207,11 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       pointsEarned: pointsEarned,
     );
 
-    if (sale != null && mounted) {
-      // Deduct stock
-      final inventory = context.read<InventoryProvider>();
-      for (final item in sale.items) {
-        await inventory.deductStock(item.itemId, item.quantity);
-      }
-
-      if (!mounted) return;
-      // Refresh cash till
-      context.read<CashTillProvider>().refresh();
-
-      // Auto-save customer + track purchase stats + loyalty
+    if (sale != null) {
+      // ─── CRITICAL: Save customer FIRST (before any mounted check) ───
+      // Customer data must NEVER be lost, even if the widget unmounts
+      final customerProvider = context.read<CustomerProvider>();
       if (sale.customerName.isNotEmpty && sale.customerName != 'Walk-in Customer') {
-        final customerProvider = context.read<CustomerProvider>();
         final earnRate = loyalty.isEnabled ? loyalty.earnRate : 0;
 
         // Redeem points first (if used)
@@ -256,6 +249,16 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
           }
         }
       }
+
+      // Deduct stock
+      final inventory = context.read<InventoryProvider>();
+      for (final item in sale.items) {
+        await inventory.deductStock(item.itemId, item.quantity);
+      }
+
+      if (!mounted) return;
+      // Refresh cash till
+      context.read<CashTillProvider>().refresh();
 
       // Capture payment values before clearing
       final cashPaid = double.tryParse(_cashPaidCtrl.text) ?? 0;
@@ -973,8 +976,16 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                         '- ${Formatters.currency(sales.discountAmount)}',
                         color: AppColors.error,
                       ),
+                    // GST breakdown (only when enabled)
+                    if (sales.gstEnabled && sales.gstAmount > 0) ...[
+                      Divider(color: AppColors.cardBorder(context), height: 12),
+                      _totalRow('CGST', '+ ${Formatters.currency(sales.cgst)}',
+                          color: AppColors.accent),
+                      _totalRow('SGST', '+ ${Formatters.currency(sales.sgst)}',
+                          color: AppColors.accent),
+                    ],
                     Divider(color: AppColors.cardBorder(context), height: 16),
-                    _totalRow('Total', Formatters.currency(sales.total),
+                    _totalRow('Total', Formatters.currency(sales.grandTotal),
                         isBold: loyaltyDisc == 0, color: AppColors.accent),
                     // Loyalty points discount line
                     if (_usePoints && _availablePoints > 0 && loyalty.isEnabled) ...[

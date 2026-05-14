@@ -8,6 +8,8 @@ import '../../providers/customer_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../providers/loyalty_settings_provider.dart';
 import '../../data/models/customer_model.dart';
+import '../../data/remote/supabase_service.dart';
+import 'package:flutter/foundation.dart';
 
 class CustomerScreen extends StatefulWidget {
   const CustomerScreen({super.key});
@@ -218,6 +220,35 @@ class _CustomerScreenState extends State<CustomerScreen> {
                             style: AppTypography.mono.copyWith(color: AppColors.accent, fontSize: 13)),
                       ),
                       const SizedBox(width: 12),
+                      // ─── Refresh Button ───
+                      IconButton(
+                        onPressed: () async {
+                          // On web, pull fresh data from Supabase first
+                          if (kIsWeb) {
+                            try {
+                              final supa = SupabaseService.instance;
+                              if (supa.isLoggedIn) {
+                                await supa.pullTable('customers');
+                              }
+                            } catch (_) {}
+                          }
+                          await provider.loadCustomers();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Customers refreshed (${provider.customers.length})'),
+                                backgroundColor: AppColors.success,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
+                        tooltip: 'Refresh customer list',
+                        icon: Icon(Icons.refresh_rounded, color: AppColors.accent),
+                      ),
+                      const SizedBox(width: 8),
                       ElevatedButton.icon(
                         onPressed: () => _showCustomerDialog(),
                         icon: Icon(Icons.person_add_rounded, size: 18),

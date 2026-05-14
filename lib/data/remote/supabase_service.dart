@@ -56,18 +56,18 @@ class SupabaseService {
 
     try {
       // Sync priority order: items first, then dependent tables
-      await _pullTable('items');
-      await _pullTable('sales');
-      await _pullTable('purchases');
-      await _pullTable('expenses');
-      await _pullTable('vendors');
-      await _pullTable('staff');
-      await _pullTable('attendance');
-      await _pullTable('customers');
-      await _pullTable('cash_till');
-      await _pullTable('categories');
-      await _pullTable('clearance_items');
-      await _pullTable('loyalty_transactions');
+      await pullTable('items');
+      await pullTable('sales');
+      await pullTable('purchases');
+      await pullTable('expenses');
+      await pullTable('vendors');
+      await pullTable('staff');
+      await pullTable('attendance');
+      await pullTable('customers');
+      await pullTable('cash_till');
+      await pullTable('categories');
+      await pullTable('clearance_items');
+      await pullTable('loyalty_transactions');
       debugPrint('✅ Full data pull complete');
     } catch (e) {
       debugPrint('⚠️ Data pull had errors (non-fatal): $e');
@@ -75,15 +75,20 @@ class SupabaseService {
     }
   }
 
-  Future<void> _pullTable(String table) async {
+  Future<void> pullTable(String table) async {
     try {
-      // Some tables (like attendance) don't have updated_at
-      final orderCol = (table == 'attendance') ? 'created_at' : 'updated_at';
-      final data = await _client
-          .from(table)
-          .select()
-          .eq('user_id', userId!)
-          .order(orderCol);
+      // Tables without updated_at — order by created_at instead
+      const noUpdatedAt = {'attendance', 'loyalty_transactions'};
+      final orderCol = noUpdatedAt.contains(table) ? 'created_at' : 'updated_at';
+
+      // Tables without user_id column — rely on RLS only
+      const noUserId = {'clearance_items'};
+
+      var query = _client.from(table).select();
+      if (!noUserId.contains(table)) {
+        query = query.eq('user_id', userId!);
+      }
+      final data = await query.order(orderCol);
 
       if (data.isNotEmpty) {
         // Convert Supabase records to local SQLite format

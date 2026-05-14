@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import '../data/local/db_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+/// ThemeProvider uses SharedPreferences (localStorage on web) to persist
+/// the user's theme choice. This survives hard refresh and app restart.
+/// DO NOT use DBHelper for settings on web — _WebDB is in-memory only.
 class ThemeProvider extends ChangeNotifier {
   static const _themeKey = 'app_theme_mode';
-  final DBHelper _db = DBHelper.instance;
 
   ThemeMode _themeMode = ThemeMode.dark;
   bool _isInitialized = false;
@@ -12,15 +14,15 @@ class ThemeProvider extends ChangeNotifier {
   bool get isDark => _themeMode == ThemeMode.dark;
   bool get isInitialized => _isInitialized;
 
-  /// Load saved theme from persistent storage.
+  /// Load saved theme from SharedPreferences (localStorage on web).
   /// Call this during app startup BEFORE UI renders.
   Future<void> loadSavedTheme() async {
     try {
-      final saved = await _db.getSetting(_themeKey);
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_themeKey);
       if (saved != null) {
         _themeMode = saved == 'light' ? ThemeMode.light : ThemeMode.dark;
       }
-      // If no saved preference, keep default (dark)
       debugPrint('🎨 ThemeProvider: restored theme = ${_themeMode == ThemeMode.dark ? "dark" : "light"}');
     } catch (e) {
       debugPrint('⚠️ ThemeProvider: failed to load theme, using default dark: $e');
@@ -42,11 +44,12 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Persist theme preference to local DB
+  /// Persist theme preference via SharedPreferences (localStorage on web)
   Future<void> _persistTheme() async {
     final value = _themeMode == ThemeMode.dark ? 'dark' : 'light';
     try {
-      await _db.setSetting(_themeKey, value);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_themeKey, value);
       debugPrint('🎨 ThemeProvider: saved theme = $value');
     } catch (e) {
       debugPrint('⚠️ ThemeProvider: failed to save theme: $e');

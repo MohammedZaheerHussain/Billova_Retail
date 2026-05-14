@@ -31,6 +31,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   late TextEditingController _lowStockCtrl;
   bool _isLoading = false;
   bool _autoBarcode = false;
+  double _gstRate = 0;
 
   // Category system
   String? _selectedCategory;
@@ -55,6 +56,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     _qtyCtrl = TextEditingController(text: widget.item?.quantity.toString() ?? '0');
     _lowStockCtrl = TextEditingController(text: widget.item?.lowStockThreshold.toString() ?? '5');
     _selectedCategory = widget.item?.category;
+    _gstRate = widget.item?.gstRate ?? 0;
 
     // Ensure categories are loaded, then set dynamic fields
     Future.microtask(() {
@@ -132,6 +134,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
         storageLocation: _locationCtrl.text.trim(),
         price: double.parse(_priceCtrl.text.trim()),
         costPrice: double.tryParse(_costPriceCtrl.text.trim()) ?? 0,
+        gstRate: _gstRate,
         quantity: int.tryParse(_qtyCtrl.text.trim()) ?? 0,
         lowStockThreshold: int.tryParse(_lowStockCtrl.text.trim()) ?? 5,
       ));
@@ -146,6 +149,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
         storageLocation: _locationCtrl.text.trim(),
         price: double.parse(_priceCtrl.text.trim()),
         costPrice: double.tryParse(_costPriceCtrl.text.trim()) ?? 0,
+        gstRate: _gstRate,
         quantity: int.tryParse(_qtyCtrl.text.trim()) ?? 0,
         lowStockThreshold: int.tryParse(_lowStockCtrl.text.trim()) ?? 5,
       );
@@ -351,6 +355,35 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                                 keyboardType: TextInputType.number),
                           ),
                         ]),
+                        const SizedBox(height: 12),
+                        // GST Rate dropdown
+                        DropdownButtonFormField<double>(
+                          value: _gstRate,
+                          items: const [
+                            DropdownMenuItem(value: 0, child: Text('No GST (0%)', style: TextStyle(fontSize: 13))),
+                            DropdownMenuItem(value: 5, child: Text('GST 5%', style: TextStyle(fontSize: 13))),
+                            DropdownMenuItem(value: 12, child: Text('GST 12%', style: TextStyle(fontSize: 13))),
+                            DropdownMenuItem(value: 18, child: Text('GST 18%', style: TextStyle(fontSize: 13))),
+                            DropdownMenuItem(value: 28, child: Text('GST 28%', style: TextStyle(fontSize: 13))),
+                          ],
+                          onChanged: (v) => setState(() => _gstRate = v ?? 0),
+                          style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
+                          dropdownColor: AppColors.card(context),
+                          decoration: InputDecoration(
+                            labelText: 'GST Rate',
+                            labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 12),
+                            prefixIcon: Icon(Icons.percent_rounded, size: 18, color: AppColors.textTertiary(context)),
+                            filled: true,
+                            fillColor: AppColors.surface(context),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: AppColors.cardBorder(context))),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: AppColors.primary, width: 1.5)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          ),
+                        ),
                         const SizedBox(height: 16),
 
                         // ─── Section: Stock ───

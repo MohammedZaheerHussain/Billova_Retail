@@ -13,6 +13,7 @@ class ItemModel {
   final double costPrice;
   final double originalPrice;     // MRP before clearance discount (0 = not a clearance item)
   final String parentItemId;      // Links clearance copy → original item ('' = not a copy)
+  final double gstRate;          // GST percentage (0, 5, 12, 18, 28)
   final int quantity;
   final int lowStockThreshold;
   final bool isDeleted;
@@ -32,6 +33,7 @@ class ItemModel {
     this.originalPrice = 0,
     this.parentItemId = '',
     this.costPrice = 0,
+    this.gstRate = 0,
     this.quantity = 0,
     this.lowStockThreshold = 5,
     this.isDeleted = false,
@@ -60,6 +62,7 @@ class ItemModel {
       'original_price': originalPrice,
       'parent_item_id': parentItemId,
       'cost_price': costPrice,
+      'gst_rate': gstRate,
       'quantity': quantity,
       'low_stock_threshold': lowStockThreshold,
       'is_deleted': isDeleted ? 1 : 0,
@@ -80,6 +83,7 @@ class ItemModel {
       storageLocation: (map['storage_location'] as String?) ?? '',
       price: (map['price'] as num).toDouble(),
       costPrice: (map['cost_price'] as num?)?.toDouble() ?? 0,
+      gstRate: (map['gst_rate'] as num?)?.toDouble() ?? 0,
       originalPrice: (map['original_price'] as num?)?.toDouble() ?? 0,
       parentItemId: (map['parent_item_id'] as String?) ?? '',
       quantity: (map['quantity'] as num?)?.toInt() ?? 0,
@@ -102,6 +106,7 @@ class ItemModel {
     double? originalPrice,
     String? parentItemId,
     double? costPrice,
+    double? gstRate,
     int? quantity,
     int? lowStockThreshold,
     bool? isDeleted,
@@ -118,6 +123,7 @@ class ItemModel {
       storageLocation: storageLocation ?? this.storageLocation,
       price: price ?? this.price,
       costPrice: costPrice ?? this.costPrice,
+      gstRate: gstRate ?? this.gstRate,
       originalPrice: originalPrice ?? this.originalPrice,
       parentItemId: parentItemId ?? this.parentItemId,
       quantity: quantity ?? this.quantity,
