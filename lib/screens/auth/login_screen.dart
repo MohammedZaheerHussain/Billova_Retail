@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
@@ -91,6 +92,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     final password = _passwordController.text.trim();
 
     final success = await auth.signIn(email, password);
+
+    // Tell the browser to save credentials (triggers 'Save Password' prompt)
+    if (success) TextInput.finishAutofillContext();
 
     if (success && mounted) {
       Navigator.pushReplacementNamed(context, '/home');
@@ -423,9 +427,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     const SizedBox(height: 28),
 
                     // ─── Form ───
-                    Form(
-                      key: _formKey,
-                      child: Column(
+                    AutofillGroup(
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           if (_loginMode == 0) ...[
@@ -435,6 +440,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             TextFormField(
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
+                              autofillHints: const [AutofillHints.email, AutofillHints.username],
                               style: const TextStyle(color: Color(0xFF0F172A), fontSize: 14),
                               decoration: _lightInputDecoration(
                                 hint: 'admin@skywalk.com',
@@ -452,6 +458,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             TextFormField(
                               controller: _passwordController,
                               obscureText: _obscurePassword,
+                              autofillHints: const [AutofillHints.password],
                               style: const TextStyle(color: Color(0xFF0F172A), fontSize: 14),
                               decoration: _lightInputDecoration(
                                 hint: '••••••••',
@@ -703,7 +710,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               ],
                             ),
                           ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
 
