@@ -44,6 +44,10 @@ class AppShell extends StatefulWidget {
   /// Trigger navigation to a named module from anywhere in the widget tree.
   static final ValueNotifier<String> navigateTo = ValueNotifier<String>('');
 
+  /// Flag: set to true when staff login has already pulled + loaded all data.
+  /// AppShell checks this and skips the expensive re-pull on init.
+  static bool dataPreloaded = false;
+
   @override
   State<AppShell> createState() => _AppShellState();
 }
@@ -195,20 +199,24 @@ class _AppShellState extends State<AppShell> {
     // ─── STEP 1: Pull from Supabase FIRST (cloud → local) ───
     // On web, _WebDB is in-memory — starts empty every restart.
     // We MUST pull cloud data before providers try to read local DB.
-    // CRITICAL: Clear local DB first to prevent cross-user data leakage.
-    // Without this, switching users would accumulate data from multiple users.
-    try {
-      final supabase = SupabaseService.instance;
-      if (supabase.isLoggedIn) {
-        debugPrint('🧹 Clearing local DB before pull (data isolation)...');
-        final db = DBHelper.instance;
-        await db.clearAllData();
-        debugPrint('📥 Pulling data from Supabase for user: ${supabase.userId}...');
-        await supabase.pullAllData();
-        debugPrint('📥 Pull complete — now loading providers');
+    // EXCEPTION: If staff login already pulled everything, skip re-pull.
+    if (AppShell.dataPreloaded) {
+      debugPrint('⚡ Data already preloaded by staff login — skipping pull');
+      AppShell.dataPreloaded = false; // Reset for next session
+    } else {
+      try {
+        final supabase = SupabaseService.instance;
+        if (supabase.isLoggedIn) {
+          debugPrint('🧹 Clearing local DB before pull (data isolation)...');
+          final db = DBHelper.instance;
+          await db.clearAllData();
+          debugPrint('📥 Pulling data from Supabase for user: ${supabase.userId}...');
+          await supabase.pullAllData();
+          debugPrint('📥 Pull complete — now loading providers');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Supabase pull failed (will use local data): $e');
       }
-    } catch (e) {
-      debugPrint('⚠️ Supabase pull failed (will use local data): $e');
     }
 
     if (!mounted) return;

@@ -8,7 +8,18 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/staff_provider.dart';
+import '../../providers/inventory_provider.dart';
+import '../../providers/sales_provider.dart';
+import '../../providers/customer_provider.dart';
+import '../../providers/expense_provider.dart';
+import '../../providers/cash_till_provider.dart';
+import '../../providers/vendor_provider.dart';
+import '../../providers/purchase_provider.dart';
+import '../../providers/category_provider.dart';
+import '../../providers/clearance_provider.dart';
 import '../../data/remote/supabase_service.dart';
+import '../../data/local/db_helper.dart';
+import '../shell/app_shell.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,6 +45,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   int _loginMode = 0;
   bool _isSubmitting = false;
   bool _rememberMe = false;
+  String _syncStatus = ''; // Detailed loading status for staff login
 
   // Slideshow
   late final PageController _pageController;
@@ -104,18 +116,27 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     if (mounted) setState(() => _isSubmitting = false);
   }
 
+  /// PRODUCTION-SAFE STAFF LOGIN
+  /// Golden Rule: NO login validation until FULL data sync is complete.
+  /// Flow: Session → Pull ALL data → Load ALL providers → Validate → Navigate
   Future<void> _submitStaff() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _syncStatus = 'Connecting...';
+    });
 
     final auth = context.read<AuthProvider>();
     final staff = context.read<StaffProvider>();
     final username = _usernameController.text.trim();
     final pin = _pinController.text.trim();
 
-    // STEP 1: Recover Supabase session (required for data access)
-    // Staff is a sub-account of the admin — the admin's session is needed.
+    // ──────────────────────────────────────────────────────────
+    // STEP 1: Recover admin Supabase session (REQUIRED)
+    // Staff is a sub-account — admin's session provides data access.
+    // ──────────────────────────────────────────────────────────
     if (!auth.isAuthenticated) {
+      if (mounted) setState(() => _syncStatus = 'Recovering session...');
       try {
         await auth.checkSession();
       } catch (_) {
@@ -123,42 +144,90 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       }
     }
 
-    // STEP 2: Pull staff table from Supabase BEFORE validating credentials
-    // On web, local DB is in-memory — starts empty every restart.
-    // Without this pull, staff credentials validate against an empty table.
     final supabase = SupabaseService.instance;
-    if (supabase.isLoggedIn) {
-      try {
-        debugPrint('📥 Pulling staff table for credential validation...');
-        await supabase.pullTable('staff');
-        // Reload staff list from now-populated local DB
-        await staff.loadStaff();
-        debugPrint('✅ Staff table pulled — ${staff.staff.length} staff loaded');
-      } catch (e) {
-        debugPrint('⚠️ Staff pull failed: $e');
-      }
-    } else {
-      // No Supabase session — admin must have logged in at least once
+    if (!supabase.isLoggedIn) {
+      // HARD BLOCK: Admin must have logged in at least once on this device
       auth.setError('Admin must log in first to enable staff access');
-      if (mounted) setState(() => _isSubmitting = false);
+      if (mounted) setState(() { _isSubmitting = false; _syncStatus = ''; });
       return;
     }
 
-    // STEP 3: Validate staff credentials against freshly-pulled staff table
+    // ──────────────────────────────────────────────────────────
+    // STEP 2: Pull ALL data from Supabase (FULL sync)
+    // On web, local DB is in-memory — starts empty every restart.
+    // We pull EVERYTHING before validation to prevent:
+    //   - Empty credential table (login fails)
+    //   - Partial data after navigation (empty screens)
+    //   - Race conditions between login and data load
+    // ──────────────────────────────────────────────────────────
+    try {
+      if (mounted) setState(() => _syncStatus = 'Clearing local data...');
+      final db = DBHelper.instance;
+      await db.clearAllData();
+
+      if (mounted) setState(() => _syncStatus = 'Syncing data from cloud...');
+      debugPrint('📥 Staff login: pulling ALL data for user ${supabase.userId}...');
+      await supabase.pullAllData();
+      debugPrint('✅ Full data pull complete');
+    } catch (e) {
+      debugPrint('⚠️ Data sync failed: $e');
+      auth.setError('Data sync failed. Check your internet and try again.');
+      if (mounted) setState(() { _isSubmitting = false; _syncStatus = ''; });
+      return;
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // STEP 3: Load ALL providers from now-populated local DB
+    // This ensures every screen has data BEFORE we navigate.
+    // ──────────────────────────────────────────────────────────
+    if (!mounted) return;
+    if (mounted) setState(() => _syncStatus = 'Loading inventory & sales...');
+    try {
+      await Future.wait([
+        staff.loadStaff(),
+        context.read<InventoryProvider>().loadItems(),
+        context.read<SalesProvider>().loadSales(),
+        context.read<CustomerProvider>().loadCustomers(),
+        context.read<ExpenseProvider>().loadExpenses(),
+        context.read<CashTillProvider>().loadToday(),
+        context.read<VendorProvider>().loadVendors(),
+        context.read<PurchaseProvider>().loadPurchases(),
+        context.read<CategoryProvider>().loadCategories(),
+        context.read<ClearanceProvider>().loadClearanceRecords(),
+        staff.loadTodayAttendance(),
+      ]);
+      debugPrint('✅ All providers loaded — ${staff.staff.length} staff, '
+          '${context.read<InventoryProvider>().items.length} items');
+    } catch (e) {
+      debugPrint('⚠️ Provider load failed: $e');
+      auth.setError('Failed to load data. Please try again.');
+      if (mounted) setState(() { _isSubmitting = false; _syncStatus = ''; });
+      return;
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // STEP 4: Validate staff credentials (data is now guaranteed)
+    // ──────────────────────────────────────────────────────────
+    if (mounted) setState(() => _syncStatus = 'Verifying credentials...');
     final error = await staff.loginStaff(username, pin);
     if (error != null) {
       auth.setError(error);
-      if (mounted) setState(() => _isSubmitting = false);
+      if (mounted) setState(() { _isSubmitting = false; _syncStatus = ''; });
       return;
     }
 
-    // STEP 4: Mark auth as staff session
+    // ──────────────────────────────────────────────────────────
+    // STEP 5: Mark auth as staff session + tell AppShell to skip re-pull
+    // ──────────────────────────────────────────────────────────
     await auth.staffLogin();
+    AppShell.dataPreloaded = true; // Skip redundant pull in AppShell
+    if (mounted) setState(() => _syncStatus = 'Starting shift...');
 
+    debugPrint('🚀 Staff login complete — navigating to home');
     if (mounted) {
       Navigator.pushReplacementNamed(context, '/home');
     }
-    if (mounted) setState(() => _isSubmitting = false);
+    if (mounted) setState(() { _isSubmitting = false; _syncStatus = ''; });
   }
 
   @override
@@ -637,13 +706,30 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                 elevation: 0,
                               ),
                               child: _isSubmitting
-                                  ? const SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
+                                  ? Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        if (_syncStatus.isNotEmpty) ...[
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            _syncStatus,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w400,
+                                              color: Colors.white70,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     )
                                   : Text(
                                       _loginMode == 0 ? 'Login' : 'Clock In & Start',
