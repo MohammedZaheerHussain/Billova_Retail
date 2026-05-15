@@ -114798,7 +114798,7 @@ N(a){var s,r,q,p,o,n,m,l,k=this,j=null,i=A.c(a).ax.a===B.b?B.M:B.j,h=A.o(20),g=A
 g=A.X(j,A.W(B.cv,B.j,j,20),B.l,j,j,new A.T(j,j,j,g,j,B.aP,B.o),j,j,j,j,B.bO,j,j,j)
 s=k.c
 r=A.j(s.b,j,j,j,$.bw().bn(B.r,16,B.J),j,j,j)
-q=A.ow("dd MMM yyyy, HH:mm").a4(s.at.jC())
+q=A.ow("dd MMM yyyy, hh:mm a").a4(s.at.jC())
 p=$.at()
 o=t.p
 p=A.a5(A.a7(A.b([r,A.j(q,j,j,j,p.I(A.c(a).ax.a===B.b?B.p:B.n),j,j,j)],o),B.E,j,B.h,B.i),1)
@@ -114856,7 +114856,7 @@ var $async$Fz=A.x(function(a0,a1){if(a0===1){p.push(a1)
 s=q}for(;;)switch(s){case 0:e=o.c
 d=e.e
 c=new A.a1(d,new A.adx(),A.a_(d).h("a1<1,l>")).bC(0,"\n")
-d=A.ow("dd MMM yyyy, HH:mm").a4(e.at.jC())
+d=A.ow("dd MMM yyyy, hh:mm a").a4(e.at.jC())
 m=e.c
 m=m.length!==0?"Customer: "+m+"\n":""
 l=$.bg()
@@ -114962,7 +114962,7 @@ s=s.length!==0?s:"Walk-in Customer"
 r=$.ct()
 s=A.j(s,l,l,l,r.I(A.c(a).ax.a===B.b?B.F:B.D),l,l,l)
 r=b.gaaG()
-n=A.ow("HH:mm").a4(b.at.jC())
+n=A.ow("hh:mm a").a4(b.at.jC())
 m=$.at()
 s=A.a5(A.a7(A.b([p,q,s,A.j(""+r+" items \u2022 "+n,l,l,l,m.I(A.c(a).ax.a===B.b?B.p:B.n),l,l,l)],o),B.E,l,B.h,B.i),1)
 r=$.bg()
@@ -117323,7 +117323,7 @@ if(r.length!==0){o=$.ct()
 n=i.c
 n.toString
 r=A.j(r,h,h,h,o.I(A.c(n).ax.a===B.b?B.p:B.n),h,h,h)}else r=h
-o=A.ow("HH:mm").a4(a.f.jC())
+o=A.ow("hh:mm a").a4(a.f.jC())
 n=$.at()
 k=i.c
 k.toString
@@ -118801,7 +118801,7 @@ o=g.c
 o.toString
 p=A.j("Purchase Details",h,h,h,p.I(A.c(o).ax.a===B.b?B.t:B.q),h,h,h)
 n=this.b
-m=A.ow("dd MMM yyyy, HH:mm").a4(n.x.jC())
+m=A.ow("dd MMM yyyy, hh:mm a").a4(n.x.jC())
 l=$.at()
 k=g.c
 k.toString
@@ -123096,9 +123096,9 @@ p=A.b([A.j(p,h,h,h,o.bn(A.c(m).ax.a===B.b?B.t:B.q,13,B.O),h,h,h),B.ar],n)
 if(e){o=B.N.K(0.1)
 m=A.o(4)
 p.push(A.X(h,A.j("ACTIVE",h,h,h,$.at().bn(B.N,9,B.J),h,h,h),B.l,h,h,new A.T(o,h,h,m,h,h,B.o),h,h,h,h,B.hf,h,h,h))}p=A.M(p,B.k,B.h,B.i,0)
-o=A.b([A.W(B.wc,B.N,h,12),B.bI,A.j(A.ow("HH:mm").a4(a.d.jC()),h,h,h,$.bw().bn(B.N,12,B.O),h,h,h)],n)
+o=A.b([A.W(B.wc,B.N,h,12),B.bI,A.j(A.ow("hh:mm a").a4(a.d.jC()),h,h,h,$.bw().bn(B.N,12,B.O),h,h,h)],n)
 if(!e){m=A.W(B.p1,B.C,h,12)
-f=A.j(A.ow("HH:mm").a4(f.jC()),h,h,h,$.bw().bn(B.C,12,B.O),h,h,h)
+f=A.j(A.ow("hh:mm a").a4(f.jC()),h,h,h,$.bw().bn(B.C,12,B.O),h,h,h)
 l=g.c
 l.toString
 k=A.W(B.RC,A.c(l).ax.a===B.b?B.p:B.n,h,12)
