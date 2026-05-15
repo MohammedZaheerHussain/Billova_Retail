@@ -693,14 +693,10 @@ class _AppShellState extends State<AppShell> {
                     // dependents are gone before notifyListeners fires.
                     navigator.pushNamedAndRemoveUntil('/login', (_) => false);
 
-                    // Now safe to update provider state (no mounted dependents)
-                    if (isStaffSession) {
-                      // Staff logout — keep Supabase session alive for the shop
-                      auth.signOut();
-                    } else {
-                      // Admin / full sign out — wipe local data for clean user switch
-                      auth.fullSignOut();
-                    }
+                    // Both admin and staff logout keep Supabase session alive.
+                    // Staff needs the admin's session to pull data on next login.
+                    // Use fullSignOut() only from Settings → "Switch Account".
+                    auth.signOut();
                   }
                 },
                 child: Container(
