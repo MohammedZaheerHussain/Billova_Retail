@@ -90,8 +90,8 @@ class SaleModel {
     this.isDeleted = false,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now().toUtc(),
+        updatedAt = updatedAt ?? DateTime.now().toUtc();
 
   int get totalItems => items.fold(0, (sum, item) => sum + item.quantity);
   double get discountPercent => subtotal > 0 ? (discount / subtotal) * 100 : 0;
@@ -123,8 +123,8 @@ class SaleModel {
       'points_redeemed': pointsRedeemed,
       'points_earned': pointsEarned,
       'is_deleted': isDeleted ? 1 : 0,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'created_at': createdAt.toUtc().toIso8601String(),
+      'updated_at': updatedAt.toUtc().toIso8601String(),
     };
   }
 
@@ -160,8 +160,8 @@ class SaleModel {
       pointsRedeemed: (map['points_redeemed'] as num?)?.toInt() ?? 0,
       pointsEarned: (map['points_earned'] as num?)?.toInt() ?? 0,
       isDeleted: map['is_deleted'] == 1 || map['is_deleted'] == true,
-      createdAt: DateTime.parse(map['created_at'] as String),
-      updatedAt: DateTime.parse(map['updated_at'] as String),
+      createdAt: _parseTimestamp(map['created_at'] as String),
+      updatedAt: _parseTimestamp(map['updated_at'] as String),
     );
   }
 
@@ -202,8 +202,15 @@ class SaleModel {
       pointsEarned: pointsEarned ?? this.pointsEarned,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt,
-      updatedAt: updatedAt ?? DateTime.now(),
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
     );
+  }
+
+  /// Parse timestamp consistently — handles both UTC (new) and local (old) formats.
+  /// If string has 'Z' or '+' timezone info → parse as-is (UTC).
+  /// If no timezone info → treat as LOCAL time (backward compat for old data).
+  static DateTime _parseTimestamp(String s) {
+    return DateTime.parse(s);
   }
 
   @override
