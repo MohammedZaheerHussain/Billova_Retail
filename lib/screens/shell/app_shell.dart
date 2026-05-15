@@ -658,41 +658,66 @@ class _AppShellState extends State<AppShell> {
                   label = 'Offline';
                 } else if (count > 0) {
                   dotColor = AppColors.warning;
-                  label = 'Syncing $count';
+                  label = 'Pending: $count';
                 } else {
                   dotColor = AppColors.success;
                   label = 'All Synced';
                 }
 
-                return Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: _sidebarExpanded ? 16 : 8,
-                    vertical: 4,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: _sidebarExpanded
-                        ? MainAxisAlignment.start
-                        : MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: dotColor,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      if (_sidebarExpanded) ...[
-                        const SizedBox(width: 8),
-                        Text(
-                          label,
-                          style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.textTertiaryDark,
-                            fontSize: 10,
+                return InkWell(
+                  onTap: count > 0
+                      ? () async {
+                          final synced = await SupabaseService.instance.processSyncQueue();
+                          if (mounted) {
+                            setState(() {}); // Rebuild to refresh count
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(synced > 0
+                                    ? '✅ Synced $synced pending items'
+                                    : '⚠️ No items synced — will retry'),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        }
+                      : null,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: _sidebarExpanded ? 16 : 8,
+                      vertical: 6,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: _sidebarExpanded
+                          ? MainAxisAlignment.start
+                          : MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: dotColor,
+                            shape: BoxShape.circle,
                           ),
                         ),
+                        if (_sidebarExpanded) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              label,
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.textTertiaryDark,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                          if (count > 0)
+                            Icon(Icons.refresh_rounded, size: 14, color: AppColors.warning),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 );
               },

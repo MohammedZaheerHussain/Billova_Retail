@@ -285,6 +285,28 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       // Success feedback
       _showSuccessDialog(sale, cashPaid: cashPaid, upiPaid: upiPaid,
           pointsRedeemed: redeemedPts, pointsEarned: earnedPts);
+    } else {
+      // ─── SALE BLOCKED — show error to user ───
+      if (!mounted) return;
+      final errorMsg = sales.error.isNotEmpty
+          ? sales.error
+          : 'Cannot save bill — check your internet connection.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.cloud_off_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(child: Text(errorMsg, style: const TextStyle(fontWeight: FontWeight.w600))),
+            ],
+          ),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      sales.clearError();
     }
   }
 
@@ -338,6 +360,25 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
               sale.invoiceNumber,
               style: AppTypography.mono.copyWith(color: AppColors.accent, fontSize: 16),
             ),
+            const SizedBox(height: 6),
+            // ─── Cloud confirmation badge ───
+            if (kIsWeb)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.cloud_done_rounded, color: AppColors.success, size: 14),
+                    const SizedBox(width: 5),
+                    Text('Saved to Cloud',
+                      style: TextStyle(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
             const SizedBox(height: 4),
             Text(
               Formatters.currency(sale.total),
