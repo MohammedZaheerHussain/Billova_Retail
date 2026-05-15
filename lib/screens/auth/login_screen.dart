@@ -8,6 +8,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/staff_provider.dart';
+import '../../data/remote/supabase_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -112,17 +113,38 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     final username = _usernameController.text.trim();
     final pin = _pinController.text.trim();
 
-    // Silently try to recover Supabase session (for data sync)
-    // This NEVER blocks staff login — staff works independently
+    // STEP 1: Recover Supabase session (required for data access)
+    // Staff is a sub-account of the admin — the admin's session is needed.
     if (!auth.isAuthenticated) {
       try {
         await auth.checkSession();
       } catch (_) {
-        debugPrint('⚠️ No Supabase session — staff will use local data');
+        debugPrint('⚠️ No Supabase session found');
       }
     }
 
-    // Validate staff credentials against local staff table
+    // STEP 2: Pull staff table from Supabase BEFORE validating credentials
+    // On web, local DB is in-memory — starts empty every restart.
+    // Without this pull, staff credentials validate against an empty table.
+    final supabase = SupabaseService.instance;
+    if (supabase.isLoggedIn) {
+      try {
+        debugPrint('📥 Pulling staff table for credential validation...');
+        await supabase.pullTable('staff');
+        // Reload staff list from now-populated local DB
+        await staff.loadStaff();
+        debugPrint('✅ Staff table pulled — ${staff.staff.length} staff loaded');
+      } catch (e) {
+        debugPrint('⚠️ Staff pull failed: $e');
+      }
+    } else {
+      // No Supabase session — admin must have logged in at least once
+      auth.setError('Admin must log in first to enable staff access');
+      if (mounted) setState(() => _isSubmitting = false);
+      return;
+    }
+
+    // STEP 3: Validate staff credentials against freshly-pulled staff table
     final error = await staff.loginStaff(username, pin);
     if (error != null) {
       auth.setError(error);
@@ -130,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       return;
     }
 
-    // Mark auth as staff session
+    // STEP 4: Mark auth as staff session
     await auth.staffLogin();
 
     if (mounted) {
