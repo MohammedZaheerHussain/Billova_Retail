@@ -27,6 +27,7 @@ class _WebDB {
     _tables['categories'] = [];
     _tables['sync_queue'] = [];
     _tables['loyalty_transactions'] = [];
+    _tables['clearance_items'] = [];
     _initialized = true;
   }
 

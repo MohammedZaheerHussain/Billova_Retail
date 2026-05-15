@@ -273,6 +273,8 @@ class StaffProvider extends ChangeNotifier {
         orderBy: 'clock_in_time DESC',
       );
       _todayAttendance = maps.map((m) => AttendanceModel.fromMap(m)).toList();
+      debugPrint('⏱️ loadTodayAttendance: ${_todayAttendance.length} records '
+          'for $_todayDate (staff: ${_todayAttendance.map((a) => a.staffName).join(", ")})');
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to load attendance: $e');
@@ -335,26 +337,35 @@ class StaffProvider extends ChangeNotifier {
 
   /// Auto clock-in: only if NOT already clocked in today
   Future<void> _autoClockIn() async {
-    if (_currentStaff == null) return;
-
-    // Load attendance first to check
-    await loadTodayAttendance();
-
-    // Check for existing open shift — prevent duplicate clock-in
-    final openShift = getOpenShift(_currentStaff!.id);
-    if (openShift != null) {
-      debugPrint('   ⏱️ Already clocked in — skipping auto clock-in');
+    if (_currentStaff == null) {
+      debugPrint('   ⏱️ _autoClockIn: No current staff — skipping');
       return;
     }
 
-    // Also check if already clocked in and out today (re-login scenario)
-    final todayShifts = _todayAttendance.where((a) => a.staffId == _currentStaff!.id).toList();
-    if (todayShifts.isNotEmpty) {
-      debugPrint('   ⏱️ Has existing attendance today — creating new shift');
-    }
+    try {
+      // Load attendance first to check for existing shifts
+      await loadTodayAttendance();
+      debugPrint('   ⏱️ _autoClockIn: ${_todayAttendance.length} attendance records for today');
 
-    await clockIn();
-    debugPrint('   ⏱️ Auto clocked in');
+      // Check for existing open shift — prevent duplicate clock-in
+      final openShift = getOpenShift(_currentStaff!.id);
+      if (openShift != null) {
+        debugPrint('   ⏱️ Already clocked in at ${openShift.clockInTime} — skipping');
+        return;
+      }
+
+      // Also check if already clocked in and out today (re-login scenario)
+      final todayShifts = _todayAttendance.where((a) => a.staffId == _currentStaff!.id).toList();
+      if (todayShifts.isNotEmpty) {
+        debugPrint('   ⏱️ Has ${todayShifts.length} existing shifts today — creating new shift');
+      }
+
+      final success = await clockIn();
+      debugPrint('   ⏱️ Auto clock-in ${success ? 'SUCCESS' : 'FAILED'}');
+    } catch (e) {
+      debugPrint('   ⏱️ _autoClockIn error: $e');
+      // Non-fatal — attendance failure should NOT block staff login
+    }
   }
 
   /// Clock in current staff
@@ -363,7 +374,10 @@ class StaffProvider extends ChangeNotifier {
 
     // Prevent double clock-in
     final openShift = getOpenShift(_currentStaff!.id);
-    if (openShift != null) return false;
+    if (openShift != null) {
+      debugPrint('   ⏱️ clockIn: Open shift exists — preventing double clock-in');
+      return false;
+    }
 
     try {
       final now = DateTime.now();
@@ -375,6 +389,10 @@ class StaffProvider extends ChangeNotifier {
         date: _todayDate,
       );
 
+      debugPrint('   ⏱️ clockIn: Creating attendance id=${attendance.id}, '
+          'staff=${attendance.staffName}, date=${attendance.date}, '
+          'time=${attendance.clockInTime}');
+
       await _db.insert('attendance', attendance.toMap());
 
       if (kIsWeb) {
@@ -384,10 +402,11 @@ class StaffProvider extends ChangeNotifier {
       }
 
       _todayAttendance.insert(0, attendance);
+      debugPrint('   ⏱️ clockIn: SUCCESS — ${_todayAttendance.length} total today records');
       notifyListeners();
       return true;
     } catch (e) {
-      debugPrint('Failed to clock in: $e');
+      debugPrint('   ⏱️ clockIn FAILED: $e');
       return false;
     }
   }
