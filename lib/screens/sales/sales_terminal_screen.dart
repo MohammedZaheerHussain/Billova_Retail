@@ -286,28 +286,32 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       _showSuccessDialog(sale, cashPaid: cashPaid, upiPaid: upiPaid,
           pointsRedeemed: redeemedPts, pointsEarned: earnedPts);
     } else {
-      // ─── SALE BLOCKED — show error to user ───
+      // ─── SALE BLOCKED — show retry dialog ───
+      // Cart is preserved (clearCart only called on success)
+      // User can retry without re-entering anything
       if (!mounted) return;
       final errorMsg = sales.error.isNotEmpty
           ? sales.error
           : 'Cannot save bill — check your internet connection.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.cloud_off_rounded, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              Expanded(child: Text(errorMsg, style: const TextStyle(fontWeight: FontWeight.w600))),
-            ],
-          ),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          duration: const Duration(seconds: 5),
-        ),
-      );
       sales.clearError();
+      _showRetryDialog(errorMsg);
     }
+  }
+
+  /// Shows a retry dialog when sale fails — keeps cart intact
+  void _showRetryDialog(String errorMsg) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _SaleRetryDialog(
+        errorMessage: errorMsg,
+        onRetry: () {
+          Navigator.pop(ctx);
+          _completeSale(); // Re-attempt with same cart data
+        },
+        onCancel: () => Navigator.pop(ctx),
+      ),
+    );
   }
 
   /// Log a loyalty transaction to the audit trail
@@ -1219,6 +1223,133 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                 fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
                 fontSize: isBold ? 18 : 14,
               )),
+        ],
+      ),
+    );
+  }
+}
+
+/// ─── Sale Retry Dialog ───
+/// Shown when a sale is blocked due to Supabase save failure.
+/// Cart data is preserved — user can retry without re-entering anything.
+class _SaleRetryDialog extends StatefulWidget {
+  final String errorMessage;
+  final VoidCallback onRetry;
+  final VoidCallback onCancel;
+
+  const _SaleRetryDialog({
+    required this.errorMessage,
+    required this.onRetry,
+    required this.onCancel,
+  });
+
+  @override
+  State<_SaleRetryDialog> createState() => _SaleRetryDialogState();
+}
+
+class _SaleRetryDialogState extends State<_SaleRetryDialog> {
+  bool _isRetrying = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.card(context),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Error icon
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(32),
+            ),
+            child: Icon(Icons.cloud_off_rounded, color: AppColors.error, size: 36),
+          ),
+          const SizedBox(height: 16),
+          Text('Sale Not Saved',
+              style: AppTypography.h2.copyWith(color: AppColors.textPrimary(context))),
+          const SizedBox(height: 8),
+          Text(
+            widget.errorMessage,
+            textAlign: TextAlign.center,
+            style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary(context)),
+          ),
+          const SizedBox(height: 12),
+          // WiFi tip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.wifi_rounded, color: AppColors.warning, size: 16),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'Check your WiFi and tap Retry',
+                    style: TextStyle(color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Cart preserved notice
+          Text(
+            '🛒 Your cart is safe — nothing was lost',
+            style: TextStyle(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 20),
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _isRetrying ? null : widget.onCancel,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textSecondary(context),
+                    side: BorderSide(color: AppColors.cardBorder(context)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton.icon(
+                  onPressed: _isRetrying
+                      ? null
+                      : () {
+                          setState(() => _isRetrying = true);
+                          widget.onRetry();
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  icon: _isRetrying
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.refresh_rounded, size: 18),
+                  label: Text(_isRetrying ? 'Retrying...' : 'Retry Now'),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
