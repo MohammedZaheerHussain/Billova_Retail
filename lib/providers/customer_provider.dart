@@ -69,25 +69,39 @@ class CustomerProvider extends ChangeNotifier {
 
       debugPrint('➕ CustomerProvider: adding customer "${customer.name}" (${customer.id})');
 
-      // STEP 1: Save to local DB
+      // ═══════════════════════════════════════════════════════════
+      // CLOUD-FIRST: Save to Supabase BEFORE local cache (web)
+      // Customers are critical billing data — no silent loss allowed
+      // ═══════════════════════════════════════════════════════════
+      if (kIsWeb) {
+        try {
+          await _supabase.guaranteedSave('customers', customer.toMap());
+          debugPrint('   ✅ Customer saved to cloud FIRST');
+        } catch (e) {
+          debugPrint('   ❌ Customer cloud save failed: $e');
+          // Don't block customer creation during billing — save locally + queue
+          // (Unlike sales, customers are auto-created during billing flow)
+          await _db.insert('customers', customer.toMap());
+          _customers.add(customer);
+          _customers.sort((a, b) => a.name.compareTo(b.name));
+          notifyListeners();
+          _supabase.syncRecord('customers', customer.id, 'insert', customer.toMap());
+          return true;
+        }
+      }
+
+      // Save to local DB (cache on web, primary on mobile)
       await _db.insert('customers', customer.toMap());
       debugPrint('   ✓ Saved to local DB');
 
-      // STEP 2: Add to in-memory list (UI updates immediately)
+      // Add to in-memory list (UI updates immediately)
       _customers.add(customer);
       _customers.sort((a, b) => a.name.compareTo(b.name));
       notifyListeners();
       debugPrint('   ✓ Added to provider list (total: ${_customers.length})');
 
-      // STEP 3: Sync to Supabase (await on web!)
-      if (kIsWeb) {
-        final synced = await _supabase.syncRecord('customers', customer.id, 'insert', customer.toMap());
-        if (synced) {
-          debugPrint('   ✓ Synced to Supabase');
-        } else {
-          debugPrint('   ⚠️ Supabase sync queued');
-        }
-      } else {
+      // Mobile: sync in background (SQLite persists, so safe)
+      if (!kIsWeb) {
         _supabase.syncRecord('customers', customer.id, 'insert', customer.toMap());
       }
 
@@ -101,15 +115,25 @@ class CustomerProvider extends ChangeNotifier {
   Future<bool> updateCustomer(CustomerModel customer) async {
     try {
       final updated = customer.copyWith(updatedAt: DateTime.now());
+
+      // Cloud-first on web
+      if (kIsWeb) {
+        try {
+          await _supabase.guaranteedSave('customers', updated.toMap());
+        } catch (e) {
+          debugPrint('⚠️ Customer update cloud save failed, queuing: $e');
+          _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
+        }
+      }
+
       await _db.update('customers', updated.toMap(), updated.id);
 
       final idx = _customers.indexWhere((c) => c.id == updated.id);
       if (idx != -1) _customers[idx] = updated;
       notifyListeners();
 
-      if (kIsWeb) {
-        await _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
-      } else {
+      // Mobile: background sync
+      if (!kIsWeb) {
         _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
       }
       return true;

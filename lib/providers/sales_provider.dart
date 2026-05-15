@@ -284,10 +284,26 @@ class SalesProvider extends ChangeNotifier {
         pointsEarned: pointsEarned,
       );
 
-      // Save locally first
+      // ═══════════════════════════════════════════════════════════
+      // CLOUD-FIRST: Save to Supabase BEFORE local cache (web)
+      // If cloud save fails → BLOCK the sale (no silent data loss)
+      // ═══════════════════════════════════════════════════════════
+      if (kIsWeb) {
+        try {
+          await _supabase.guaranteedSave('sales', sale.toMap());
+          debugPrint('✅ Sale ${sale.invoiceNumber} saved to cloud FIRST');
+        } catch (e) {
+          _error = 'Cannot save bill — check your internet connection and try again.';
+          debugPrint('❌ BLOCKED: Sale ${sale.invoiceNumber} cloud save failed: $e');
+          notifyListeners();
+          return null; // BLOCK — do not complete sale
+        }
+      }
+
+      // Save to local DB (cache on web, primary on mobile)
       await _db.insert('sales', sale.toMap());
 
-      // Add to full list + re-filter
+      // Add to in-memory list + re-filter
       _allSales.insert(0, sale);
       _applyFilter();
 
@@ -296,10 +312,8 @@ class SalesProvider extends ChangeNotifier {
 
       notifyListeners();
 
-      // Sync to cloud
-      if (kIsWeb) {
-        await _supabase.syncRecord('sales', sale.id, 'insert', sale.toMap());
-      } else {
+      // Mobile: sync in background (SQLite persists, so safe)
+      if (!kIsWeb) {
         _supabase.syncRecord('sales', sale.id, 'insert', sale.toMap());
       }
 

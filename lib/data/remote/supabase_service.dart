@@ -117,7 +117,34 @@ class SupabaseService {
 
   // ─── Sync to Cloud ───
 
+  /// CRITICAL TABLES: Save to Supabase FIRST. Throws on failure.
+  /// Use for sales, customers — data loss is unacceptable.
+  /// Does NOT fall back to sync queue — caller must handle failure.
+  Future<void> guaranteedSave(String table, Map<String, dynamic> data) async {
+    if (!isLoggedIn) {
+      throw Exception('Not logged in — cannot save to cloud');
+    }
+
+    final cloudData = Map<String, dynamic>.from(data);
+    cloudData['user_id'] = userId;
+    // Convert SQLite integer back to boolean
+    if (cloudData.containsKey('is_deleted')) {
+      cloudData['is_deleted'] = cloudData['is_deleted'] == 1;
+    }
+    // Convert TEXT items back to JSONB list for Supabase
+    if (cloudData.containsKey('items') && cloudData['items'] is String) {
+      try {
+        cloudData['items'] = jsonDecode(cloudData['items'] as String);
+      } catch (_) {}
+    }
+
+    // This MUST succeed — throws on failure
+    await _client.from(table).upsert(cloudData);
+    debugPrint('☁️ GUARANTEED save to $table/${data['id']}');
+  }
+
   /// Push a single record to Supabase. If it fails, add to sync queue.
+  /// Use for NON-CRITICAL data (expenses, attendance, cash_till, etc.)
   Future<bool> syncRecord(String table, String recordId, String action, Map<String, dynamic> data) async {
     if (!isLoggedIn) {
       await _queueSync(table, recordId, action, data);
