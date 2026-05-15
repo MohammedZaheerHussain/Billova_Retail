@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
@@ -6,9 +7,13 @@ import '../../core/constants.dart';
 
 /// In-memory database implementation for web platform.
 /// All data is stored in Dart Maps. Supabase handles cloud persistence.
+/// CRITICAL: sync_queue is persisted to localStorage to survive page refreshes.
 class _WebDB {
   final Map<String, List<Map<String, dynamic>>> _tables = {};
   bool _initialized = false;
+
+  /// Key used to persist sync queue in localStorage (via SharedPreferences)
+  static const _syncQueueKey = 'skywalk_sync_queue';
 
   Future<void> init() async {
     if (_initialized) return;
@@ -29,6 +34,77 @@ class _WebDB {
     _tables['loyalty_transactions'] = [];
     _tables['clearance_items'] = [];
     _initialized = true;
+
+    // ─── CRITICAL: Restore sync queue from localStorage ───
+    // On web, in-memory DB is wiped on every page refresh.
+    // Sync queue items (failed syncs) MUST survive refreshes
+    // or data created offline/during failures is lost forever.
+    await _restoreSyncQueueFromStorage();
+  }
+
+  /// Restore sync queue from localStorage after page refresh
+  Future<void> _restoreSyncQueueFromStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString(_syncQueueKey);
+      if (stored != null && stored.isNotEmpty) {
+        final List<dynamic> items = _jsonDecode(stored);
+        final queue = _getTable('sync_queue');
+        for (final item in items) {
+          if (item is Map<String, dynamic>) {
+            // Avoid duplicates
+            final exists = queue.any((q) => q['id'] == item['id']);
+            if (!exists) {
+              queue.add(Map<String, dynamic>.from(item));
+            }
+          }
+        }
+        debugPrint('🔄 Restored ${items.length} sync queue items from localStorage');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to restore sync queue from localStorage: $e');
+    }
+  }
+
+  /// Persist current sync queue to localStorage (call after every modification)
+  Future<void> _persistSyncQueueToStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final queue = _getTable('sync_queue');
+      if (queue.isEmpty) {
+        await prefs.remove(_syncQueueKey);
+      } else {
+        await prefs.setString(_syncQueueKey, _jsonEncode(queue));
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to persist sync queue to localStorage: $e');
+    }
+  }
+
+  /// Clear sync queue from localStorage (only on full sign out)
+  Future<void> clearSyncQueueStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_syncQueueKey);
+    } catch (_) {}
+  }
+
+  /// Safe JSON encode/decode helpers
+  static String _jsonEncode(Object obj) {
+    try {
+      return const JsonEncoder().convert(obj);
+    } catch (_) {
+      return '[]';
+    }
+  }
+
+  static List<dynamic> _jsonDecode(String str) {
+    try {
+      final result = const JsonDecoder().convert(str);
+      return result is List ? result : [];
+    } catch (_) {
+      return [];
+    }
   }
 
   /// CRITICAL: Must always return a reference stored in _tables.
@@ -817,6 +893,9 @@ class DBHelper {
     if (kIsWeb) {
       final web = await _web;
       await web.insert('sync_queue', data);
+      // CRITICAL: Persist to localStorage so queue survives page refresh
+      await web._persistSyncQueueToStorage();
+      debugPrint('📦 Sync queue: added $action on $tableName/$recordId (persisted to localStorage)');
       return;
     }
     final db = await database;
@@ -843,6 +922,8 @@ class DBHelper {
     if (kIsWeb) {
       final web = await _web;
       await web.delete('sync_queue', where: 'id = ?', whereArgs: [id]);
+      // CRITICAL: Update localStorage after removal
+      await web._persistSyncQueueToStorage();
       return;
     }
     final db = await database;
@@ -857,6 +938,8 @@ class DBHelper {
       if (items.isNotEmpty) {
         final current = (items.first['retry_count'] as int?) ?? 0;
         await web.update('sync_queue', {'retry_count': current + 1}, where: 'id = ?', whereArgs: [id]);
+        // CRITICAL: Update localStorage after retry increment
+        await web._persistSyncQueueToStorage();
       }
       return;
     }
