@@ -160,6 +160,7 @@ class CustomerProvider extends ChangeNotifier {
   }
 
   /// Increment order count + spending for a customer (called after sale)
+  /// CLOUD-FIRST: Stats update must reach Supabase on web
   Future<void> recordSale(String customerId, double amount, {int earnRate = 1}) async {
     final idx = _customers.indexWhere((c) => c.id == customerId);
     if (idx == -1) return;
@@ -171,35 +172,62 @@ class CustomerProvider extends ChangeNotifier {
       loyaltyPoints: _customers[idx].loyaltyPoints + pointsEarned,
       lastPurchaseDate: DateTime.now(),
     );
-    await _db.update('customers', updated.toMap(), updated.id);
+
+    // Cloud-first on web
     if (kIsWeb) {
-      await _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
-    } else {
-      _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
+      try {
+        await _supabase.guaranteedSave('customers', updated.toMap());
+      } catch (e) {
+        debugPrint('⚠️ Customer stats cloud save failed, queuing: $e');
+        _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
+      }
     }
+
+    await _db.update('customers', updated.toMap(), updated.id);
     _customers[idx] = updated;
     notifyListeners();
+
+    if (!kIsWeb) {
+      _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
+    }
   }
 
   /// Record sale by customer name (finds or creates, then updates stats)
+  /// This is the MAIN entry point called after every sale in the billing flow.
+  /// Phone number is the unique identifier — if it exists, reuse; if new, create.
   Future<void> recordSaleByName(String name, String phone, double amount, {int earnRate = 1}) async {
     if (name.isEmpty || name == 'Walk-in Customer') return;
 
-    // Find existing customer — try phone first (more unique), then name
+    // ─── STEP 1: Find existing customer by phone (unique key) ───
     CustomerModel? customer;
     if (phone.trim().isNotEmpty) {
       customer = findByPhone(phone.trim());
     }
     customer ??= findByName(name.trim());
 
-    // Not found — create new
+    // ─── STEP 2: Not found → create new customer (cloud-first) ───
     if (customer == null) {
-      await addCustomer(name: name.trim(), phone: phone.trim());
+      final success = await addCustomer(name: name.trim(), phone: phone.trim());
+      if (!success) {
+        debugPrint('❌ recordSaleByName: Failed to create customer — stats will be lost');
+        return; // addCustomer already handles the error
+      }
+      // Re-fetch from in-memory list (addCustomer adds it)
       customer = findByPhone(phone.trim()) ?? findByName(name.trim());
-      if (customer == null) return;
+      if (customer == null) {
+        debugPrint('❌ recordSaleByName: Customer created but not found in list');
+        return;
+      }
+      debugPrint('✅ New customer created: "${customer.name}" (${customer.phone})');
+    } else {
+      // Update name if different (latest name wins)
+      if (name.trim().isNotEmpty && customer.name != name.trim()) {
+        await updateCustomer(customer.copyWith(name: name.trim()));
+        customer = findByPhone(phone.trim()) ?? customer;
+      }
     }
 
-    // Update stats
+    // ─── STEP 3: Update purchase stats ───
     await recordSale(customer.id, amount, earnRate: earnRate);
     debugPrint('📊 Customer "${customer.name}" stats updated: +₹$amount (+${(amount / 100 * earnRate).floor()} pts)');
   }
@@ -212,14 +240,24 @@ class CustomerProvider extends ChangeNotifier {
     final current = _customers[idx].loyaltyPoints;
     final newPoints = (current - pointsUsed).clamp(0, current);
     final updated = _customers[idx].copyWith(loyaltyPoints: newPoints);
-    await _db.update('customers', updated.toMap(), updated.id);
+
+    // Cloud-first on web
     if (kIsWeb) {
-      await _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
-    } else {
-      _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
+      try {
+        await _supabase.guaranteedSave('customers', updated.toMap());
+      } catch (e) {
+        debugPrint('⚠️ Points redemption cloud save failed, queuing: $e');
+        _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
+      }
     }
+
+    await _db.update('customers', updated.toMap(), updated.id);
     _customers[idx] = updated;
     notifyListeners();
+
+    if (!kIsWeb) {
+      _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
+    }
     debugPrint('⭐ Redeemed $pointsUsed pts for "${updated.name}" (remaining: $newPoints)');
   }
 
