@@ -71,22 +71,16 @@ class CustomerProvider extends ChangeNotifier {
 
       // ═══════════════════════════════════════════════════════════
       // CLOUD-FIRST: Save to Supabase BEFORE local cache (web)
-      // Customers are critical billing data — no silent loss allowed
+      // Customers = CRITICAL DATA — treated same as sales
+      // If cloud fails → BLOCK — no local-only saves allowed
       // ═══════════════════════════════════════════════════════════
       if (kIsWeb) {
         try {
           await _supabase.guaranteedSave('customers', customer.toMap());
           debugPrint('   ✅ Customer saved to cloud FIRST');
         } catch (e) {
-          debugPrint('   ❌ Customer cloud save failed: $e');
-          // Don't block customer creation during billing — save locally + queue
-          // (Unlike sales, customers are auto-created during billing flow)
-          await _db.insert('customers', customer.toMap());
-          _customers.add(customer);
-          _customers.sort((a, b) => a.name.compareTo(b.name));
-          notifyListeners();
-          _supabase.syncRecord('customers', customer.id, 'insert', customer.toMap());
-          return true;
+          debugPrint('   ❌ BLOCKED: Customer cloud save failed: $e');
+          return false; // BLOCK — do not save locally
         }
       }
 
@@ -116,13 +110,14 @@ class CustomerProvider extends ChangeNotifier {
     try {
       final updated = customer.copyWith(updatedAt: DateTime.now());
 
-      // Cloud-first on web
+      // Cloud-first on web — BLOCK if fails
       if (kIsWeb) {
         try {
           await _supabase.guaranteedSave('customers', updated.toMap());
+          debugPrint('   ✅ Customer update saved to cloud');
         } catch (e) {
-          debugPrint('⚠️ Customer update cloud save failed, queuing: $e');
-          _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
+          debugPrint('❌ BLOCKED: Customer update cloud save failed: $e');
+          return false; // BLOCK — do not update locally
         }
       }
 

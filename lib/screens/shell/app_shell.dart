@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -641,6 +642,61 @@ class _AppShellState extends State<AppShell> {
               return const SizedBox.shrink();
             },
           ),
+
+          // ─── Sync Status Indicator ───
+          if (kIsWeb)
+            FutureBuilder<int>(
+              future: DBHelper.instance.pendingSyncCount(),
+              builder: (context, snapshot) {
+                final count = snapshot.data ?? 0;
+                final isOnline = SupabaseService.instance.isLoggedIn;
+
+                Color dotColor;
+                String label;
+                if (!isOnline) {
+                  dotColor = AppColors.error;
+                  label = 'Offline';
+                } else if (count > 0) {
+                  dotColor = AppColors.warning;
+                  label = 'Syncing $count';
+                } else {
+                  dotColor = AppColors.success;
+                  label = 'All Synced';
+                }
+
+                return Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: _sidebarExpanded ? 16 : 8,
+                    vertical: 4,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: _sidebarExpanded
+                        ? MainAxisAlignment.start
+                        : MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: dotColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      if (_sidebarExpanded) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          label,
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.textTertiaryDark,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
 
           // ─── Session Info + Logout ───
           Consumer2<AuthProvider, StaffProvider>(
