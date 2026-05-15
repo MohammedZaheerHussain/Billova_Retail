@@ -849,9 +849,28 @@ class DBHelper {
   }
 
   Future<void> incrementSyncRetry(int id) async {
-    if (kIsWeb) return; // Skip on web
+    if (kIsWeb) {
+      // Update retry count in web in-memory DB
+      final web = await _web;
+      final items = await web.query('sync_queue', where: 'id = ?', whereArgs: [id]);
+      if (items.isNotEmpty) {
+        final current = (items.first['retry_count'] as int?) ?? 0;
+        await web.update('sync_queue', {'retry_count': current + 1}, where: 'id = ?', whereArgs: [id]);
+      }
+      return;
+    }
     final db = await database;
     await db.rawUpdate('UPDATE sync_queue SET retry_count = retry_count + 1 WHERE id = ?', [id]);
+  }
+
+  /// Get count of pending sync items (for UI indicators)
+  Future<int> pendingSyncCount() async {
+    if (kIsWeb) {
+      final web = await _web;
+      final items = await web.query('sync_queue');
+      return items.length;
+    }
+    return await count('sync_queue');
   }
 
   // ─── Bulk Operations (for sync) ───
@@ -986,18 +1005,28 @@ class DBHelper {
   }
 
   Future<void> clearAllData() async {
+    // CRITICAL: sync_queue is NOT cleared — pending offline operations
+    // must survive re-login/refresh so they can be pushed to cloud.
     const tables = [
-      'items', 'sales', 'expenses', 'cash_till', 'sync_queue',
+      'items', 'sales', 'expenses', 'cash_till',
       'customers', 'vendors', 'staff', 'attendance', 'purchases',
       'categories', 'clearance_items', 'loyalty_transactions', 'settings',
     ];
     if (kIsWeb) {
       final web = await _web;
+      // Preserve sync_queue before clearing
+      final pendingSync = await web.query('sync_queue');
       for (final t in tables) {
         await web.delete(t);
       }
-      // Reset the _WebDB initialization flag so it re-creates empty tables
+      // Reset _WebDB but re-initialize immediately
       _webDB = null;
+      final freshWeb = await _web;
+      // Restore sync_queue items
+      for (final item in pendingSync) {
+        await freshWeb.insert('sync_queue', item);
+      }
+      debugPrint('🧹 Local DB cleared (${pendingSync.length} sync queue items preserved)');
       return;
     }
     final db = await database;
@@ -1006,5 +1035,6 @@ class DBHelper {
         await db.delete(t);
       } catch (_) {} // table might not exist yet
     }
+    // sync_queue intentionally NOT cleared on native either
   }
 }

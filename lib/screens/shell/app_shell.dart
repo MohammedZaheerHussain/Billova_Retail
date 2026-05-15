@@ -149,9 +149,9 @@ class _AppShellState extends State<AppShell> {
     super.dispose();
   }
 
-  /// Auto-sync every 5 minutes — processes pending sync queue
+  /// Auto-sync every 60 seconds — processes pending sync queue
   void _startAutoSync() {
-    _syncTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
+    _syncTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
       try {
         final supabase = SupabaseService.instance;
         if (supabase.isLoggedIn) {
