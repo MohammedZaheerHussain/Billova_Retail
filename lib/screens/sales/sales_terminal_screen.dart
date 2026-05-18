@@ -30,6 +30,8 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
   final _customerNameCtrl = TextEditingController();
   final _customerPhoneCtrl = TextEditingController();
   final _discountCtrl = TextEditingController();
+  final _discountAmtCtrl = TextEditingController();
+  bool _isEditingDiscount = false; // prevents update loops between % ↔ ₹
   final _cashPaidCtrl = TextEditingController();
   final _upiPaidCtrl = TextEditingController();
   String _searchQuery = '';
@@ -61,6 +63,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
     _customerNameCtrl.dispose();
     _customerPhoneCtrl.dispose();
     _discountCtrl.dispose();
+    _discountAmtCtrl.dispose();
     _cashPaidCtrl.dispose();
     _upiPaidCtrl.dispose();
     super.dispose();
@@ -272,6 +275,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       _customerNameCtrl.clear();
       _customerPhoneCtrl.clear();
       _discountCtrl.clear();
+      _discountAmtCtrl.clear();
       _cashPaidCtrl.clear();
       _upiPaidCtrl.clear();
       _searchCtrl.clear();
@@ -975,11 +979,34 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                     ),
                     const SizedBox(width: 8),
                     SizedBox(
-                      width: 100,
-                      child: _miniField(_discountCtrl, 'Discount %',
+                      width: 80,
+                      child: _miniField(_discountCtrl, '% Off',
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           onChanged: (v) {
-                            sales.setDiscount(double.tryParse(v) ?? 0);
+                            if (_isEditingDiscount) return;
+                            _isEditingDiscount = true;
+                            final pct = (double.tryParse(v) ?? 0).clamp(0.0, 100.0);
+                            sales.setDiscount(pct);
+                            // Auto-sync ₹ field
+                            final amt = sales.discountAmount;
+                            _discountAmtCtrl.text = amt > 0 ? amt.toStringAsFixed(0) : '';
+                            _isEditingDiscount = false;
+                          }),
+                    ),
+                    const SizedBox(width: 6),
+                    SizedBox(
+                      width: 90,
+                      child: _miniField(_discountAmtCtrl, '₹ Off',
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          onChanged: (v) {
+                            if (_isEditingDiscount) return;
+                            _isEditingDiscount = true;
+                            final amt = (double.tryParse(v) ?? 0).clamp(0.0, sales.subtotal);
+                            sales.setDiscountAmount(amt);
+                            // Auto-sync % field
+                            final pct = sales.discountPercent;
+                            _discountCtrl.text = pct > 0 ? pct.toStringAsFixed(1) : '';
+                            _isEditingDiscount = false;
                           }),
                     ),
                   ],

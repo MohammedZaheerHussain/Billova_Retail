@@ -189,6 +189,17 @@ class SalesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Set discount by fixed rupee amount — converts to percentage internally
+  void setDiscountAmount(double amount) {
+    if (subtotal <= 0) {
+      _discountPercent = 0;
+    } else {
+      final clampedAmount = amount.clamp(0.0, subtotal);
+      _discountPercent = (clampedAmount / subtotal * 100).clamp(0, 100);
+    }
+    notifyListeners();
+  }
+
   void clearCart() {
     _cart = [];
     _customerName = '';
