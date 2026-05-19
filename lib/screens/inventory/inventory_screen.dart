@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/inventory_provider.dart';
+import '../../providers/sales_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../data/models/item_model.dart';
 import 'item_form_screen.dart';
@@ -365,13 +366,28 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   void _showItemDetail(BuildContext context, ItemModel item) {
+    // Calculate total sold & revenue from all sales history
+    final allSales = context.read<SalesProvider>().allSales;
+    int totalSold = 0;
+    double totalRevenue = 0;
+    double totalProfit = 0;
+    for (final sale in allSales) {
+      for (final si in sale.items) {
+        if (si.itemId == item.id) {
+          totalSold += si.quantity;
+          totalRevenue += si.total;
+          totalProfit += si.profit;
+        }
+      }
+    }
+
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
         backgroundColor: AppColors.card(context),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480, maxHeight: 580),
+          constraints: const BoxConstraints(maxWidth: 480, maxHeight: 620),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -424,13 +440,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 _detailRow(context, 'Color', item.color, Icons.palette_rounded),
                 _detailRow(context, 'Location', item.storageLocation, Icons.location_on_rounded),
                 _detailRow(context, 'Barcode / SKU', item.barcode, Icons.qr_code_scanner_rounded),
+                if (item.gstRate > 0) _detailRow(context, 'GST Rate', '${item.gstRate.toStringAsFixed(0)}%', Icons.receipt_long_rounded),
                 const Divider(height: 20),
                 Row(children: [
                   Expanded(child: _detailCard(context, 'Selling Price', Formatters.currency(item.price), AppColors.accent)),
                   const SizedBox(width: 8),
                   Expanded(child: _detailCard(context, 'Cost Price', Formatters.currency(item.costPrice), AppColors.primary)),
                   const SizedBox(width: 8),
-                  Expanded(child: _detailCard(context, 'Profit', Formatters.currency(item.profit),
+                  Expanded(child: _detailCard(context, 'Profit/Unit', Formatters.currency(item.profit),
                     item.profit > 0 ? AppColors.success : AppColors.error)),
                 ]),
                 const SizedBox(height: 8),
@@ -442,6 +459,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   const SizedBox(width: 8),
                   Expanded(child: _detailCard(context, 'Margin', '${item.profitMargin.toStringAsFixed(1)}%',
                     item.profitMargin > 0 ? AppColors.success : AppColors.error)),
+                ]),
+                const SizedBox(height: 8),
+                // ─── Sales Performance Row ───
+                Row(children: [
+                  Expanded(child: _detailCard(context, 'Total Sold', '$totalSold units',
+                    totalSold > 0 ? AppColors.accent : AppColors.primary)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _detailCard(context, 'Revenue', Formatters.currency(totalRevenue),
+                    totalRevenue > 0 ? AppColors.success : AppColors.primary)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _detailCard(context, 'Total Profit', Formatters.currency(totalProfit),
+                    totalProfit > 0 ? AppColors.success : AppColors.error)),
                 ]),
               ]))),
               const SizedBox(height: 12),

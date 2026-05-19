@@ -415,9 +415,9 @@ class _CustomerScreenState extends State<CustomerScreen> {
   }
 
   void _showCustomerDetail(CustomerModel customer, int totalOrders, double totalSpent, String lastPurchase) {
-    final sales = context.read<SalesProvider>().sales.where((s) =>
-        s.customerPhone == customer.phone ||
-        s.customerName.toLowerCase() == customer.name.toLowerCase()).toList()
+    final sales = context.read<SalesProvider>().allSales.where((s) =>
+        (customer.phone.isNotEmpty && s.customerPhone == customer.phone) ||
+        s.customerName.toLowerCase().trim() == customer.name.toLowerCase().trim()).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     showDialog(
