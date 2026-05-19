@@ -242,10 +242,22 @@ class SalesProvider extends ChangeNotifier {
       final inRange = !localTime.isBefore(range.start) && localTime.isBefore(range.end);
       if (!inRange) return false;
 
-      // Payment mode filter
-      if (_paymentFilter != 'All' &&
-          s.paymentMode.toLowerCase() != _paymentFilter.toLowerCase()) {
-        return false;
+      // Payment mode filter — for split payments, check actual amounts too
+      if (_paymentFilter != 'All') {
+        final filterLower = _paymentFilter.toLowerCase();
+        final modeLower = s.paymentMode.toLowerCase();
+        if (modeLower != filterLower) {
+          // Also match split payments by their actual amounts
+          if (filterLower == 'cash' && s.cashAmount > 0) {
+            // include — this sale has cash component
+          } else if (filterLower == 'upi' && s.upiAmount > 0) {
+            // include — this sale has UPI component
+          } else if (filterLower == 'card' && s.cardAmount > 0) {
+            // include — this sale has card component
+          } else {
+            return false;
+          }
+        }
       }
 
       return true;

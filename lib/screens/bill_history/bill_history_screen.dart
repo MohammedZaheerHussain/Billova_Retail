@@ -400,6 +400,8 @@ class BillHistoryScreen extends StatelessWidget {
         return AppColors.accent;
       case 'credit':
         return AppColors.warning;
+      case 'split':
+        return const Color(0xFF9C27B0); // Purple for split payments
       case 'all':
         return AppColors.textSecondary(context);
       default:
