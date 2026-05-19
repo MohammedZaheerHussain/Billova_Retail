@@ -317,7 +317,13 @@ class DBHelper {
         subtotal REAL NOT NULL DEFAULT 0,
         discount REAL DEFAULT 0,
         total REAL NOT NULL DEFAULT 0,
+        gst_amount REAL DEFAULT 0,
+        cgst REAL DEFAULT 0,
+        sgst REAL DEFAULT 0,
         payment_mode TEXT DEFAULT 'Cash',
+        cash_amount REAL DEFAULT 0,
+        upi_amount REAL DEFAULT 0,
+        card_amount REAL DEFAULT 0,
         staff_id TEXT DEFAULT '',
         staff_name TEXT DEFAULT '',
         loyalty_discount REAL DEFAULT 0,
@@ -655,6 +661,20 @@ class DBHelper {
       try {
         await db.execute("ALTER TABLE staff ADD COLUMN monthly_sale_target REAL DEFAULT 0");
       } catch (_) {} // Column may already exist
+    }
+
+    // v12: Add GST columns + payment split columns to sales
+    if (oldVersion < 12) {
+      try {
+        await db.execute("ALTER TABLE sales ADD COLUMN gst_amount REAL DEFAULT 0");
+        await db.execute("ALTER TABLE sales ADD COLUMN cgst REAL DEFAULT 0");
+        await db.execute("ALTER TABLE sales ADD COLUMN sgst REAL DEFAULT 0");
+      } catch (_) {} // Columns may already exist
+      try {
+        await db.execute("ALTER TABLE sales ADD COLUMN cash_amount REAL DEFAULT 0");
+        await db.execute("ALTER TABLE sales ADD COLUMN upi_amount REAL DEFAULT 0");
+        await db.execute("ALTER TABLE sales ADD COLUMN card_amount REAL DEFAULT 0");
+      } catch (_) {} // Columns may already exist
     }
   }
 

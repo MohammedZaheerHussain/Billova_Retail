@@ -193,7 +193,12 @@ class BillDetailDialog extends StatelessWidget {
               ],
               Divider(color: AppColors.cardBorder(context)),
               _row(context, 'Total', Formatters.currency(sale.total), isBold: true, color: AppColors.success),
-              _row(context, 'Payment', sale.paymentMode, fontSize: 12),
+              // Show payment breakdown — if split, show both amounts
+              if (sale.cashAmount > 0 && sale.upiAmount > 0) ...[
+                _row(context, 'Cash Paid', Formatters.currency(sale.cashAmount), fontSize: 12),
+                _row(context, 'UPI Paid', Formatters.currency(sale.upiAmount), fontSize: 12),
+              ] else
+                _row(context, 'Payment', sale.paymentMode, fontSize: 12),
               const SizedBox(height: 16),
 
               // ─── Actions ───
@@ -271,7 +276,7 @@ $items
 ━━━━━━━━━━━━━━
 Subtotal: ${Formatters.currency(sale.subtotal)}
 ${sale.discount > 0 ? 'Discount: -${Formatters.currency(sale.discount)}\n' : ''}${sale.gstAmount > 0 ? 'CGST: +${Formatters.currency(sale.cgst)}\nSGST: +${Formatters.currency(sale.sgst)}\n' : ''}*Total: ${Formatters.currency(sale.total)}*
-Payment: ${sale.paymentMode}
+Payment: ${sale.cashAmount > 0 && sale.upiAmount > 0 ? 'Cash ${Formatters.currency(sale.cashAmount)} + UPI ${Formatters.currency(sale.upiAmount)}' : sale.paymentMode}
 
 Thank you for your purchase! 🙏
 ''';

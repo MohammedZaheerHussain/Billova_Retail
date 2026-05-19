@@ -260,6 +260,9 @@ class SalesProvider extends ChangeNotifier {
     double loyaltyDiscount = 0,
     int pointsRedeemed = 0,
     int pointsEarned = 0,
+    double cashAmount = 0,
+    double upiAmount = 0,
+    double cardAmount = 0,
   }) async {
     if (_cart.isEmpty) return null;
 
@@ -275,6 +278,18 @@ class SalesProvider extends ChangeNotifier {
       final saleSgst = saleGstAmount / 2;
       final saleGrandTotal = finalTotal + saleGstAmount;
 
+      // Derive a smart paymentMode label from split (for backward compat display)
+      final String paymentLabel;
+      if (cashAmount > 0 && upiAmount > 0) {
+        paymentLabel = 'Split';
+      } else if (upiAmount > 0) {
+        paymentLabel = 'UPI';
+      } else if (cashAmount > 0) {
+        paymentLabel = 'Cash';
+      } else {
+        paymentLabel = _paymentMode; // fallback to whatever was set
+      }
+
       final sale = SaleModel(
         id: _uuid.v4(),
         invoiceNumber: invoiceNumber,
@@ -287,7 +302,10 @@ class SalesProvider extends ChangeNotifier {
         gstAmount: saleGstAmount,
         cgst: saleCgst,
         sgst: saleSgst,
-        paymentMode: _paymentMode,
+        paymentMode: paymentLabel,
+        cashAmount: cashAmount,
+        upiAmount: upiAmount,
+        cardAmount: cardAmount,
         staffId: staffId,
         staffName: staffName,
         loyaltyDiscount: loyaltyDiscount,

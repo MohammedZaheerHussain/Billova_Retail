@@ -59,7 +59,10 @@ class SaleModel {
   final double gstAmount;        // total GST across all items
   final double cgst;             // CGST (half of GST — same state)
   final double sgst;             // SGST (half of GST — same state)
-  final String paymentMode;
+  final String paymentMode;  // kept for backward compat / display
+  final double cashAmount;   // actual cash collected
+  final double upiAmount;    // actual UPI/card collected
+  final double cardAmount;   // future: separate card channel
   final bool isDeleted;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -82,6 +85,9 @@ class SaleModel {
     this.cgst = 0,
     this.sgst = 0,
     this.paymentMode = 'Cash',
+    this.cashAmount = 0,
+    this.upiAmount = 0,
+    this.cardAmount = 0,
     this.staffId = '',
     this.staffName = '',
     this.loyaltyDiscount = 0,
@@ -117,6 +123,9 @@ class SaleModel {
       'cgst': cgst,
       'sgst': sgst,
       'payment_mode': paymentMode,
+      'cash_amount': cashAmount,
+      'upi_amount': upiAmount,
+      'card_amount': cardAmount,
       'staff_id': staffId,
       'staff_name': staffName,
       'loyalty_discount': loyaltyDiscount,
@@ -154,6 +163,18 @@ class SaleModel {
       cgst: (map['cgst'] as num?)?.toDouble() ?? 0,
       sgst: (map['sgst'] as num?)?.toDouble() ?? 0,
       paymentMode: map['payment_mode'] as String? ?? 'Cash',
+      // Payment split — backward compat: if new fields absent, derive from paymentMode
+      cashAmount: (map['cash_amount'] as num?)?.toDouble() ?? (() {
+        final mode = (map['payment_mode'] as String? ?? 'Cash').toLowerCase();
+        final total = (map['total'] as num?)?.toDouble() ?? 0;
+        return mode == 'cash' ? total : 0.0;
+      })(),
+      upiAmount: (map['upi_amount'] as num?)?.toDouble() ?? (() {
+        final mode = (map['payment_mode'] as String? ?? 'Cash').toLowerCase();
+        final total = (map['total'] as num?)?.toDouble() ?? 0;
+        return (mode == 'upi' || mode == 'upi/card') ? total : 0.0;
+      })(),
+      cardAmount: (map['card_amount'] as num?)?.toDouble() ?? 0,
       staffId: map['staff_id'] as String? ?? '',
       staffName: map['staff_name'] as String? ?? '',
       loyaltyDiscount: (map['loyalty_discount'] as num?)?.toDouble() ?? 0,
@@ -176,6 +197,9 @@ class SaleModel {
     double? cgst,
     double? sgst,
     String? paymentMode,
+    double? cashAmount,
+    double? upiAmount,
+    double? cardAmount,
     double? loyaltyDiscount,
     int? pointsRedeemed,
     int? pointsEarned,
@@ -195,6 +219,9 @@ class SaleModel {
       cgst: cgst ?? this.cgst,
       sgst: sgst ?? this.sgst,
       paymentMode: paymentMode ?? this.paymentMode,
+      cashAmount: cashAmount ?? this.cashAmount,
+      upiAmount: upiAmount ?? this.upiAmount,
+      cardAmount: cardAmount ?? this.cardAmount,
       staffId: staffId,
       staffName: staffName,
       loyaltyDiscount: loyaltyDiscount ?? this.loyaltyDiscount,

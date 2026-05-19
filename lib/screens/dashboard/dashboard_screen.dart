@@ -216,12 +216,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<Map<String, double>> _getPaymentDistribution() async {
     try {
       final sales = await _db.query('sales', where: 'is_deleted = 0');
-      final dist = <String, double>{};
+      double totalCash = 0;
+      double totalUpi = 0;
+      double totalCard = 0;
+
       for (final sale in sales) {
-        final mode = sale['payment_mode'] as String? ?? 'Cash';
-        final total = (sale['total'] as num?)?.toDouble() ?? 0;
-        dist[mode] = (dist[mode] ?? 0) + total;
+        final saleTotal = (sale['total'] as num?)?.toDouble() ?? 0;
+        final cash = (sale['cash_amount'] as num?)?.toDouble() ?? 0;
+        final upi = (sale['upi_amount'] as num?)?.toDouble() ?? 0;
+        final card = (sale['card_amount'] as num?)?.toDouble() ?? 0;
+
+        // New records: use exact split amounts
+        if (cash > 0 || upi > 0 || card > 0) {
+          totalCash += cash;
+          totalUpi += upi;
+          totalCard += card;
+        } else {
+          // Old records: derive from payment_mode (backward compat)
+          final mode = (sale['payment_mode'] as String? ?? 'Cash').toLowerCase();
+          if (mode == 'cash') {
+            totalCash += saleTotal;
+          } else if (mode == 'upi' || mode == 'upi/card') {
+            totalUpi += saleTotal;
+          } else if (mode == 'card') {
+            totalCard += saleTotal;
+          } else {
+            totalCash += saleTotal;
+          }
+        }
       }
+
+      final dist = <String, double>{};
+      if (totalCash > 0) dist['Cash'] = totalCash;
+      if (totalUpi > 0) dist['UPI'] = totalUpi;
+      if (totalCard > 0) dist['Card'] = totalCard;
       return dist;
     } catch (_) {
       return {};

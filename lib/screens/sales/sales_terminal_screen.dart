@@ -200,14 +200,18 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       pointsEarned = loyalty.pointsForAmount(payableTotal);
     }
 
-    // Complete sale with staff info + loyalty
+    // Complete sale with staff info + loyalty + payment split
     final staff = context.read<StaffProvider>();
+    final cashPaidAmt = double.tryParse(_cashPaidCtrl.text) ?? 0;
+    final upiPaidAmt = double.tryParse(_upiPaidCtrl.text) ?? 0;
     final sale = await sales.completeSale(
       staffId: staff.currentStaffId ?? '',
       staffName: staff.currentStaffName,
       loyaltyDiscount: loyaltyDiscount,
       pointsRedeemed: pointsToRedeem,
       pointsEarned: pointsEarned,
+      cashAmount: cashPaidAmt,
+      upiAmount: upiPaidAmt,
     );
 
     if (sale != null) {
