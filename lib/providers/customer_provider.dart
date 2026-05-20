@@ -65,26 +65,39 @@ class CustomerProvider extends ChangeNotifier {
         }
       }
 
+      // Also check by name to avoid duplicates when phone is empty
+      if (phone.trim().isEmpty) {
+        final existingByName = findByName(name.trim());
+        if (existingByName != null) {
+          debugPrint('📋 Customer with name "${name.trim()}" already exists (no phone)');
+          return true;
+        }
+      }
+
       final customer = CustomerModel(id: _uuid.v4(), name: name, phone: phone);
 
       debugPrint('➕ CustomerProvider: adding customer "${customer.name}" (${customer.id})');
 
       // ═══════════════════════════════════════════════════════════
-      // CLOUD-FIRST: Save to Supabase BEFORE local cache (web)
-      // Customers = CRITICAL DATA — treated same as sales
-      // If cloud fails → BLOCK — no local-only saves allowed
+      // CLOUD-FIRST: Try Supabase, but ALWAYS save locally.
+      // Previous bug: if cloud rejected (missing column), customer
+      // was NEVER saved anywhere → silent data loss.
+      // NEW: Save locally + queue for cloud retry on failure.
       // ═══════════════════════════════════════════════════════════
+      bool cloudSaved = false;
       if (kIsWeb) {
         try {
           await _supabase.guaranteedSave('customers', customer.toMap());
           debugPrint('   ✅ Customer saved to cloud FIRST');
+          cloudSaved = true;
         } catch (e) {
-          debugPrint('   ❌ BLOCKED: Customer cloud save failed: $e');
-          return false; // BLOCK — do not save locally
+          debugPrint('   ⚠️ Customer cloud save failed (saving locally + queuing): $e');
+          // Queue for retry — do NOT block local save
+          _supabase.syncRecord('customers', customer.id, 'insert', customer.toMap());
         }
       }
 
-      // Save to local DB (cache on web, primary on mobile)
+      // ALWAYS save to local DB — never lose customer data
       await _db.insert('customers', customer.toMap());
       debugPrint('   ✓ Saved to local DB');
 
@@ -95,7 +108,7 @@ class CustomerProvider extends ChangeNotifier {
       debugPrint('   ✓ Added to provider list (total: ${_customers.length})');
 
       // Mobile: sync in background (SQLite persists, so safe)
-      if (!kIsWeb) {
+      if (!kIsWeb && !cloudSaved) {
         _supabase.syncRecord('customers', customer.id, 'insert', customer.toMap());
       }
 
@@ -110,14 +123,14 @@ class CustomerProvider extends ChangeNotifier {
     try {
       final updated = customer.copyWith(updatedAt: DateTime.now());
 
-      // Cloud-first on web — BLOCK if fails
+      // Cloud-first on web — but don't block on failure
       if (kIsWeb) {
         try {
           await _supabase.guaranteedSave('customers', updated.toMap());
           debugPrint('   ✅ Customer update saved to cloud');
         } catch (e) {
-          debugPrint('❌ BLOCKED: Customer update cloud save failed: $e');
-          return false; // BLOCK — do not update locally
+          debugPrint('⚠️ Customer update cloud save failed, queuing: $e');
+          _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
         }
       }
 
@@ -173,7 +186,7 @@ class CustomerProvider extends ChangeNotifier {
       lastPurchaseDate: DateTime.now(),
     );
 
-    // Cloud-first on web
+    // Cloud-first on web — but don't block on failure
     if (kIsWeb) {
       try {
         await _supabase.guaranteedSave('customers', updated.toMap());
@@ -205,7 +218,7 @@ class CustomerProvider extends ChangeNotifier {
     }
     customer ??= findByName(name.trim());
 
-    // ─── STEP 2: Not found → create new customer (cloud-first) ───
+    // ─── STEP 2: Not found → create new customer ───
     if (customer == null) {
       final success = await addCustomer(name: name.trim(), phone: phone.trim());
       if (!success) {
@@ -225,11 +238,52 @@ class CustomerProvider extends ChangeNotifier {
         await updateCustomer(customer.copyWith(name: name.trim()));
         customer = findByPhone(phone.trim()) ?? customer;
       }
+      // Update phone if customer had no phone before
+      if (phone.trim().isNotEmpty && customer.phone.isEmpty) {
+        await updateCustomer(customer.copyWith(phone: phone.trim()));
+        customer = findByPhone(phone.trim()) ?? customer;
+      }
     }
 
     // ─── STEP 3: Update purchase stats ───
     await recordSale(customer.id, amount, earnRate: earnRate);
     debugPrint('📊 Customer "${customer.name}" stats updated: +₹$amount (+${(amount / 100 * earnRate).floor()} pts)');
+  }
+
+  /// ═══════════════════════════════════════════════════════
+  /// RECOVERY: Scan all sales and recreate any missing customers.
+  /// Call this once after fixing the Supabase schema to recover
+  /// any customers lost due to the gst_number column bug.
+  /// ═══════════════════════════════════════════════════════
+  Future<int> recoverMissingCustomers(List<dynamic> allSales) async {
+    int recovered = 0;
+    final seen = <String>{}; // track phone/name keys to avoid duplicates
+
+    for (final sale in allSales) {
+      final name = (sale.customerName as String?) ?? '';
+      final phone = (sale.customerPhone as String?) ?? '';
+      if (name.isEmpty || name == 'Walk-in Customer') continue;
+
+      final key = phone.isNotEmpty ? phone : name.toLowerCase().trim();
+      if (seen.contains(key)) continue;
+      seen.add(key);
+
+      // Check if customer already exists
+      final existing = (phone.isNotEmpty ? findByPhone(phone) : null) ?? findByName(name);
+      if (existing != null) continue;
+
+      // Customer is missing — recreate
+      final success = await addCustomer(name: name.trim(), phone: phone.trim());
+      if (success) {
+        recovered++;
+        debugPrint('🔄 Recovered missing customer: "$name" ($phone)');
+      }
+    }
+
+    if (recovered > 0) {
+      debugPrint('✅ Customer recovery complete: $recovered customers restored');
+    }
+    return recovered;
   }
 
   /// Redeem loyalty points for a customer
@@ -283,3 +337,4 @@ class CustomerProvider extends ChangeNotifier {
     }
   }
 }
+

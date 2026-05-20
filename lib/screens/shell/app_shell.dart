@@ -259,6 +259,17 @@ class _AppShellState extends State<AppShell> {
       }
     } catch (_) {}
 
+    // ─── STEP 4.5: Recover any missing customers from sales history ───
+    // This fixes customers lost due to the gst_number column bug.
+    try {
+      final recovered = await customerProvider.recoverMissingCustomers(sales.allSales);
+      if (recovered > 0) {
+        debugPrint('🔄 Recovered $recovered missing customers from sales history');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Customer recovery failed (non-fatal): $e');
+    }
+
     // ─── STEP 5: Signal screens to reload with fresh data ───
     AppShell.dataVersion.value++;
     debugPrint('📢 dataVersion bumped to ${AppShell.dataVersion.value}');
