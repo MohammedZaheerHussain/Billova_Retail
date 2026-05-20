@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/permission_helper.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../providers/category_provider.dart';
@@ -62,25 +64,30 @@ class _InventoryScreenState extends State<InventoryScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ─── Header ───
-                Row(children: [
-                  Expanded(child: Text('Inventory',
-                    style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context)))),
-                  _statChip('${provider.totalItems}', 'Items', AppColors.primary),
-                  const SizedBox(width: 8),
-                  if (provider.lowStockCount > 0)
-                    _statChip('${provider.lowStockCount}', 'Low', AppColors.warning),
-                  const SizedBox(width: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => _showItemForm(context),
-                    icon: Icon(Icons.add_rounded, size: 20),
-                    label: const Text('Add Item'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary, foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ]),
+                Builder(builder: (context) {
+                  final perms = PermissionHelper(context.watch<AuthProvider>().userType);
+                  return Row(children: [
+                    Expanded(child: Text('Inventory',
+                      style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context)))),
+                    _statChip('${provider.totalItems}', 'Items', AppColors.primary),
+                    const SizedBox(width: 8),
+                    if (provider.lowStockCount > 0)
+                      _statChip('${provider.lowStockCount}', 'Low', AppColors.warning),
+                    if (perms.canAddInventory) ...[
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        onPressed: () => _showItemForm(context),
+                        icon: Icon(Icons.add_rounded, size: 20),
+                        label: const Text('Add Item'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ],
+                  ]);
+                }),
                 SizedBox(height: 16),
 
                 // ─── Search ───
@@ -253,29 +260,38 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ),
             ]),
           ])),
-          PopupMenuButton(
-            icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary(context)),
-            color: AppColors.card(context),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            itemBuilder: (ctx) => [
-              PopupMenuItem(
-                onTap: () => Future.microtask(() => _showItemForm(context, item: item)),
-                child: Row(children: [
-                  Icon(Icons.edit_rounded, size: 18, color: AppColors.textSecondary(context)),
-                  SizedBox(width: 8),
-                  Text('Edit', style: TextStyle(color: AppColors.textPrimary(context))),
-                ]),
-              ),
-              PopupMenuItem(
-                onTap: () => _confirmDelete(context, provider, item),
-                child: const Row(children: [
-                  Icon(Icons.delete_rounded, size: 18, color: AppColors.error),
-                  SizedBox(width: 8),
-                  Text('Delete', style: TextStyle(color: AppColors.error)),
-                ]),
-              ),
-            ],
-          ),
+          // Only show Edit/Delete menu for admin users
+          Builder(builder: (context) {
+            final perms = PermissionHelper(context.read<AuthProvider>().userType);
+            if (!perms.canEditInventory && !perms.canDeleteInventory) {
+              return const SizedBox(width: 8);
+            }
+            return PopupMenuButton(
+              icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary(context)),
+              color: AppColors.card(context),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              itemBuilder: (ctx) => [
+                if (perms.canEditInventory)
+                  PopupMenuItem(
+                    onTap: () => Future.microtask(() => _showItemForm(context, item: item)),
+                    child: Row(children: [
+                      Icon(Icons.edit_rounded, size: 18, color: AppColors.textSecondary(context)),
+                      SizedBox(width: 8),
+                      Text('Edit', style: TextStyle(color: AppColors.textPrimary(context))),
+                    ]),
+                  ),
+                if (perms.canDeleteInventory)
+                  PopupMenuItem(
+                    onTap: () => _confirmDelete(context, provider, item),
+                    child: const Row(children: [
+                      Icon(Icons.delete_rounded, size: 18, color: AppColors.error),
+                      SizedBox(width: 8),
+                      Text('Delete', style: TextStyle(color: AppColors.error)),
+                    ]),
+                  ),
+              ],
+            );
+          }),
         ]),
       ),
     );
@@ -475,14 +491,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ]))),
               const SizedBox(height: 12),
               Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                OutlinedButton.icon(
-                  onPressed: () { Navigator.pop(ctx); _showItemForm(context, item: item); },
-                  icon: Icon(Icons.edit_rounded, size: 16, color: AppColors.accent),
-                  label: Text('Edit', style: TextStyle(color: AppColors.accent)),
-                  style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.accent),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                ),
-                const SizedBox(width: 8),
+                // Edit button — admin only
+                if (PermissionHelper(context.read<AuthProvider>().userType).canEditInventory)
+                  OutlinedButton.icon(
+                    onPressed: () { Navigator.pop(ctx); _showItemForm(context, item: item); },
+                    icon: Icon(Icons.edit_rounded, size: 16, color: AppColors.accent),
+                    label: Text('Edit', style: TextStyle(color: AppColors.accent)),
+                    style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.accent),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  ),
+                if (PermissionHelper(context.read<AuthProvider>().userType).canEditInventory)
+                  const SizedBox(width: 8),
                 ElevatedButton(onPressed: () => Navigator.pop(ctx),
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
