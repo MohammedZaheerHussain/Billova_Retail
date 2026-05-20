@@ -5,8 +5,11 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/business_analytics.dart';
+import '../../core/utils/permission_helper.dart';
 import '../../data/local/db_helper.dart';
 import '../../data/remote/groq_service.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../providers/expense_provider.dart';
@@ -48,6 +51,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _aiInsights = '';
   bool _isLoadingAI = false;
   bool _showMonthlyBackupBanner = false;
+
+  // Analytics engine
+  BusinessAnalytics? _analytics;
+  List<BusinessInsight> _insights = [];
 
   @override
   void initState() {
@@ -175,7 +182,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final vendorProvider = context.read<VendorProvider>();
       final purchaseProvider = context.read<PurchaseProvider>();
-      // Ensure vendors and purchases are loaded
       await vendorProvider.loadVendors();
       await purchaseProvider.loadPurchases();
       vendorsWithDues = vendorProvider.vendors.where((v) => v.balance > 0).toList()
@@ -183,6 +189,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
       totalDues = vendorsWithDues.fold(0.0, (sum, v) => sum + v.balance);
       todayPurchases = purchaseProvider.todayPurchasePayments;
     } catch (_) {}
+
+    // ─── Build Analytics Engine ───
+    final salesProv = context.read<SalesProvider>();
+    final invProv = context.read<InventoryProvider>();
+    final expProv = context.read<ExpenseProvider>();
+
+    // Get raw expense data for analytics
+    List<Map<String, dynamic>> rawExpenses = [];
+    try {
+      rawExpenses = await _db.getAll('expenses');
+    } catch (_) {}
+
+    final analytics = BusinessAnalytics(
+      allSales: salesProv.allSales,
+      allItems: invProv.items,
+      allExpenses: rawExpenses,
+    );
 
     if (mounted) {
       setState(() {
@@ -195,20 +218,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _chartData = chartData;
         _lowStockItems = results[6] as List<Map<String, dynamic>>;
         _lowStockCount = _lowStockItems.length;
-        // Calculate gross profit from today's sales (per-item: selling - cost * qty)
-        final salesProv = context.read<SalesProvider>();
-        final now = DateTime.now();
-        final todayStart = DateTime(now.year, now.month, now.day);
-        final todaySales = salesProv.sales.where((s) {
-          final local = s.createdAt.toLocal();
-          return !local.isBefore(todayStart);
-        }).toList();
-        _todayProfit = todaySales.fold(0.0, (sum, s) => sum + s.grossProfit);
+        // Use analytics engine for accurate profit
+        _todayProfit = analytics.todayNetProfit;
         _topProducts = topProducts;
         _paymentDistribution = paymentDist;
         _vendorsWithDues = vendorsWithDues;
         _totalVendorDues = totalDues;
         _todayPurchases = todayPurchases;
+        _analytics = analytics;
+        _insights = analytics.generateInsights();
       });
     }
   }
@@ -307,52 +325,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 
   Future<void> _generateAIInsights() async {
+    if (_analytics == null) return;
     setState(() => _isLoadingAI = true);
 
-    // Build customer insights for AI
-    final customerProv = context.read<CustomerProvider>();
-    final salesProv = context.read<SalesProvider>();
-    final summaries = salesProv.getCustomerSummaries();
-    final now = DateTime.now();
-
-    // Top 5 spenders
-    final sortedCustomers = customerProv.customers.map((c) {
-      final key = c.phone.isNotEmpty ? c.phone : c.name.toLowerCase().trim();
-      final s = summaries[key];
-      return {
-        'name': c.name,
-        'phone': c.phone,
-        'totalSpent': (s?['totalSpent'] as double?) ?? c.totalSpent,
-        'totalOrders': (s?['totalOrders'] as int?) ?? c.totalOrders,
-        'lastPurchaseDate': ((s?['lastPurchaseDate'] as DateTime?) ?? c.lastPurchaseDate)?.toIso8601String(),
-        'daysSinceLastVisit': ((s?['lastPurchaseDate'] as DateTime?) ?? c.lastPurchaseDate) != null
-            ? now.difference((s?['lastPurchaseDate'] as DateTime?) ?? c.lastPurchaseDate!).inDays
-            : null,
-      };
-    }).toList();
-
-    sortedCustomers.sort((a, b) => ((b['totalSpent'] as double?) ?? 0).compareTo((a['totalSpent'] as double?) ?? 0));
-    final topSpenders = sortedCustomers.take(5).toList();
-    final inactive = sortedCustomers.where((c) => (c['daysSinceLastVisit'] as int?) != null && (c['daysSinceLastVisit'] as int?) != null && (c['daysSinceLastVisit'] as int)! > 7).take(5).toList();
-
-    final businessData = {
-      'today_sales': _todaySales,
-      'today_sales_count': _todaySalesCount,
-      'week_sales': _weekSales,
-      'today_expenses': _todayExpenses,
-      'today_profit': _todayProfit,
-      'stock_value': _stockValue,
-      'low_stock_count': _lowStockCount,
-      'low_stock_items': _lowStockItems.take(8).map((i) => {
-        'name': i['name'], 'quantity': i['quantity'],
-      }).toList(),
-      'top_products': _topProducts,
-      'total_customers': customerProv.customers.length,
-      'top_spenders': topSpenders,
-      'inactive_customers': inactive,
-    };
-
-    final insights = await GroqService.instance.generateInsights(businessData);
+    final payload = _analytics!.buildAIDataPayload();
+    final insights = await GroqService.instance.generateInsights(payload);
 
     if (mounted) {
       setState(() {
@@ -480,6 +457,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 16),
 
+            // ─── Business Intelligence Insights ───
+            if (_insights.isNotEmpty)
+              _buildInsightCards(),
+            if (_insights.isNotEmpty)
+              const SizedBox(height: 16),
+
             // ─── Top Products + AI Insights ───
             LayoutBuilder(
               builder: (context, constraints) {
@@ -499,6 +482,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               },
             ),
             const SizedBox(height: 16),
+
+            // ─── Category Revenue + Profit Breakdown ───
+            if (_analytics != null)
+              _buildFinancialSummary(),
+            if (_analytics != null)
+              const SizedBox(height: 16),
 
             // ─── Vendor Dues + Low Stock Alerts ───
             LayoutBuilder(
@@ -1056,6 +1045,283 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // ─── Business Intelligence Insight Cards ───
+  Widget _buildInsightCards() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [Color(0xFF6C5CE7), Color(0xFF00B894)]),
+                borderRadius: BorderRadius.circular(8)),
+              child: Icon(Icons.insights_rounded, size: 16, color: Colors.white),
+            ),
+            const SizedBox(width: 10),
+            Text('Business Intelligence', style: AppTypography.h4.copyWith(
+                color: AppColors.textPrimary(context))),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6)),
+              child: Text('${_insights.length} insights', style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.accent, fontWeight: FontWeight.w600)),
+            ),
+          ]),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10, runSpacing: 10,
+            children: _insights.map((insight) => _insightCard(insight)).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _insightCard(BusinessInsight insight) {
+    final color = _insightColor(insight.priority);
+    return Container(
+      width: 320,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(children: [
+            Text(insight.emoji, style: const TextStyle(fontSize: 16)),
+            const SizedBox(width: 6),
+            Expanded(child: Text(insight.title, style: AppTypography.bodyMedium.copyWith(
+                color: color, fontWeight: FontWeight.w700, fontSize: 13),
+                overflow: TextOverflow.ellipsis)),
+            _priorityBadge(insight.priority),
+          ]),
+          const SizedBox(height: 6),
+          Text(insight.description, style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondary(context), height: 1.4, fontSize: 12),
+              maxLines: 3, overflow: TextOverflow.ellipsis),
+        ],
+      ),
+    );
+  }
+
+  Widget _priorityBadge(InsightPriority priority) {
+    final color = _insightColor(priority);
+    final label = priority == InsightPriority.critical ? 'HIGH'
+        : priority == InsightPriority.warning ? 'MED'
+        : priority == InsightPriority.success ? 'OK' : 'INFO';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4)),
+      child: Text(label, style: TextStyle(
+          color: color, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+    );
+  }
+
+  Color _insightColor(InsightPriority priority) {
+    switch (priority) {
+      case InsightPriority.critical: return AppColors.error;
+      case InsightPriority.warning: return AppColors.warning;
+      case InsightPriority.success: return AppColors.success;
+      case InsightPriority.info: return const Color(0xFF0984E3);
+    }
+  }
+
+  // ─── Financial Summary Section ───
+  Widget _buildFinancialSummary() {
+    return LayoutBuilder(builder: (context, constraints) {
+      if (constraints.maxWidth > 800) {
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _buildCategoryRevenueChart()),
+            const SizedBox(width: 16),
+            Expanded(child: _buildProfitBreakdown()),
+          ],
+        );
+      }
+      return Column(children: [
+        _buildCategoryRevenueChart(),
+        const SizedBox(height: 16),
+        _buildProfitBreakdown(),
+      ]);
+    });
+  }
+
+  Widget _buildCategoryRevenueChart() {
+    if (_analytics == null) return const SizedBox.shrink();
+    final catRev = _analytics!.categoryRevenue;
+    if (catRev.isEmpty) return const SizedBox.shrink();
+
+    final sorted = catRev.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final topCats = sorted.take(6).toList();
+    final maxVal = topCats.first.value;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.donut_large_rounded, color: AppColors.accent, size: 18),
+            const SizedBox(width: 8),
+            Text('Revenue by Category', style: AppTypography.h4.copyWith(
+                color: AppColors.textPrimary(context))),
+          ]),
+          const SizedBox(height: 16),
+          ...topCats.asMap().entries.map((e) {
+            final cat = e.value;
+            final pct = maxVal > 0 ? cat.value / maxVal : 0.0;
+            final color = _pieColors[e.key % _pieColors.length];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Container(width: 10, height: 10, decoration: BoxDecoration(
+                        color: color, borderRadius: BorderRadius.circular(2))),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(cat.key, style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textPrimary(context), fontWeight: FontWeight.w500))),
+                    Text(Formatters.currency(cat.value), style: AppTypography.mono.copyWith(
+                        color: AppColors.textSecondary(context), fontSize: 12)),
+                  ]),
+                  const SizedBox(height: 4),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: LinearProgressIndicator(
+                      value: pct.clamp(0.0, 1.0),
+                      backgroundColor: AppColors.surface(context),
+                      color: color,
+                      minHeight: 6,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfitBreakdown() {
+    if (_analytics == null) return const SizedBox.shrink();
+    final a = _analytics!;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.account_balance_rounded, color: AppColors.accent, size: 18),
+            const SizedBox(width: 8),
+            Text('Profit Breakdown (Month)', style: AppTypography.h4.copyWith(
+                color: AppColors.textPrimary(context))),
+          ]),
+          const SizedBox(height: 16),
+          _profitRow('Revenue', a.monthRevenue, AppColors.success),
+          _profitRow('Cost of Goods', a.allSales.fold(0.0, (s, e) => s + e.totalCostPrice), AppColors.error),
+          _profitRow('Discounts', a.monthDiscounts, AppColors.warning),
+          _profitRow('GST Collected', a.monthGST, const Color(0xFF0984E3)),
+          _profitRow('Expenses', a.monthExpenses, AppColors.error),
+          const Divider(height: 20),
+          Row(children: [
+            Expanded(child: Text('Net Profit', style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textPrimary(context), fontWeight: FontWeight.w700))),
+            Text(Formatters.currency(a.monthNetProfit),
+                style: AppTypography.mono.copyWith(
+                    color: a.monthNetProfit >= 0 ? AppColors.success : AppColors.error,
+                    fontWeight: FontWeight.w700, fontSize: 16)),
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: Text('Profit Margin', style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textTertiary(context)))),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: (a.profitMarginPct >= 20 ? AppColors.success : AppColors.warning).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6)),
+              child: Text('${a.profitMarginPct.toStringAsFixed(1)}%',
+                  style: AppTypography.mono.copyWith(
+                      color: a.profitMarginPct >= 20 ? AppColors.success : AppColors.warning,
+                      fontWeight: FontWeight.w700, fontSize: 12)),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          Row(children: [
+            _growthChip('Week', a.weekGrowthPct),
+            const SizedBox(width: 8),
+            _growthChip('Month', a.monthGrowthPct),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _profitRow(String label, double value, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(children: [
+        Container(width: 8, height: 8, decoration: BoxDecoration(
+            color: color, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 8),
+        Expanded(child: Text(label, style: AppTypography.bodySmall.copyWith(
+            color: AppColors.textSecondary(context)))),
+        Text(Formatters.currency(value), style: AppTypography.mono.copyWith(
+            color: AppColors.textPrimary(context), fontSize: 12)),
+      ]),
+    );
+  }
+
+  Widget _growthChip(String label, double pct) {
+    final isPositive = pct >= 0;
+    final color = isPositive ? AppColors.success : AppColors.error;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(isPositive ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+            size: 14, color: color),
+        const SizedBox(width: 4),
+        Text('$label ${isPositive ? "+" : ""}${pct.toStringAsFixed(1)}%',
+            style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+      ]),
     );
   }
 }

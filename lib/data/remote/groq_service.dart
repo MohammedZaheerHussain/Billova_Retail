@@ -20,45 +20,44 @@ class GroqService {
     }
 
     try {
-      final prompt = '''You are a smart and friendly retail business assistant for a shoe/clothing shop called SKYWALK in India.
+      final prompt = '''You are an expert AI Business Intelligence advisor for SKYWALK, a retail shoe/clothing shop in India.
 
-Analyze the following business data and give helpful, practical suggestions.
+Analyze this REAL business data and provide professional, data-driven insights:
 
-Business Data:
 ${jsonEncode(businessData)}
 
-Rules:
-- All currency values are in Indian Rupees (₹). ALWAYS use ₹ symbol, NEVER use dollars or \$.
-- Keep tone friendly and conversational — talk like a helpful business partner, not a robot
-- Give exactly 6-8 short, actionable bullet points
-- Start each point with a relevant emoji (💡 ✅ ⚠️ 📦 💰 📈 🔥 👍 🎯 📱 👥)
-- Keep each point to 1-2 sentences max
-- Be specific with numbers from the data
-- Suggest concrete actions the owner can take today
+RULES:
+- All currency in Indian Rupees (₹). NEVER use \$.
+- Be specific — cite exact numbers, product names, customer names from the data.
+- Give exactly 8-10 insights organized by section.
+- Each insight: emoji + bold title + 1-2 sentence actionable advice.
 
-Focus on:
-1. 📈 Sales insights (trends, wins, concerns)
-2. 📦 Inventory suggestions (restock, slow movers)
-3. 💰 Profit improvement tips
-4. ⚠️ Risks or warnings
-5. 💡 Quick opportunities
-6. 👥 Customer retention — identify inactive customers and suggest WhatsApp offers to bring them back
-7. 🎯 VIP customers — highlight top spenders and suggest exclusive deals for them
-8. 📱 WhatsApp marketing — suggest specific offers or messages to send based on current stock and customer behavior
+SECTIONS (use these exact headers):
+**📊 Financial Health**
+- Analyze profit margins, revenue growth, expense ratios. Compare week/month growth.
+- Flag if expenses are eating into profit.
 
-If there are inactive customers (haven't bought in 7+ days), suggest sending them a WhatsApp offer.
-If there are high-spending customers, suggest VIP treatment or loyalty rewards.
-Always include at least 1 customer engagement suggestion.
+**📦 Inventory Intelligence**
+- Restock urgency for fast sellers with low stock.
+- Dead stock items needing discount clearance.
+- Overstock warnings.
 
-Example tone:
-"👍 Your sales are looking solid this week — keep it up!"
-"📦 You might want to restock those fast-moving items soon"
-"💡 Try running a small discount on slow movers to clear stock"
-"⚠️ Expenses are creeping up — worth reviewing today"
-"📱 3 customers haven't visited in 10+ days — send them a WhatsApp offer!"
-"🎯 Rahul has spent ₹15K — consider a VIP discount to keep him loyal"
+**🏆 Product & Category Winners**
+- Top performing products/categories by revenue and profit.
+- Underperforming categories to review.
 
-Avoid technical jargon. Be brief and human.''';
+**👥 Customer Insights**
+- Inactive customers to re-engage (name them, suggest WhatsApp messages).
+- VIP customers deserving exclusive deals.
+
+**🕐 Sales Timing**
+- Peak selling days and hours from the data.
+
+**💡 Action Items (Today)**
+- 2-3 concrete things the owner should do RIGHT NOW.
+
+TONE: Professional but friendly. Like a smart business consultant.
+Avoid generic advice. Every insight must reference actual data points.''';
 
       final response = await http.post(
         Uri.parse(_baseUrl),
@@ -71,8 +70,8 @@ Avoid technical jargon. Be brief and human.''';
           'messages': [
             {'role': 'user', 'content': prompt}
           ],
-          'temperature': 0.7,
-          'max_tokens': 600,
+          'temperature': 0.6,
+          'max_tokens': 1000,
         }),
       );
 
