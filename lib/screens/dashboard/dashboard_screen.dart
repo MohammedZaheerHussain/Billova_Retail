@@ -226,11 +226,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final upi = (sale['upi_amount'] as num?)?.toDouble() ?? 0;
         final card = (sale['card_amount'] as num?)?.toDouble() ?? 0;
 
-        // New records: use exact split amounts
+        // New records: use exact split amounts, but CAP to sale.total
+        // This prevents legacy data where payment amounts > bill total
         if (cash > 0 || upi > 0 || card > 0) {
-          totalCash += cash;
-          totalUpi += upi;
-          totalCard += card;
+          final paymentSum = cash + upi + card;
+          if (paymentSum > 0 && paymentSum > saleTotal && saleTotal > 0) {
+            // Scale down proportionally to match bill total
+            final ratio = saleTotal / paymentSum;
+            totalCash += cash * ratio;
+            totalUpi += upi * ratio;
+            totalCard += card * ratio;
+          } else {
+            totalCash += cash;
+            totalUpi += upi;
+            totalCard += card;
+          }
         } else {
           // Old records: derive from payment_mode (backward compat)
           final mode = (sale['payment_mode'] as String? ?? 'Cash').toLowerCase();
@@ -247,9 +257,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
 
       final dist = <String, double>{};
-      if (totalCash > 0) dist['Cash'] = totalCash;
-      if (totalUpi > 0) dist['UPI'] = totalUpi;
-      if (totalCard > 0) dist['Card'] = totalCard;
+      if (totalCash > 0) dist['Cash'] = double.parse(totalCash.toStringAsFixed(2));
+      if (totalUpi > 0) dist['UPI'] = double.parse(totalUpi.toStringAsFixed(2));
+      if (totalCard > 0) dist['Card'] = double.parse(totalCard.toStringAsFixed(2));
       return dist;
     } catch (_) {
       return {};

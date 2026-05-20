@@ -97,7 +97,10 @@ class SalesProvider extends ChangeNotifier {
   String get customerPhone => _customerPhone;
   String get paymentMode => _paymentMode;
   double get discountPercent => _discountPercent;
-  double get discountAmount => subtotal * (_discountPercent / 100);
+  double get discountAmount {
+    final raw = subtotal * (_discountPercent / 100);
+    return double.parse(raw.toStringAsFixed(2)); // Round to 2 decimals — prevents ₹100 → ₹100.05 drift
+  }
 
   double get subtotal => _cart.fold(0, (sum, item) => sum + item.total);
   double get total => (subtotal - discountAmount).clamp(0, double.infinity);
@@ -281,6 +284,9 @@ class SalesProvider extends ChangeNotifier {
     try {
       final invoiceNumber = await _db.nextInvoiceNumber();
 
+      // Round discount to 2 decimals to prevent floating-point drift
+      final roundedDiscount = double.parse(discountAmount.toStringAsFixed(2));
+
       // Apply loyalty discount to the final total
       final finalTotal = (total - loyaltyDiscount).clamp(0.0, double.infinity);
 
@@ -288,18 +294,59 @@ class SalesProvider extends ChangeNotifier {
       final saleGstAmount = _gstEnabled ? gstAmount : 0.0;
       final saleCgst = saleGstAmount / 2;
       final saleSgst = saleGstAmount / 2;
-      final saleGrandTotal = finalTotal + saleGstAmount;
+      final saleGrandTotal = double.parse((finalTotal + saleGstAmount).toStringAsFixed(2));
+
+      // ═══════════════════════════════════════════════════════════
+      // AUTO-SET PAYMENT AMOUNTS: For single-method payments,
+      // the payment amount MUST equal the bill total.
+      // This prevents UPI showing ₹1150 when bill is ₹1050.
+      // ═══════════════════════════════════════════════════════════
+      double finalCash = cashAmount;
+      double finalUpi = upiAmount;
+      double finalCard = cardAmount;
+
+      final isSplit = (cashAmount > 0 && upiAmount > 0) ||
+                      (cashAmount > 0 && cardAmount > 0) ||
+                      (upiAmount > 0 && cardAmount > 0);
+
+      if (!isSplit) {
+        // Single payment method — force amount to match bill total
+        if (upiAmount > 0 || _paymentMode.toLowerCase() == 'upi') {
+          finalCash = 0;
+          finalUpi = saleGrandTotal;
+          finalCard = 0;
+        } else if (cardAmount > 0 || _paymentMode.toLowerCase() == 'card') {
+          finalCash = 0;
+          finalUpi = 0;
+          finalCard = saleGrandTotal;
+        } else {
+          // Default: Cash
+          finalCash = saleGrandTotal;
+          finalUpi = 0;
+          finalCard = 0;
+        }
+      } else {
+        // Split payment — validate total matches bill
+        final paymentSum = finalCash + finalUpi + finalCard;
+        if ((paymentSum - saleGrandTotal).abs() > 0.01 && paymentSum > 0) {
+          // Adjust proportionally to match bill total
+          final ratio = saleGrandTotal / paymentSum;
+          finalCash = double.parse((finalCash * ratio).toStringAsFixed(2));
+          finalUpi = double.parse((finalUpi * ratio).toStringAsFixed(2));
+          finalCard = double.parse((saleGrandTotal - finalCash - finalUpi).toStringAsFixed(2));
+        }
+      }
 
       // Derive a smart paymentMode label from split (for backward compat display)
       final String paymentLabel;
-      if (cashAmount > 0 && upiAmount > 0) {
+      if (finalCash > 0 && (finalUpi > 0 || finalCard > 0)) {
         paymentLabel = 'Split';
-      } else if (upiAmount > 0) {
+      } else if (finalUpi > 0) {
         paymentLabel = 'UPI';
-      } else if (cashAmount > 0) {
-        paymentLabel = 'Cash';
+      } else if (finalCard > 0) {
+        paymentLabel = 'Card';
       } else {
-        paymentLabel = _paymentMode; // fallback to whatever was set
+        paymentLabel = 'Cash';
       }
 
       final sale = SaleModel(
@@ -309,15 +356,15 @@ class SalesProvider extends ChangeNotifier {
         customerPhone: _customerPhone,
         items: List.from(_cart),
         subtotal: subtotal,
-        discount: discountAmount,
+        discount: roundedDiscount,
         total: saleGrandTotal,
         gstAmount: saleGstAmount,
         cgst: saleCgst,
         sgst: saleSgst,
         paymentMode: paymentLabel,
-        cashAmount: cashAmount,
-        upiAmount: upiAmount,
-        cardAmount: cardAmount,
+        cashAmount: finalCash,
+        upiAmount: finalUpi,
+        cardAmount: finalCard,
         staffId: staffId,
         staffName: staffName,
         loyaltyDiscount: loyaltyDiscount,
