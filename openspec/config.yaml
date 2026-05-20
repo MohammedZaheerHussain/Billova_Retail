@@ -1,0 +1,30 @@
+schema: spec-driven
+
+# Project context
+context: |
+  Tech stack: Flutter (Dart), Supabase (PostgreSQL), SQLite (local)
+  Platform: Web-first billing system (also supports mobile)
+  Domain: Retail POS / Billing system for SKYWALK clothing store
+  Architecture: Provider pattern, cloud-first with offline fallback
+  Key modules: Sales Terminal, Inventory, Customers, Bill History,
+    Staff Management, Purchases, Expenses, Cash Till, Loyalty Points,
+    Dashboard Analytics, GST/Tax Support
+  Database: Dual-write (Supabase cloud + local SQLite/WebDB cache)
+  Auth: Supabase Auth with staff-level role-based access
+  Conventions: Cloud-first critical data, sync queue for non-critical
+  Style: Material Design 3, dark/light theme, responsive layout
+
+# Per-artifact rules
+rules:
+  proposal:
+    - Include Supabase migration requirements if schema changes
+    - Identify which providers are affected
+    - Note if change impacts cloud sync or data isolation
+  tasks:
+    - Break into max 2-hour chunks
+    - Always include verification steps
+    - Tag tasks that need Supabase SQL Editor action
+  design:
+    - Follow existing AppColors and AppTypography system
+    - Maintain dark/light theme compatibility
+    - Use existing widget patterns (StatCard, dialogs, etc.)
