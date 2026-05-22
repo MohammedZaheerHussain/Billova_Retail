@@ -336,5 +336,61 @@ class CustomerProvider extends ChangeNotifier {
       return null;
     }
   }
+
+  // ─── UDHAR / Credit Features ───
+
+  /// Customers with outstanding balance (Udhar)
+  List<CustomerModel> get customersWithDues {
+    final list = _customers.where((c) => c.balance > 0).toList()
+      ..sort((a, b) => b.balance.compareTo(a.balance));
+    return list;
+  }
+
+  /// Total outstanding receivables across all customers
+  double get totalCustomerDues =>
+      _customers.fold(0.0, (sum, c) => sum + c.balance);
+
+  /// Collect payment from customer — reduces their outstanding balance.
+  /// [method] is 'Cash' or 'UPI' for dashboard tracking.
+  /// Returns true on success, false if amount exceeds balance or error.
+  Future<bool> collectPayment(String customerId, double amount, String method) async {
+    try {
+      final idx = _customers.indexWhere((c) => c.id == customerId);
+      if (idx == -1) return false;
+
+      final customer = _customers[idx];
+      if (amount <= 0 || amount > customer.balance + 0.01) return false;
+
+      final newBalance = double.parse(
+        (customer.balance - amount).clamp(0.0, double.infinity).toStringAsFixed(2)
+      );
+      final updated = customer.copyWith(balance: newBalance);
+
+      // Cloud-first on web
+      if (kIsWeb) {
+        try {
+          await _supabase.guaranteedSave('customers', updated.toMap());
+          debugPrint('   ✅ Collection saved to cloud');
+        } catch (e) {
+          debugPrint('⚠️ Collection cloud save failed, queuing: $e');
+          _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
+        }
+      }
+
+      await _db.update('customers', updated.toMap(), updated.id);
+      _customers[idx] = updated;
+      notifyListeners();
+
+      if (!kIsWeb) {
+        _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
+      }
+
+      debugPrint('💰 Collected ₹$amount ($method) from "${updated.name}" — balance: ₹$newBalance');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Failed to collect payment: $e');
+      return false;
+    }
+  }
 }
 

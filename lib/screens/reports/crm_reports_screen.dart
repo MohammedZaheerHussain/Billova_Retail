@@ -20,6 +20,7 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
   String _period = 'Today';
   DateTime? _customStart;
   DateTime? _customEnd;
+  bool _showOnlyDues = false;  // Filter: show only customers with outstanding balance
 
   static const _periods = ['Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days', 'This Month', 'This Year', 'All Time', 'Custom'];
 
@@ -225,9 +226,14 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
     }
     final topItems = itemSales.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
 
-    // Top customers
-    final topCustomers = customers.customers.toList()
-      ..sort((a, b) => b.totalSpent.compareTo(a.totalSpent));
+    // Top customers (apply Udhar filter if active)
+    final filteredCustomers = _showOnlyDues
+        ? customers.customers.where((c) => c.balance > 0).toList()
+        : customers.customers.toList();
+    final topCustomers = filteredCustomers
+      ..sort((a, b) => _showOnlyDues
+          ? b.balance.compareTo(a.balance)
+          : b.totalSpent.compareTo(a.totalSpent));
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -414,13 +420,15 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
                   const SizedBox(width: 16),
                   // Top Customers
                   Expanded(flex: 1, child: _panelCard(
-                    'Top Customers',
+                    _showOnlyDues ? 'Customers with Udhar' : 'Top Customers',
                     Icons.people_rounded,
                     topCustomers.isEmpty
-                        ? Center(child: Text('No customers yet', style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.textTertiary(context))))
+                        ? Center(child: Text(
+                            _showOnlyDues ? 'No outstanding dues' : 'No customers yet',
+                            style: AppTypography.bodySmall.copyWith(
+                                color: AppColors.textTertiary(context))))
                         : ListView.builder(
-                            itemCount: topCustomers.length.clamp(0, 10),
+                            itemCount: topCustomers.length.clamp(0, 15),
                             itemBuilder: (_, i) {
                               final c = topCustomers[i];
                               return Padding(
@@ -430,15 +438,33 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
                                   contentPadding: EdgeInsets.zero,
                                   leading: CircleAvatar(
                                     radius: 16,
-                                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                                    backgroundColor: c.balance > 0
+                                        ? AppColors.warning.withValues(alpha: 0.1)
+                                        : AppColors.primary.withValues(alpha: 0.1),
                                     child: Text(c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
-                                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 12)),
+                                        style: TextStyle(
+                                            color: c.balance > 0 ? AppColors.warning : AppColors.primary,
+                                            fontWeight: FontWeight.w700, fontSize: 12)),
                                   ),
                                   title: Text(c.name, style: AppTypography.bodySmall.copyWith(
                                       color: AppColors.textPrimary(context), fontWeight: FontWeight.w500)),
-                                  subtitle: Text('${c.totalOrders} orders - ${c.loyaltyPoints} pts',
-                                      style: AppTypography.labelSmall.copyWith(
-                                          color: AppColors.textTertiary(context))),
+                                  subtitle: Row(children: [
+                                    Text('${c.totalOrders} orders - ${c.loyaltyPoints} pts',
+                                        style: AppTypography.labelSmall.copyWith(
+                                            color: AppColors.textTertiary(context))),
+                                    if (c.balance > 0) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.warning.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text('Udhar: ${Formatters.currency(c.balance)}',
+                                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.warning)),
+                                      ),
+                                    ],
+                                  ]),
                                   trailing: Text(Formatters.currency(c.totalSpent),
                                       style: AppTypography.mono.copyWith(
                                           color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600)),
@@ -446,6 +472,29 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
                               );
                             },
                           ),
+                    headerAction: GestureDetector(
+                      onTap: () => setState(() => _showOnlyDues = !_showOnlyDues),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _showOnlyDues
+                              ? AppColors.warning.withValues(alpha: 0.15)
+                              : AppColors.surface(context),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: _showOnlyDues ? AppColors.warning : AppColors.cardBorder(context)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.access_time_rounded, size: 12,
+                              color: _showOnlyDues ? AppColors.warning : AppColors.textTertiary(context)),
+                          const SizedBox(width: 4),
+                          Text('Dues',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
+                                  color: _showOnlyDues ? AppColors.warning : AppColors.textTertiary(context))),
+                        ]),
+                      ),
+                    ),
                   )),
                 ],
               ),
@@ -608,7 +657,7 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
     );
   }
 
-  Widget _panelCard(String title, IconData icon, Widget child) {
+  Widget _panelCard(String title, IconData icon, Widget child, {Widget? headerAction}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -624,6 +673,10 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
             const SizedBox(width: 8),
             Text(title, style: AppTypography.h4.copyWith(
                 color: AppColors.textPrimary(context))),
+            if (headerAction != null) ...[
+              const Spacer(),
+              headerAction,
+            ],
           ]),
           Divider(color: AppColors.cardBorder(context), height: 20),
           Expanded(child: child),

@@ -7,6 +7,7 @@ class CustomerModel {
   final int totalOrders;
   final double totalSpent;
   final String gstNumber;       // Customer GSTIN (optional, for B2B)
+  final double balance;          // Outstanding amount owed BY customer (Udhar)
   final int loyaltyPoints;
   final DateTime? lastPurchaseDate;
   final bool isDeleted;
@@ -20,6 +21,7 @@ class CustomerModel {
     this.totalOrders = 0,
     this.totalSpent = 0,
     this.gstNumber = '',
+    this.balance = 0,
     this.loyaltyPoints = 0,
     this.lastPurchaseDate,
     this.isDeleted = false,
@@ -36,6 +38,7 @@ class CustomerModel {
       'total_orders': totalOrders,
       'total_spent': totalSpent,
       'gst_number': gstNumber,
+      'balance': balance,
       'loyalty_points': loyaltyPoints,
       'last_purchase_date': lastPurchaseDate?.toIso8601String(),
       'is_deleted': isDeleted ? 1 : 0,
@@ -52,6 +55,7 @@ class CustomerModel {
       totalOrders: (map['total_orders'] as num?)?.toInt() ?? 0,
       totalSpent: (map['total_spent'] as num?)?.toDouble() ?? 0,
       gstNumber: (map['gst_number'] as String?) ?? '',
+      balance: (map['balance'] as num?)?.toDouble() ?? 0,
       loyaltyPoints: (map['loyalty_points'] as num?)?.toInt() ?? 0,
       lastPurchaseDate: map['last_purchase_date'] != null
           ? DateTime.tryParse(map['last_purchase_date'] as String)
@@ -68,6 +72,7 @@ class CustomerModel {
     int? totalOrders,
     double? totalSpent,
     String? gstNumber,
+    double? balance,
     int? loyaltyPoints,
     DateTime? lastPurchaseDate,
     bool? isDeleted,
@@ -80,6 +85,7 @@ class CustomerModel {
       totalOrders: totalOrders ?? this.totalOrders,
       totalSpent: totalSpent ?? this.totalSpent,
       gstNumber: gstNumber ?? this.gstNumber,
+      balance: balance ?? this.balance,
       loyaltyPoints: loyaltyPoints ?? this.loyaltyPoints,
       lastPurchaseDate: lastPurchaseDate ?? this.lastPurchaseDate,
       isDeleted: isDeleted ?? this.isDeleted,
@@ -91,5 +97,5 @@ class CustomerModel {
   String toJson() => jsonEncode(toMap());
 
   @override
-  String toString() => 'CustomerModel(name: $name, orders: $totalOrders, spent: $totalSpent)';
+  String toString() => 'CustomerModel(name: $name, orders: $totalOrders, spent: $totalSpent, balance: $balance)';
 }

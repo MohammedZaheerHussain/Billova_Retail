@@ -359,6 +359,23 @@ class _CustomerScreenState extends State<CustomerScreen> {
               const SizedBox(width: 10),
               _statBadge(Icons.calendar_today_rounded, lastPurchase, 'Last'),
             ]),
+            if (customer.balance > 0) ...[
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.access_time_rounded, size: 12, color: AppColors.warning),
+                  const SizedBox(width: 4),
+                  Text('Udhar: ${Formatters.currency(customer.balance)}',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.warning)),
+                ]),
+              ),
+            ],
           ],
         ),
         trailing: _isSelectMode
@@ -400,6 +417,15 @@ class _CustomerScreenState extends State<CustomerScreen> {
                         Text('WhatsApp', style: TextStyle(color: Color(0xFF25D366))),
                       ]),
                     ),
+                  if (customer.balance > 0)
+                    PopupMenuItem(
+                      onTap: () => Future.microtask(() => _showCollectDialog(customer)),
+                      child: Row(children: [
+                        Icon(Icons.payments_rounded, size: 18, color: AppColors.success),
+                        const SizedBox(width: 8),
+                        Text('Collect Payment', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w600)),
+                      ]),
+                    ),
                   PopupMenuItem(
                     onTap: () => provider.deleteCustomer(customer.id),
                     child: Row(children: [
@@ -410,6 +436,171 @@ class _CustomerScreenState extends State<CustomerScreen> {
                   ),
                 ],
               ),
+      ),
+    );
+  }
+
+  void _showCollectDialog(CustomerModel customer) {
+    final amountCtrl = TextEditingController();
+    String method = 'Cash';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => Dialog(
+          backgroundColor: AppColors.card(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.payments_rounded, color: AppColors.success, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Collect Payment', style: AppTypography.h3.copyWith(color: AppColors.textPrimary(context))),
+                        Text(customer.name, style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
+                      ]),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context)),
+                    ),
+                  ]),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.account_balance_wallet_rounded, size: 18, color: AppColors.warning),
+                      const SizedBox(width: 8),
+                      Text('Outstanding: ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary(context))),
+                      Text(Formatters.currency(customer.balance),
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.warning)),
+                    ]),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: amountCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    autofocus: true,
+                    style: TextStyle(color: AppColors.textPrimary(context), fontSize: 18, fontWeight: FontWeight.w600),
+                    decoration: InputDecoration(
+                      labelText: 'Amount (₹)',
+                      prefixIcon: Icon(Icons.currency_rupee_rounded, color: AppColors.success),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: AppColors.cardBorder(context)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: AppColors.success, width: 2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Payment Method', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary(context))),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setDialogState(() => method = 'Cash'),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: method == 'Cash' ? AppColors.success.withValues(alpha: 0.15) : AppColors.surface(context),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: method == 'Cash' ? AppColors.success : AppColors.cardBorder(context), width: method == 'Cash' ? 2 : 1),
+                          ),
+                          child: Column(children: [
+                            Icon(Icons.money_rounded, color: method == 'Cash' ? AppColors.success : AppColors.textTertiary(context)),
+                            const SizedBox(height: 4),
+                            Text('Cash', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: method == 'Cash' ? AppColors.success : AppColors.textSecondary(context))),
+                          ]),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setDialogState(() => method = 'UPI'),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: method == 'UPI' ? AppColors.accent.withValues(alpha: 0.15) : AppColors.surface(context),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: method == 'UPI' ? AppColors.accent : AppColors.cardBorder(context), width: method == 'UPI' ? 2 : 1),
+                          ),
+                          child: Column(children: [
+                            Icon(Icons.qr_code_rounded, color: method == 'UPI' ? AppColors.accent : AppColors.textTertiary(context)),
+                            const SizedBox(height: 4),
+                            Text('UPI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: method == 'UPI' ? AppColors.accent : AppColors.textSecondary(context))),
+                          ]),
+                        ),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final amount = double.tryParse(amountCtrl.text) ?? 0;
+                        if (amount <= 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Enter a valid amount'), backgroundColor: AppColors.error),
+                          );
+                          return;
+                        }
+                        if (amount > customer.balance + 0.01) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Amount exceeds outstanding balance'), backgroundColor: AppColors.error),
+                          );
+                          return;
+                        }
+                        Navigator.pop(ctx);
+                        final success = await context.read<CustomerProvider>().collectPayment(customer.id, amount, method);
+                        if (success && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('✅ Collected ${Formatters.currency(amount)} ($method) from ${customer.name}'),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                        }
+                      },
+                      icon: Icon(Icons.check_circle_rounded),
+                      label: Text('Collect Payment', style: TextStyle(fontWeight: FontWeight.w700)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

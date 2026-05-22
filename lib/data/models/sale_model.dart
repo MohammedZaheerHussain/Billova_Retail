@@ -71,6 +71,7 @@ class SaleModel {
   final double loyaltyDiscount;  // ₹ deducted via loyalty points
   final int pointsRedeemed;      // number of points used
   final int pointsEarned;        // number of points awarded
+  final double dueAmount;        // unpaid portion (Udhar/credit)
 
   SaleModel({
     required this.id,
@@ -93,6 +94,7 @@ class SaleModel {
     this.loyaltyDiscount = 0,
     this.pointsRedeemed = 0,
     this.pointsEarned = 0,
+    this.dueAmount = 0,
     this.isDeleted = false,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -101,6 +103,7 @@ class SaleModel {
 
   int get totalItems => items.fold(0, (sum, item) => sum + item.quantity);
   double get discountPercent => subtotal > 0 ? (discount / subtotal) * 100 : 0;
+  bool get isUdhar => dueAmount > 0;
 
   /// Total cost of goods sold (sum of cost_price * quantity for each item)
   double get totalCostPrice => items.fold(0.0, (sum, item) => sum + (item.costPrice * item.quantity));
@@ -131,6 +134,7 @@ class SaleModel {
       'loyalty_discount': loyaltyDiscount,
       'points_redeemed': pointsRedeemed,
       'points_earned': pointsEarned,
+      'due_amount': dueAmount,
       'is_deleted': isDeleted ? 1 : 0,
       'created_at': createdAt.toUtc().toIso8601String(),
       'updated_at': updatedAt.toUtc().toIso8601String(),
@@ -180,6 +184,7 @@ class SaleModel {
       loyaltyDiscount: (map['loyalty_discount'] as num?)?.toDouble() ?? 0,
       pointsRedeemed: (map['points_redeemed'] as num?)?.toInt() ?? 0,
       pointsEarned: (map['points_earned'] as num?)?.toInt() ?? 0,
+      dueAmount: (map['due_amount'] as num?)?.toDouble() ?? 0,
       isDeleted: map['is_deleted'] == 1 || map['is_deleted'] == true,
       createdAt: _parseTimestamp(map['created_at'] as String),
       updatedAt: _parseTimestamp(map['updated_at'] as String),
@@ -203,6 +208,7 @@ class SaleModel {
     double? loyaltyDiscount,
     int? pointsRedeemed,
     int? pointsEarned,
+    double? dueAmount,
     bool? isDeleted,
     DateTime? updatedAt,
   }) {
@@ -227,6 +233,7 @@ class SaleModel {
       loyaltyDiscount: loyaltyDiscount ?? this.loyaltyDiscount,
       pointsRedeemed: pointsRedeemed ?? this.pointsRedeemed,
       pointsEarned: pointsEarned ?? this.pointsEarned,
+      dueAmount: dueAmount ?? this.dueAmount,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now().toUtc(),
