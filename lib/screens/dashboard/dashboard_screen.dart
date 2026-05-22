@@ -1,4 +1,4 @@
-import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
@@ -12,7 +12,7 @@ import '../../data/remote/groq_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
-import '../../providers/expense_provider.dart';
+
 import '../../providers/customer_provider.dart';
 import '../../providers/vendor_provider.dart';
 import '../../providers/purchase_provider.dart';
@@ -171,10 +171,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       weekTotal += (day['total'] as num).toDouble();
     }
 
-    // Get top products + payment distribution
-    final topProducts = await _getTopProducts();
-    final paymentDist = await _getPaymentDistribution();
-
     // Get vendor dues — ensure data is loaded first
     List<VendorModel> vendorsWithDues = [];
     double totalDues = 0;
@@ -190,12 +186,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       todayPurchases = purchaseProvider.todayPurchasePayments;
     } catch (_) {}
 
-    // ─── Build Analytics Engine ───
+    // ─── Build Centralized Analytics Engine ───
+    // ALL dashboard financial widgets derive from this single source
     final salesProv = context.read<SalesProvider>();
     final invProv = context.read<InventoryProvider>();
-    final expProv = context.read<ExpenseProvider>();
 
-    // Get raw expense data for analytics
     List<Map<String, dynamic>> rawExpenses = [];
     try {
       rawExpenses = await _db.getAll('expenses');
@@ -206,6 +201,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       allItems: invProv.items,
       allExpenses: rawExpenses,
     );
+
+    // Use centralized analytics for payment distribution and top products
+    final paymentDist = analytics.monthPaymentDistribution;
+    final topProducts = analytics.monthTopProducts;
+
+    debugPrint('📊 Dashboard sync: Revenue=${analytics.monthRevenue.toStringAsFixed(2)}, '
+        'Payment total=${paymentDist.values.fold(0.0, (a, b) => a + b).toStringAsFixed(2)}, '
+        'COGS=${analytics.monthCOGS.toStringAsFixed(2)}');
 
     if (mounted) {
       setState(() {
@@ -231,97 +234,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<Map<String, double>> _getPaymentDistribution() async {
-    try {
-      final sales = await _db.query('sales', where: 'is_deleted = 0');
-      double totalCash = 0;
-      double totalUpi = 0;
-      double totalCard = 0;
-
-      for (final sale in sales) {
-        final saleTotal = (sale['total'] as num?)?.toDouble() ?? 0;
-        final cash = (sale['cash_amount'] as num?)?.toDouble() ?? 0;
-        final upi = (sale['upi_amount'] as num?)?.toDouble() ?? 0;
-        final card = (sale['card_amount'] as num?)?.toDouble() ?? 0;
-
-        // New records: use exact split amounts, but CAP to sale.total
-        // This prevents legacy data where payment amounts > bill total
-        if (cash > 0 || upi > 0 || card > 0) {
-          final paymentSum = cash + upi + card;
-          if (paymentSum > 0 && paymentSum > saleTotal && saleTotal > 0) {
-            // Scale down proportionally to match bill total
-            final ratio = saleTotal / paymentSum;
-            totalCash += cash * ratio;
-            totalUpi += upi * ratio;
-            totalCard += card * ratio;
-          } else {
-            totalCash += cash;
-            totalUpi += upi;
-            totalCard += card;
-          }
-        } else {
-          // Old records: derive from payment_mode (backward compat)
-          final mode = (sale['payment_mode'] as String? ?? 'Cash').toLowerCase();
-          if (mode == 'cash') {
-            totalCash += saleTotal;
-          } else if (mode == 'upi' || mode == 'upi/card') {
-            totalUpi += saleTotal;
-          } else if (mode == 'card') {
-            totalCard += saleTotal;
-          } else {
-            totalCash += saleTotal;
-          }
-        }
-      }
-
-      final dist = <String, double>{};
-      if (totalCash > 0) dist['Cash'] = double.parse(totalCash.toStringAsFixed(2));
-      if (totalUpi > 0) dist['UPI'] = double.parse(totalUpi.toStringAsFixed(2));
-      if (totalCard > 0) dist['Card'] = double.parse(totalCard.toStringAsFixed(2));
-      return dist;
-    } catch (_) {
-      return {};
-    }
-  }
+  // _getPaymentDistribution() REMOVED — now centralized in BusinessAnalytics.monthPaymentDistribution
 
   String _formatRupees(double amount) => '₹${amount.toStringAsFixed(2)}';
 
-  Future<List<Map<String, dynamic>>> _getTopProducts() async {
-    try {
-      final sales = await _db.query('sales', where: 'is_deleted = 0', orderBy: 'created_at DESC');
-      final productCount = <String, int>{};
-      final productRevenue = <String, double>{};
-
-      for (final sale in sales) {
-        final items = sale['items'];
-        if (items is String && items.isNotEmpty) {
-          try {
-            final List decoded = jsonDecode(items);
-            for (final item in decoded) {
-              if (item is Map) {
-                final name = item['name'] as String? ?? '';
-                final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-                final total = (item['total'] as num?)?.toDouble() ?? 0;
-                productCount[name] = (productCount[name] ?? 0) + qty;
-                productRevenue[name] = (productRevenue[name] ?? 0) + total;
-              }
-            }
-          } catch (_) {}
-        }
-      }
-
-      final sorted = productCount.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value));
-
-      return sorted.take(5).map((e) => {
-        'name': e.key,
-        'quantity': e.value,
-        'revenue': productRevenue[e.key] ?? 0,
-      }).toList();
-    } catch (e) {
-      return [];
-    }
-  }
+  // _getTopProducts() REMOVED — now centralized in BusinessAnalytics.monthTopProducts
 
 
   Future<void> _generateAIInsights() async {
@@ -810,7 +727,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Text(p['name'] as String, style: AppTypography.bodyMedium.copyWith(
                         color: AppColors.textPrimary(context), fontWeight: FontWeight.w500),
                         overflow: TextOverflow.ellipsis),
-                    Text('${p['quantity']} sold', style: AppTypography.labelSmall.copyWith(
+                    Text('${p['count']} sold', style: AppTypography.labelSmall.copyWith(
                         color: AppColors.textTertiary(context))),
                   ])),
                   Text(Formatters.currency((p['revenue'] as num).toDouble()),
@@ -1169,7 +1086,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildCategoryRevenueChart() {
     if (_analytics == null) return const SizedBox.shrink();
-    final catRev = _analytics!.categoryRevenue;
+    final catRev = _analytics!.monthCategoryRevenue;
     if (catRev.isEmpty) return const SizedBox.shrink();
 
     final sorted = catRev.entries.toList()
@@ -1253,7 +1170,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ]),
           const SizedBox(height: 16),
           _profitRow('Revenue', a.monthRevenue, AppColors.success),
-          _profitRow('Cost of Goods', a.allSales.fold(0.0, (s, e) => s + e.totalCostPrice), AppColors.error),
+          _profitRow('Cost of Goods', a.monthCOGS, AppColors.error),
           _profitRow('Discounts', a.monthDiscounts, AppColors.warning),
           _profitRow('GST Collected', a.monthGST, const Color(0xFF0984E3)),
           _profitRow('Expenses', a.monthExpenses, AppColors.error),

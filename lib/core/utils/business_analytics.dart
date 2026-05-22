@@ -103,6 +103,90 @@ class BusinessAnalytics {
   double get todayGST => _gstInRange(_todayStart, _now);
   double get monthGST => _gstInRange(_monthStart, _now);
 
+  /// Cost of goods sold in current month
+  double get monthCOGS => _salesInRange(_monthStart, _now)
+      .fold(0.0, (s, e) => s + e.totalCostPrice);
+
+  /// Payment distribution for current month: {Cash: x, UPI: y, Card: z}
+  Map<String, double> get monthPaymentDistribution {
+    final monthSales = _salesInRange(_monthStart, _now);
+    double totalCash = 0, totalUpi = 0, totalCard = 0;
+
+    for (final sale in monthSales) {
+      final saleTotal = sale.total;
+      final cash = sale.cashAmount;
+      final upi = sale.upiAmount;
+      final card = sale.cardAmount;
+
+      if (cash > 0 || upi > 0 || card > 0) {
+        final paymentSum = cash + upi + card;
+        if (paymentSum > 0 && paymentSum > saleTotal && saleTotal > 0) {
+          final ratio = saleTotal / paymentSum;
+          totalCash += cash * ratio;
+          totalUpi += upi * ratio;
+          totalCard += card * ratio;
+        } else {
+          totalCash += cash;
+          totalUpi += upi;
+          totalCard += card;
+        }
+      } else {
+        // Legacy: use payment_mode
+        final mode = sale.paymentMode.toLowerCase();
+        if (mode == 'upi' || mode == 'upi/card') {
+          totalUpi += saleTotal;
+        } else if (mode == 'card') {
+          totalCard += saleTotal;
+        } else {
+          totalCash += saleTotal;
+        }
+      }
+    }
+
+    final dist = <String, double>{};
+    if (totalCash > 0) dist['Cash'] = double.parse(totalCash.toStringAsFixed(2));
+    if (totalUpi > 0) dist['UPI'] = double.parse(totalUpi.toStringAsFixed(2));
+    if (totalCard > 0) dist['Card'] = double.parse(totalCard.toStringAsFixed(2));
+    return dist;
+  }
+
+  /// Month revenue by category
+  Map<String, double> get monthCategoryRevenue {
+    final monthSales = _salesInRange(_monthStart, _now);
+    final catMap = <String, String>{};
+    for (final item in allItems) {
+      catMap[item.id] = item.category.isEmpty ? 'Uncategorized' : item.category;
+    }
+    final Map<String, double> result = {};
+    for (final sale in monthSales) {
+      for (final item in sale.items) {
+        final cat = catMap[item.itemId] ?? 'Uncategorized';
+        result[cat] = (result[cat] ?? 0) + item.total;
+      }
+    }
+    return result;
+  }
+
+  /// Month top selling products
+  List<Map<String, dynamic>> get monthTopProducts {
+    final monthSales = _salesInRange(_monthStart, _now);
+    final productCount = <String, int>{};
+    final productRevenue = <String, double>{};
+    for (final sale in monthSales) {
+      for (final item in sale.items) {
+        productCount[item.name] = (productCount[item.name] ?? 0) + item.quantity;
+        productRevenue[item.name] = (productRevenue[item.name] ?? 0) + item.total;
+      }
+    }
+    final list = productCount.keys.map((name) => {
+      'name': name,
+      'count': productCount[name]!,
+      'revenue': productRevenue[name]!,
+    }).toList()
+      ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    return list.take(5).toList();
+  }
+
   /// NET PROFIT = Gross Profit - Expenses
   double get todayNetProfit => todayGrossProfit - todayExpenses;
   double get monthNetProfit => monthGrossProfit - monthExpenses;

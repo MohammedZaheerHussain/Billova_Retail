@@ -191,10 +191,11 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
     // Get date range
     final range = _getDateRange();
 
-    // Filter sales by date range
-    final filteredSales = sales.sales.where((s) {
+    // Filter sales by date range — use allSales (not .sales which is pre-filtered by bill history)
+    final filteredSales = sales.allSales.where((s) {
       if (_period == 'All Time') return true;
-      return s.createdAt.isAfter(range.start) && s.createdAt.isBefore(range.end);
+      final localTime = s.createdAt.toLocal();
+      return !localTime.isBefore(range.start) && localTime.isBefore(range.end);
     }).toList();
 
     final totalRevenue = filteredSales.fold(0.0, (sum, s) => sum + s.total);
@@ -203,7 +204,8 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
 
     final totalExpenses = expenses.expenses.where((e) {
       if (_period == 'All Time') return true;
-      return e.createdAt.isAfter(range.start) && e.createdAt.isBefore(range.end);
+      final localTime = e.createdAt.toLocal();
+      return !localTime.isBefore(range.start) && localTime.isBefore(range.end);
     }).fold(0.0, (sum, e) => sum + e.amount);
 
     // Gross Profit = sum of per-item (selling_price - cost_price) * quantity - discount
