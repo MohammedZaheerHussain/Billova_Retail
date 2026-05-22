@@ -531,29 +531,37 @@ class _AppShellState extends State<AppShell> {
                     const SizedBox(height: 8),
                     Builder(builder: (_) {
                       final target = staffProvider.currentStaff!.monthlySaleTarget;
-                      // Calculate current month sales for this staff
+                      // FIX: Use allSales (not filtered sales) for full month accumulation
                       final salesProv = context.watch<SalesProvider>();
                       final now = DateTime.now();
                       final monthStart = DateTime(now.year, now.month, 1);
-                      final staffSales = salesProv.sales
-                          .where((s) => s.staffId == staffProvider.currentStaffId &&
-                              s.createdAt.isAfter(monthStart))
+                      // Sum ALL sales for this staff in current month
+                      final staffSales = salesProv.allSales
+                          .where((s) =>
+                              s.staffId == staffProvider.currentStaffId &&
+                              s.createdAt.toLocal().isAfter(monthStart.subtract(const Duration(seconds: 1))))
                           .fold<double>(0, (sum, s) => sum + s.total);
+                      final remaining = (target - staffSales).clamp(0.0, double.infinity);
                       final progress = (staffSales / target).clamp(0.0, 1.0);
-                      final progressColor = progress >= 1.0
+                      // Color thresholds: Red <30%, Yellow 30-70%, Green 70%+
+                      final progressColor = progress >= 0.7
                           ? AppColors.success
-                          : progress >= 0.5
-                              ? AppColors.accent
-                              : AppColors.warning;
+                          : progress >= 0.3
+                              ? AppColors.warning
+                              : AppColors.error;
+                      final isAchieved = progress >= 1.0;
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.flag_rounded, size: 10, color: progressColor),
+                              Icon(isAchieved ? Icons.emoji_events_rounded : Icons.flag_rounded,
+                                  size: 10, color: progressColor),
                               const SizedBox(width: 4),
-                              Text('Target: ${Formatters.currency(target)}',
-                                  style: TextStyle(color: AppColors.textTertiaryDark, fontSize: 9)),
+                              Expanded(child: Text(
+                                  isAchieved ? '🎉 Target Achieved!' : 'Target: ${Formatters.currency(target)}',
+                                  style: TextStyle(color: AppColors.textTertiaryDark, fontSize: 9),
+                                  overflow: TextOverflow.ellipsis)),
                             ],
                           ),
                           const SizedBox(height: 4),
