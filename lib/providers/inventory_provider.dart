@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../data/local/db_helper.dart';
 import '../data/remote/supabase_service.dart';
 import '../data/models/item_model.dart';
+import '../core/utils/permission_helper.dart';
 
 class InventoryProvider extends ChangeNotifier {
   final DBHelper _db = DBHelper.instance;
@@ -148,7 +149,14 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> updateItem(ItemModel item) async {
+  Future<bool> updateItem(ItemModel item, {String? userRole}) async {
+    // Backend RBAC guard
+    if (userRole != null && !PermissionHelper(userRole).canEditInventory) {
+      _error = 'Access denied: Staff cannot edit inventory.';
+      debugPrint('🔒 RBAC BLOCKED: $userRole tried to update item ${item.id}');
+      notifyListeners();
+      return false;
+    }
     try {
       final updated = item.copyWith(updatedAt: DateTime.now());
       await _db.update('items', updated.toMap(), updated.id);
@@ -173,7 +181,14 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> deleteItem(String id) async {
+  Future<bool> deleteItem(String id, {String? userRole}) async {
+    // Backend RBAC guard
+    if (userRole != null && !PermissionHelper(userRole).canDeleteInventory) {
+      _error = 'Access denied: Staff cannot delete inventory.';
+      debugPrint('🔒 RBAC BLOCKED: $userRole tried to delete item $id');
+      notifyListeners();
+      return false;
+    }
     try {
       await _db.softDelete('items', id);
       final item = _items.firstWhere((i) => i.id == id);

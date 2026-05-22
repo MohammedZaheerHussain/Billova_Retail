@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../data/models/item_model.dart';
 import '../../providers/inventory_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../data/models/category_model.dart';
 
@@ -124,6 +125,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     bool success;
 
     if (isEditing) {
+      final userRole = context.read<AuthProvider>().userType;
       success = await provider.updateItem(widget.item!.copyWith(
         name: _nameCtrl.text.trim(),
         vendor: _vendorCtrl.text.trim(),
@@ -137,7 +139,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
         gstRate: _gstRate,
         quantity: int.tryParse(_qtyCtrl.text.trim()) ?? 0,
         lowStockThreshold: int.tryParse(_lowStockCtrl.text.trim()) ?? 5,
-      ));
+      ), userRole: userRole);
     } else {
       success = await provider.addItem(
         name: _nameCtrl.text.trim(),

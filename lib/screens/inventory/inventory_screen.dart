@@ -219,13 +219,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
         // Items (collapsible)
         if (!isCollapsed) ...[
           Divider(height: 1, color: AppColors.cardBorder(context).withValues(alpha: 0.5)),
-          ...items.map((item) => _itemTile(context, item, provider)),
+          ...items.map((item) => _itemTile(context, item, provider, context.watch<AuthProvider>().userType)),
         ],
       ]),
     );
   }
 
-  Widget _itemTile(BuildContext context, ItemModel item, InventoryProvider provider) {
+  Widget _itemTile(BuildContext context, ItemModel item, InventoryProvider provider, String userRole) {
     Color stockColor = AppColors.success;
     String stockLabel = '${item.quantity} in stock';
     if (item.isOutOfStock) { stockColor = AppColors.error; stockLabel = 'Out of stock'; }
@@ -262,9 +262,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ])),
           // Only show Edit/Delete menu for admin users
           Builder(builder: (context) {
-            final perms = PermissionHelper(context.read<AuthProvider>().userType);
+            final perms = PermissionHelper(userRole);
             if (!perms.canEditInventory && !perms.canDeleteInventory) {
-              return const SizedBox(width: 8);
+              return const SizedBox.shrink();
             }
             return PopupMenuButton(
               icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary(context)),
@@ -382,6 +382,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   void _showItemDetail(BuildContext context, ItemModel item) {
+    // Capture role BEFORE opening dialog (dialog context != widget context)
+    final userRole = context.read<AuthProvider>().userType;
+    final perms = PermissionHelper(userRole);
+
     // Calculate total sold & revenue from all sales history
     final allSales = context.read<SalesProvider>().allSales;
     int totalSold = 0;
@@ -492,7 +496,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               const SizedBox(height: 12),
               Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                 // Edit button — admin only
-                if (PermissionHelper(context.read<AuthProvider>().userType).canEditInventory)
+                if (perms.canEditInventory)
                   OutlinedButton.icon(
                     onPressed: () { Navigator.pop(ctx); _showItemForm(context, item: item); },
                     icon: Icon(Icons.edit_rounded, size: 16, color: AppColors.accent),
@@ -500,7 +504,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.accent),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                   ),
-                if (PermissionHelper(context.read<AuthProvider>().userType).canEditInventory)
+                if (perms.canEditInventory)
                   const SizedBox(width: 8),
                 ElevatedButton(onPressed: () => Navigator.pop(ctx),
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary,
@@ -674,7 +678,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
           ElevatedButton(
             onPressed: () {
-              provider.deleteItem(item.id);
+              provider.deleteItem(item.id, userRole: context.read<AuthProvider>().userType);
               Navigator.pop(ctx);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
