@@ -16,4 +16,4 @@
 ## 4. Build, Test & Deploy
 
 - [x] 4.1 Build web release and verify no compilation errors
-- [ ] 4.2 Commit, push to main/zaheer/Ashiq branches
+- [x] 4.2 Commit, push to main/zaheer/Ashiq branches

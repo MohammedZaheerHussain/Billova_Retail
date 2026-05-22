@@ -33,6 +33,7 @@ class SalesProvider extends ChangeNotifier {
   String _paymentMode = 'Cash';
   double _discountPercent = 0;
   bool _gstEnabled = false;
+  bool _isUdhar = false;  // Udhar/Pay Later toggle
 
   /// Load GST setting from DB
   Future<void> loadGstSetting() async {
@@ -99,8 +100,10 @@ class SalesProvider extends ChangeNotifier {
   double get discountPercent => _discountPercent;
   double get discountAmount {
     final raw = subtotal * (_discountPercent / 100);
-    return double.parse(raw.toStringAsFixed(2)); // Round to 2 decimals — prevents ₹100 → ₹100.05 drift
+    return double.parse(raw.toStringAsFixed(2));
   }
+  bool get isUdhar => _isUdhar;
+  void setUdhar(bool v) { _isUdhar = v; notifyListeners(); }
 
   double get subtotal => _cart.fold(0, (sum, item) => sum + item.total);
   double get total => (subtotal - discountAmount).clamp(0, double.infinity);
@@ -209,6 +212,7 @@ class SalesProvider extends ChangeNotifier {
     _customerPhone = '';
     _paymentMode = 'Cash';
     _discountPercent = 0;
+    _isUdhar = false;
     notifyListeners();
   }
 
@@ -281,6 +285,15 @@ class SalesProvider extends ChangeNotifier {
   }) async {
     if (_cart.isEmpty) return null;
 
+    // ═══════════════════════════════════════════════════════════
+    // UDHAR GUARD: Block credit sales for walk-in (unnamed) customers
+    // ═══════════════════════════════════════════════════════════
+    if (_isUdhar && (_customerName.trim().isEmpty || _customerPhone.trim().isEmpty)) {
+      _error = 'Customer name and phone required for Udhar sales';
+      notifyListeners();
+      return null;
+    }
+
     try {
       final invoiceNumber = await _db.nextInvoiceNumber();
 
@@ -309,7 +322,7 @@ class SalesProvider extends ChangeNotifier {
                       (cashAmount > 0 && cardAmount > 0) ||
                       (upiAmount > 0 && cardAmount > 0);
 
-      if (!isSplit) {
+      if (!isSplit && !_isUdhar) {
         // Single payment method — force amount to match bill total
         if (upiAmount > 0 || _paymentMode.toLowerCase() == 'upi') {
           finalCash = 0;
@@ -325,21 +338,35 @@ class SalesProvider extends ChangeNotifier {
           finalUpi = 0;
           finalCard = 0;
         }
-      } else {
+      } else if (!_isUdhar) {
         // Split payment — validate total matches bill
         final paymentSum = finalCash + finalUpi + finalCard;
         if ((paymentSum - saleGrandTotal).abs() > 0.01 && paymentSum > 0) {
-          // Adjust proportionally to match bill total
           final ratio = saleGrandTotal / paymentSum;
           finalCash = double.parse((finalCash * ratio).toStringAsFixed(2));
           finalUpi = double.parse((finalUpi * ratio).toStringAsFixed(2));
           finalCard = double.parse((saleGrandTotal - finalCash - finalUpi).toStringAsFixed(2));
         }
       }
+      // For Udhar: keep user-entered payment amounts as-is (partial/zero)
 
-      // Derive a smart paymentMode label from split (for backward compat display)
+      // Calculate due amount for Udhar sales
+      final double saleDueAmount;
+      if (_isUdhar) {
+        saleDueAmount = double.parse(
+          (saleGrandTotal - finalCash - finalUpi - finalCard).clamp(0.0, double.infinity).toStringAsFixed(2)
+        );
+      } else {
+        saleDueAmount = 0;
+      }
+
+      // Derive a smart paymentMode label
       final String paymentLabel;
-      if (finalCash > 0 && (finalUpi > 0 || finalCard > 0)) {
+      if (saleDueAmount > 0 && saleDueAmount >= saleGrandTotal) {
+        paymentLabel = 'Udhar';
+      } else if (saleDueAmount > 0) {
+        paymentLabel = 'Partial';
+      } else if (finalCash > 0 && (finalUpi > 0 || finalCard > 0)) {
         paymentLabel = 'Split';
       } else if (finalUpi > 0) {
         paymentLabel = 'UPI';
@@ -370,6 +397,7 @@ class SalesProvider extends ChangeNotifier {
         loyaltyDiscount: loyaltyDiscount,
         pointsRedeemed: pointsRedeemed,
         pointsEarned: pointsEarned,
+        dueAmount: saleDueAmount,
       );
 
       // ═══════════════════════════════════════════════════════════

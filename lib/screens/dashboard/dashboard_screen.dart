@@ -17,6 +17,7 @@ import '../../providers/customer_provider.dart';
 import '../../providers/vendor_provider.dart';
 import '../../providers/purchase_provider.dart';
 import '../../data/models/vendor_model.dart';
+import '../../data/models/customer_model.dart';
 import '../shell/app_shell.dart';
 import '../../widgets/stock_alert_drawer.dart';
 
@@ -46,6 +47,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<VendorModel> _vendorsWithDues = [];
   double _totalVendorDues = 0;
   double _todayPurchases = 0;
+  List<CustomerModel> _customersWithDues = [];
+  double _totalCustomerDues = 0;
 
   // AI Insights
   String _aiInsights = '';
@@ -186,6 +189,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       todayPurchases = purchaseProvider.todayPurchasePayments;
     } catch (_) {}
 
+    // Get customer dues (Udhar)
+    List<CustomerModel> customersWithDues = [];
+    double totalCustomerDues = 0;
+    try {
+      final customerProvider = context.read<CustomerProvider>();
+      customersWithDues = customerProvider.customersWithDues;
+      totalCustomerDues = customerProvider.totalCustomerDues;
+    } catch (_) {}
+
     // ─── Build Centralized Analytics Engine ───
     // ALL dashboard financial widgets derive from this single source
     final salesProv = context.read<SalesProvider>();
@@ -228,6 +240,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _vendorsWithDues = vendorsWithDues;
         _totalVendorDues = totalDues;
         _todayPurchases = todayPurchases;
+        _customersWithDues = customersWithDues;
+        _totalCustomerDues = totalCustomerDues;
         _analytics = analytics;
         _insights = analytics.generateInsights();
       });
@@ -405,6 +419,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _buildFinancialSummary(),
             if (_analytics != null)
               const SizedBox(height: 16),
+
+            // ─── Customer Dues (Udhar Receivables) ───
+            if (_customersWithDues.isNotEmpty) ...[
+              _buildCustomerDuesCard(),
+              const SizedBox(height: 16),
+            ],
 
             // ─── Vendor Dues + Low Stock Alerts ───
             LayoutBuilder(
@@ -901,6 +921,88 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Padding(
               padding: EdgeInsets.only(top: 4),
               child: Text('+ ${_vendorsWithDues.length - 5} more vendors...',
+                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomerDuesCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              padding: EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8)),
+              child: Icon(Icons.access_time_rounded, color: AppColors.warning, size: 16),
+            ),
+            SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Customer Dues (Udhar)', style: AppTypography.h4.copyWith(color: AppColors.warning)),
+              Text('${_customersWithDues.length} customer${_customersWithDues.length != 1 ? "s" : ""} owe you money',
+                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
+            ])),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8)),
+              child: Text(Formatters.currency(_totalCustomerDues),
+                  style: AppTypography.mono.copyWith(color: AppColors.warning, fontWeight: FontWeight.w700, fontSize: 14)),
+            ),
+          ]),
+          const SizedBox(height: 14),
+          ..._customersWithDues.take(5).map((customer) => Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.card(context),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.cardBorder(context))),
+              child: Row(children: [
+                Container(
+                  width: 28, height: 28,
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(7)),
+                  child: Center(child: Text(customer.name[0].toUpperCase(),
+                      style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.w700, fontSize: 12))),
+                ),
+                SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(customer.name, style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textPrimary(context), fontWeight: FontWeight.w500)),
+                  if (customer.phone.isNotEmpty)
+                    Text(customer.phone, style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.textTertiary(context), fontSize: 10)),
+                ])),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6)),
+                  child: Text(Formatters.currency(customer.balance),
+                      style: AppTypography.mono.copyWith(color: AppColors.warning, fontWeight: FontWeight.w600, fontSize: 12)),
+                ),
+              ]),
+            ),
+          )),
+          if (_customersWithDues.length > 5)
+            Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text('+ ${_customersWithDues.length - 5} more customers...',
                   style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
             ),
         ],

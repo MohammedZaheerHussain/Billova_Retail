@@ -241,6 +241,16 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
           earnRate: earnRate,
         );
 
+        // ─── UDHAR: Update customer balance if credit sale ───
+        if (sale.dueAmount > 0) {
+          final customer = customerProvider.findByPhone(sale.customerPhone) ??
+              customerProvider.findByName(sale.customerName);
+          if (customer != null) {
+            final newBalance = double.parse((customer.balance + sale.dueAmount).toStringAsFixed(2));
+            await customerProvider.updateCustomer(customer.copyWith(balance: newBalance));
+          }
+        }
+
         // Log earning to audit trail
         if (pointsEarned > 0 && loyalty.isEnabled) {
           final customer = customerProvider.findByPhone(sale.customerPhone) ??
@@ -948,6 +958,53 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
           ),
           // ─── Loyalty Points Badge ───
           _buildLoyaltyBadge(),
+          const SizedBox(height: 10),
+
+          // ─── Udhar / Pay Later Toggle ───
+          Consumer<SalesProvider>(
+            builder: (context, sp, _) => GestureDetector(
+              onTap: () => sp.setUdhar(!sp.isUdhar),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: sp.isUdhar
+                      ? AppColors.warning.withValues(alpha: 0.15)
+                      : AppColors.surface(context),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: sp.isUdhar ? AppColors.warning : AppColors.cardBorder(context),
+                    width: sp.isUdhar ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      sp.isUdhar ? Icons.access_time_filled_rounded : Icons.access_time_rounded,
+                      size: 18,
+                      color: sp.isUdhar ? AppColors.warning : AppColors.textSecondary(context),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      sp.isUdhar ? 'UDHAR ON — Pay Later' : 'Udhar / Pay Later',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: sp.isUdhar ? FontWeight.w700 : FontWeight.w500,
+                        color: sp.isUdhar ? AppColors.warning : AppColors.textSecondary(context),
+                      ),
+                    ),
+                    const Spacer(),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: sp.isUdhar
+                          ? Icon(Icons.toggle_on_rounded, size: 32, color: AppColors.warning, key: const ValueKey('on'))
+                          : Icon(Icons.toggle_off_rounded, size: 32, color: AppColors.textSecondary(context), key: const ValueKey('off')),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 10),
 
           // ─── Payment Split & Discount ───
