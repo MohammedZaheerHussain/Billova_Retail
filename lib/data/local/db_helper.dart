@@ -1114,15 +1114,52 @@ class DBHelper {
   }
 
   Future<List<Map<String, dynamic>>> salesLast7Days() async {
-    if (kIsWeb) return [];
+    // Compute the cutoff: 7 days ago at midnight (local time)
+    final now = DateTime.now();
+    final cutoff = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 7));
+
+    if (kIsWeb) {
+      // Web: in-memory filtering + grouping (mirrors the SQL GROUP BY)
+      final web = await _web;
+      final allSales = await web.query('sales', where: 'is_deleted = 0');
+      final Map<String, double> dailyTotals = {};
+      final Map<String, int> dailyCounts = {};
+
+      for (final sale in allSales) {
+        final createdAt = sale['created_at'] as String?;
+        if (createdAt == null) continue;
+        final dt = DateTime.tryParse(createdAt);
+        if (dt == null || dt.isBefore(cutoff)) continue;
+
+        final dateKey = createdAt.substring(0, 10); // YYYY-MM-DD
+        final total = (sale['total'] as num?)?.toDouble() ?? 0;
+        dailyTotals[dateKey] = (dailyTotals[dateKey] ?? 0) + total;
+        dailyCounts[dateKey] = (dailyCounts[dateKey] ?? 0) + 1;
+      }
+
+      // Return sorted list matching the native SQL result format
+      final result = dailyTotals.entries.map((e) => <String, dynamic>{
+        'date': e.key,
+        'total': e.value,
+        'count': dailyCounts[e.key] ?? 0,
+      }).toList()
+        ..sort((a, b) => (a['date'] as String).compareTo(b['date'] as String));
+
+      debugPrint('📊 salesLast7Days (web): ${result.length} days, '
+          'total ₹${result.fold(0.0, (sum, d) => sum + (d['total'] as double))}');
+      return result;
+    }
+
+    // Native: use SQL date functions
     final db = await database;
+    final cutoffStr = cutoff.toIso8601String().substring(0, 10);
     return await db.rawQuery('''
       SELECT DATE(created_at) as date, SUM(total) as total, COUNT(*) as count
       FROM sales
-      WHERE is_deleted = 0 AND created_at >= date('now', '-7 days')
+      WHERE is_deleted = 0 AND DATE(created_at) >= ?
       GROUP BY DATE(created_at)
       ORDER BY date ASC
-    ''');
+    ''', [cutoffStr]);
   }
 
   // ─── Cleanup ───
