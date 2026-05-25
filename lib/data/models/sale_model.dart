@@ -108,9 +108,10 @@ class SaleModel {
   /// Total cost of goods sold (sum of cost_price * quantity for each item)
   double get totalCostPrice => items.fold(0.0, (sum, item) => sum + (item.costPrice * item.quantity));
 
-  /// Gross profit = sum of per-item profits - discount
-  /// Per-item profit = (selling_price - cost_price) * quantity
-  double get grossProfit => items.fold(0.0, (sum, item) => sum + item.profit) - discount;
+  /// Gross profit = Net Revenue (total) - Cost of Goods Sold
+  /// NOTE: total already = subtotal - discount, so discount is naturally accounted for.
+  /// Previously this was: items.fold(...profit) - discount — which DOUBLE-DEDUCTED discount.
+  double get grossProfit => total - totalCostPrice;
 
   Map<String, dynamic> toMap() {
     return {

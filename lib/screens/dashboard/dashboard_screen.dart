@@ -1271,11 +1271,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: AppColors.textPrimary(context))),
           ]),
           const SizedBox(height: 16),
-          _profitRow('Revenue', a.monthRevenue, AppColors.success),
-          _profitRow('Cost of Goods', a.monthCOGS, AppColors.error),
-          _profitRow('Discounts', a.monthDiscounts, AppColors.warning),
-          _profitRow('GST Collected', a.monthGST, const Color(0xFF0984E3)),
-          _profitRow('Expenses', a.monthExpenses, AppColors.error),
+          // ─── Standard Accounting Format ───
+          // Gross Sales → (-) Discounts → Net Revenue → (-) COGS → Gross Profit → (-) Expenses → Net Profit
+          _profitRow('Gross Sales', a.monthGrossSales, AppColors.success),
+          _profitRow('(-) Discounts', a.monthDiscounts, AppColors.warning),
+          _profitRow('Net Revenue', a.monthRevenue, AppColors.success, bold: true),
+          const SizedBox(height: 4),
+          _profitRow('(-) Cost of Goods', a.monthCOGS, AppColors.error),
+          _profitRow('Gross Profit', a.monthGrossProfit, a.monthGrossProfit >= 0 ? AppColors.success : AppColors.error, bold: true),
+          const SizedBox(height: 4),
+          _profitRow('(-) Expenses', a.monthExpenses, AppColors.error),
+          if (a.monthGST > 0)
+            _profitRow('GST Collected', a.monthGST, const Color(0xFF0984E3)),
           const Divider(height: 20),
           Row(children: [
             Expanded(child: Text('Net Profit', style: AppTypography.bodyMedium.copyWith(
@@ -1311,7 +1318,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _profitRow(String label, double value, Color color) {
+  Widget _profitRow(String label, double value, Color color, {bool bold = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(children: [
@@ -1319,9 +1326,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             color: color, borderRadius: BorderRadius.circular(2))),
         const SizedBox(width: 8),
         Expanded(child: Text(label, style: AppTypography.bodySmall.copyWith(
-            color: AppColors.textSecondary(context)))),
+            color: bold ? AppColors.textPrimary(context) : AppColors.textSecondary(context),
+            fontWeight: bold ? FontWeight.w600 : FontWeight.w400))),
         Text(Formatters.currency(value), style: AppTypography.mono.copyWith(
-            color: AppColors.textPrimary(context), fontSize: 12)),
+            color: bold ? color : AppColors.textPrimary(context),
+            fontSize: 12,
+            fontWeight: bold ? FontWeight.w700 : FontWeight.w400)),
       ]),
     );
   }

@@ -57,11 +57,15 @@ class BusinessAnalytics {
 
   // ─── Core Financial Metrics ───
 
+  /// Revenue = sale.total = subtotal - discount (what customer actually paid)
   double get todayRevenue => _salesInRange(_todayStart, _now).fold(0.0, (s, e) => s + e.total);
   double get weekRevenue => _salesInRange(_weekStart, _now).fold(0.0, (s, e) => s + e.total);
   double get monthRevenue => _salesInRange(_monthStart, _now).fold(0.0, (s, e) => s + e.total);
   double get lastMonthRevenue => _salesInRange(_lastMonthStart, _lastMonthEnd).fold(0.0, (s, e) => s + e.total);
   double get lastWeekRevenue => _salesInRange(_lastWeekStart, _lastWeekEnd).fold(0.0, (s, e) => s + e.total);
+
+  /// Gross Sales = sale.subtotal (before discount — full catalog price × qty)
+  double get monthGrossSales => _salesInRange(_monthStart, _now).fold(0.0, (s, e) => s + e.subtotal);
 
   int get todaySalesCount => _salesInRange(_todayStart, _now).length;
   int get weekSalesCount => _salesInRange(_weekStart, _now).length;
