@@ -999,62 +999,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 subtitle: auth.userEmail ?? 'Not logged in',
                 isDark: isDark,
               ),
-              _SettingsTile(
-                icon: Icons.swap_horiz_rounded,
-                title: 'Switch Account',
-                subtitle: 'Sign out completely & log in as a different admin',
-                isDark: isDark,
-                trailing: Icon(Icons.chevron_right_rounded,
-                    color: AppColors.textSecondary(context)),
-                onTap: () async {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      backgroundColor: AppColors.card(context),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      title: Row(children: [
-                        Icon(Icons.swap_horiz_rounded,
-                            color: AppColors.warning),
-                        const SizedBox(width: 8),
-                        Text('Switch Account?',
-                            style: TextStyle(
-                                color: AppColors.textPrimary(context))),
-                      ]),
-                      content: Text(
-                        'This will:\n'
-                        '• Sign out of Supabase completely\n'
-                        '• Clear all local data\n'
-                        '• Staff will need the new admin to log in first\n\n'
-                        'Use this only to switch to a different admin account.',
-                        style: TextStyle(
-                            color: AppColors.textSecondary(context)),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          child: Text('Cancel',
-                              style: TextStyle(
-                                  color: AppColors.textSecondary(context))),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.error),
-                          child: const Text('Switch Account',
-                              style: TextStyle(color: Colors.white)),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirmed == true && mounted) {
-                    final navigator = Navigator.of(context);
-                    navigator.pushNamedAndRemoveUntil(
-                        '/login', (_) => false);
-                    auth.fullSignOut();
-                  }
-                },
-              ),
             ]),
             const SizedBox(height: 16),
 
