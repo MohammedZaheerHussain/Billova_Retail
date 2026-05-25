@@ -492,6 +492,7 @@ class DBHelper {
       )
     ''');
     await db.execute('CREATE INDEX idx_customers_deleted ON customers(is_deleted)');
+    await db.execute('CREATE INDEX idx_customers_phone ON customers(phone)');
 
     // ─── Loyalty Transactions Table ───
     await db.execute('''
@@ -675,6 +676,19 @@ class DBHelper {
         await db.execute("ALTER TABLE sales ADD COLUMN upi_amount REAL DEFAULT 0");
         await db.execute("ALTER TABLE sales ADD COLUMN card_amount REAL DEFAULT 0");
       } catch (_) {} // Columns may already exist
+    }
+
+    // v13: Add unique index on customer phone for phone-based identification
+    if (oldVersion < 13) {
+      try {
+        // Add index on phone for fast lookups
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)');
+        // Add balance + gst_number columns if missing from older schemas
+        await db.execute("ALTER TABLE customers ADD COLUMN balance REAL DEFAULT 0");
+      } catch (_) {} // Column may already exist
+      try {
+        await db.execute("ALTER TABLE customers ADD COLUMN gst_number TEXT DEFAULT ''");
+      } catch (_) {} // Column may already exist
     }
   }
 

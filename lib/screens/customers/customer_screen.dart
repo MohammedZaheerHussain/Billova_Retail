@@ -84,8 +84,13 @@ class _CustomerScreenState extends State<CustomerScreen> {
                   _field('Customer Name', nameCtrl, 'e.g. Rahul Kumar',
                       validator: (v) => v!.trim().isEmpty ? 'Required' : null),
                   const SizedBox(height: 14),
-                  _field('Phone Number', phoneCtrl, 'e.g. 9876543210',
-                      keyboardType: TextInputType.phone),
+                  _field('Phone Number (unique ID)', phoneCtrl, 'e.g. 9876543210',
+                      keyboardType: TextInputType.phone,
+                      validator: (v) {
+                        if (!isEditing && (v == null || v.trim().isEmpty)) return 'Phone required for customer ID';
+                        if (v != null && v.trim().isNotEmpty && v.trim().length < 10) return 'Enter valid 10-digit phone';
+                        return null;
+                      }),
                   const SizedBox(height: 24),
                   SizedBox(
                     height: 48,
@@ -303,10 +308,10 @@ class _CustomerScreenState extends State<CustomerScreen> {
   }
 
   Widget _customerTile(CustomerModel customer, CustomerProvider provider, Map<String, Map<String, dynamic>> summaries) {
-    // Match by phone first, then by name
+    // Match by phone first — must align with getCustomerSummaries() key format
     final key = customer.phone.isNotEmpty
         ? customer.phone
-        : customer.name.toLowerCase().trim();
+        : 'name:${customer.name.toLowerCase().trim()}';
     final s = summaries[key];
     final totalOrders = (s?['totalOrders'] as int?) ?? customer.totalOrders;
     final totalSpent = (s?['totalSpent'] as double?) ?? customer.totalSpent;
@@ -606,9 +611,18 @@ class _CustomerScreenState extends State<CustomerScreen> {
   }
 
   void _showCustomerDetail(CustomerModel customer, int totalOrders, double totalSpent, String lastPurchase) {
-    final sales = context.read<SalesProvider>().allSales.where((s) =>
-        (customer.phone.isNotEmpty && s.customerPhone == customer.phone) ||
-        s.customerName.toLowerCase().trim() == customer.name.toLowerCase().trim()).toList()
+    // ═══════════════════════════════════════════════════════════
+    // CRITICAL: Match purchase history by PHONE NUMBER ONLY.
+    // Name matching would show wrong customer's purchases when
+    // two customers share the same name (e.g., "Satish").
+    // ═══════════════════════════════════════════════════════════
+    final sales = context.read<SalesProvider>().allSales.where((s) {
+      if (customer.phone.isNotEmpty && s.customerPhone == customer.phone) return true;
+      // Only fall back to name if THIS customer has no phone AND sale has no phone
+      if (customer.phone.isEmpty && s.customerPhone.isEmpty &&
+          s.customerName.toLowerCase().trim() == customer.name.toLowerCase().trim()) return true;
+      return false;
+    }).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     showDialog(

@@ -51,17 +51,31 @@ class CustomerProvider extends ChangeNotifier {
 
   Future<bool> addCustomer({required String name, String phone = ''}) async {
     try {
-      // ─── Phone-based deduplication ───
-      // If phone is provided and already exists, update the existing customer name
+      // ═══════════════════════════════════════════════════════════
+      // PHONE-FIRST DEDUPLICATION
+      // Phone number is the unique customer identifier. If a phone
+      // already exists, we REUSE that customer (update name if needed).
+      // This prevents duplicate records and loyalty point splitting.
+      // ═══════════════════════════════════════════════════════════
       if (phone.trim().isNotEmpty) {
         final existing = findByPhone(phone.trim());
         if (existing != null) {
-          debugPrint('📋 Customer with phone ${phone.trim()} already exists: ${existing.name}');
-          // Update name if different
+          debugPrint('📋 Customer with phone ${phone.trim()} already exists: ${existing.name} (id: ${existing.id})');
+          // Update name if different (latest name wins)
           if (existing.name != name.trim() && name.trim().isNotEmpty) {
             await updateCustomer(existing.copyWith(name: name.trim()));
+            debugPrint('   ✏️ Updated name: "${existing.name}" → "${name.trim()}"');
           }
           return true; // Customer already exists — not a failure
+        }
+
+        // DOUBLE-CHECK: Also verify against DB directly (race condition safety)
+        final dbResults = await _db.query('customers',
+            where: 'phone = ? AND is_deleted = 0', whereArgs: [phone.trim()]);
+        if (dbResults.isNotEmpty) {
+          debugPrint('⚠️ Phone ${phone.trim()} found in DB but not in-memory — reloading');
+          await loadCustomers(); // Sync in-memory with DB
+          return true;
         }
       }
 
@@ -74,7 +88,7 @@ class CustomerProvider extends ChangeNotifier {
         }
       }
 
-      final customer = CustomerModel(id: _uuid.v4(), name: name, phone: phone);
+      final customer = CustomerModel(id: _uuid.v4(), name: name.trim(), phone: phone.trim());
 
       debugPrint('➕ CustomerProvider: adding customer "${customer.name}" (${customer.id})');
 
@@ -283,12 +297,15 @@ class CustomerProvider extends ChangeNotifier {
       final phone = (sale.customerPhone as String?) ?? '';
       if (name.isEmpty || name == 'Walk-in Customer') continue;
 
-      final key = phone.isNotEmpty ? phone : name.toLowerCase().trim();
+      // PHONE is primary key — name-only dedup uses prefix to avoid collision
+      final key = phone.isNotEmpty ? phone : 'name:${name.toLowerCase().trim()}';
       if (seen.contains(key)) continue;
       seen.add(key);
 
-      // Check if customer already exists
-      final existing = (phone.isNotEmpty ? findByPhone(phone) : null) ?? findByName(name);
+      // Check if customer already exists — phone-first, name only when no phone
+      final existing = phone.isNotEmpty
+          ? findByPhone(phone)
+          : findByName(name);
       if (existing != null) continue;
 
       // Customer is missing — recreate

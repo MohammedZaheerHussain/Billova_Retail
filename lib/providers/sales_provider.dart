@@ -67,15 +67,16 @@ class SalesProvider extends ChangeNotifier {
     return groups;
   }
 
-  /// Single-pass customer summary from ALL sales — keyed by phone, fallback name
+  /// Single-pass customer summary from ALL sales — keyed by phone (primary unique key)
+  /// Name fallback only used when phone is genuinely missing from sale record
   Map<String, Map<String, dynamic>> getCustomerSummaries() {
     final Map<String, Map<String, dynamic>> summaries = {};
     for (final sale in _allSales) {
       if (sale.customerName.isEmpty || sale.customerName == 'Walk-in Customer') continue;
-      // Use phone as key if available, else lowercase name
+      // PHONE is the primary customer key — name only as last resort
       final key = sale.customerPhone.isNotEmpty
           ? sale.customerPhone
-          : sale.customerName.toLowerCase().trim();
+          : 'name:${sale.customerName.toLowerCase().trim()}'; // prefix avoids key collision
       summaries.putIfAbsent(key, () => {
         'totalOrders': 0,
         'totalSpent': 0.0,

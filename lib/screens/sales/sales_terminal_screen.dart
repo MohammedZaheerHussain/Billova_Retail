@@ -244,8 +244,10 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
 
         // ─── UDHAR: Update customer balance if credit sale ───
         if (sale.dueAmount > 0) {
-          final customer = customerProvider.findByPhone(sale.customerPhone) ??
-              customerProvider.findByName(sale.customerName);
+          // Phone-first lookup — name fallback only when no phone exists
+          final customer = sale.customerPhone.isNotEmpty
+              ? customerProvider.findByPhone(sale.customerPhone)
+              : customerProvider.findByName(sale.customerName);
           if (customer != null) {
             final newBalance = double.parse((customer.balance + sale.dueAmount).toStringAsFixed(2));
             await customerProvider.updateCustomer(customer.copyWith(balance: newBalance));
@@ -254,8 +256,10 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
 
         // Log earning to audit trail
         if (pointsEarned > 0 && loyalty.isEnabled) {
-          final customer = customerProvider.findByPhone(sale.customerPhone) ??
-              customerProvider.findByName(sale.customerName);
+          // Phone-first lookup — name fallback only when no phone exists
+          final customer = sale.customerPhone.isNotEmpty
+              ? customerProvider.findByPhone(sale.customerPhone)
+              : customerProvider.findByName(sale.customerName);
           if (customer != null) {
             await _logLoyaltyTransaction(
               customerId: customer.id,
