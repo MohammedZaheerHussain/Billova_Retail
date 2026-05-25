@@ -342,6 +342,7 @@ class DBHelper {
         amount REAL NOT NULL DEFAULT 0,
         note TEXT DEFAULT '',
         category TEXT DEFAULT 'General',
+        payment_mode TEXT DEFAULT 'Cash',
         is_deleted INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
@@ -354,6 +355,7 @@ class DBHelper {
         id TEXT PRIMARY KEY,
         date TEXT NOT NULL UNIQUE,
         opening_cash REAL DEFAULT 0,
+        actual_closing_cash REAL DEFAULT -1,
         notes TEXT DEFAULT '',
         is_deleted INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
@@ -688,6 +690,16 @@ class DBHelper {
       } catch (_) {} // Column may already exist
       try {
         await db.execute("ALTER TABLE customers ADD COLUMN gst_number TEXT DEFAULT ''");
+      } catch (_) {} // Column may already exist
+    }
+
+    // v14: Cash Till separation — expense payment mode + actual closing cash
+    if (oldVersion < 14) {
+      try {
+        await db.execute("ALTER TABLE expenses ADD COLUMN payment_mode TEXT DEFAULT 'Cash'");
+      } catch (_) {} // Column may already exist
+      try {
+        await db.execute("ALTER TABLE cash_till ADD COLUMN actual_closing_cash REAL DEFAULT -1");
       } catch (_) {} // Column may already exist
     }
   }

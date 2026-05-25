@@ -5,6 +5,7 @@ class ExpenseModel {
   final double amount;
   final String note;
   final String category;
+  final String paymentMode; // 'Cash' or 'UPI' — affects cash till calculation
   final bool isDeleted;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -14,6 +15,7 @@ class ExpenseModel {
     required this.amount,
     this.note = '',
     this.category = 'General',
+    this.paymentMode = 'Cash',
     this.isDeleted = false,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -26,6 +28,7 @@ class ExpenseModel {
       'amount': amount,
       'note': note,
       'category': category,
+      'payment_mode': paymentMode,
       'is_deleted': isDeleted ? 1 : 0,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -38,6 +41,7 @@ class ExpenseModel {
       amount: (map['amount'] as num).toDouble(),
       note: map['note'] as String? ?? '',
       category: map['category'] as String? ?? 'General',
+      paymentMode: map['payment_mode'] as String? ?? 'Cash',
       isDeleted: map['is_deleted'] == 1 || map['is_deleted'] == true,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
@@ -48,6 +52,7 @@ class ExpenseModel {
     double? amount,
     String? note,
     String? category,
+    String? paymentMode,
     bool? isDeleted,
     DateTime? updatedAt,
   }) {
@@ -56,6 +61,7 @@ class ExpenseModel {
       amount: amount ?? this.amount,
       note: note ?? this.note,
       category: category ?? this.category,
+      paymentMode: paymentMode ?? this.paymentMode,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
@@ -66,5 +72,5 @@ class ExpenseModel {
   factory ExpenseModel.fromJson(String source) => ExpenseModel.fromMap(jsonDecode(source));
 
   @override
-  String toString() => 'ExpenseModel(id: $id, amount: $amount, category: $category)';
+  String toString() => 'ExpenseModel(id: $id, amount: $amount, category: $category, paymentMode: $paymentMode)';
 }

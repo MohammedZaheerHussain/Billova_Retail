@@ -94,6 +94,7 @@ class ExpenseProvider extends ChangeNotifier {
     required double amount,
     String note = '',
     String category = 'General',
+    String paymentMode = 'Cash',
   }) async {
     try {
       final expense = ExpenseModel(
@@ -101,6 +102,7 @@ class ExpenseProvider extends ChangeNotifier {
         amount: amount,
         note: note,
         category: category,
+        paymentMode: paymentMode,
       );
 
       debugPrint('➕ ExpenseProvider: adding expense ₹$amount ($category)');

@@ -21,6 +21,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   String _selectedCategory = 'General';
+  String _expensePaymentMode = 'Cash';
 
   void _addExpense() async {
     final amount = double.tryParse(_amountCtrl.text.trim());
@@ -36,15 +37,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       amount: amount,
       note: _noteCtrl.text.trim(),
       category: _selectedCategory,
+      paymentMode: _expensePaymentMode,
     );
 
     if (success && mounted) {
       _amountCtrl.clear();
       _noteCtrl.clear();
-      setState(() => _selectedCategory = 'General');
+      setState(() { _selectedCategory = 'General'; _expensePaymentMode = 'Cash'; });
       context.read<CashTillProvider>().refresh();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Expense added'), backgroundColor: AppColors.card(context)),
+        SnackBar(content: Text('Expense added ($_expensePaymentMode)'), backgroundColor: AppColors.card(context)),
       );
     }
   }
@@ -222,6 +224,24 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       SizedBox(height: 10),
                       Row(
                         children: [
+                          // ─── Expense Payment Mode Toggle ───
+                          Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.surface(context),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.cardBorder(context)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _payModeChip('Cash', Icons.money_rounded, _expensePaymentMode == 'Cash',
+                                    () => setState(() => _expensePaymentMode = 'Cash')),
+                                _payModeChip('UPI', Icons.qr_code_rounded, _expensePaymentMode == 'UPI',
+                                    () => setState(() => _expensePaymentMode = 'UPI')),
+                              ],
+                            ),
+                          ),
+                          SizedBox(width: 10),
                           Expanded(
                             child: TextField(
                               controller: _noteCtrl,
@@ -470,6 +490,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               Formatters.time(expense.createdAt),
               style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context)),
             ),
+            if (expense.paymentMode != 'Cash')
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Icon(Icons.qr_code_rounded, size: 14, color: AppColors.accent),
+              ),
             SizedBox(width: 4),
             IconButton(
               icon: Icon(Icons.delete_outline,
@@ -479,6 +504,29 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 context.read<CashTillProvider>().refresh();
               },
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _payModeChip(String label, IconData icon, bool isActive, VoidCallback onTap) {
+    final color = isActive ? AppColors.accent : AppColors.textTertiary(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.accent.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
           ],
         ),
       ),
