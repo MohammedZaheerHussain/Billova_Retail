@@ -54,9 +54,24 @@ class _ReturnExchangeScreenState extends State<ReturnExchangeScreen> {
     return _returnWindowDays - DateTime.now().difference(_foundSale!.createdAt).inDays;
   }
 
+  // ─── Discount-Aware Refund Calculation ───
+  // Each item's effective paid price = item.total × (sale.total / sale.subtotal)
+  // This proportionally distributes any bill-level discount across items.
+  double _effectiveItemTotal(SaleItem item) {
+    final sale = _foundSale!;
+    if (sale.subtotal <= 0) return 0;
+    // Proportional share: what fraction of the final bill does this item represent?
+    return double.parse((item.total * (sale.total / sale.subtotal)).toStringAsFixed(2));
+  }
+
+  double _effectivePerUnit(SaleItem item) {
+    if (item.quantity <= 0) return 0;
+    return double.parse((_effectiveItemTotal(item) / item.quantity).toStringAsFixed(2));
+  }
+
   double get _returnTotal => _returnQty.entries.fold(0.0, (sum, e) {
     final item = _foundSale!.items[e.key];
-    return sum + (item.price * e.value);
+    return sum + (_effectivePerUnit(item) * e.value);
   });
 
   double get _exchangeTotal => _exchangeItems.fold(0.0, (s, e) => s + e.price * e.qty);
@@ -130,7 +145,8 @@ class _ReturnExchangeScreenState extends State<ReturnExchangeScreen> {
 
     for (final entry in _returnQty.entries) {
       final item = _foundSale!.items[entry.key];
-      refundTotal += item.price * entry.value;
+      // Use effective paid price (after discount), NOT original price
+      refundTotal += _effectivePerUnit(item) * entry.value;
       await inventory.restockItem(item.itemId, entry.value);
     }
 
@@ -566,11 +582,13 @@ class _ReturnExchangeScreenState extends State<ReturnExchangeScreen> {
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(item.name, style: AppTypography.bodyMedium.copyWith(
                         color: AppColors.textPrimary(context), fontWeight: FontWeight.w500)),
-                    Text('Purchased: ${item.quantity} × ${Formatters.currency(item.price)}',
+                    // Show effective paid price (after discount), not original catalog price
+                    Text('Purchased: ${item.quantity} × ${Formatters.currency(_effectivePerUnit(item))}'
+                        '${_foundSale!.discount > 0 ? " (MRP ${Formatters.currency(item.price)})" : ""}',
                         style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
                   ])),
                   if (qty > 0)
-                    Text(Formatters.currency(item.price * qty),
+                    Text(Formatters.currency(_effectivePerUnit(item) * qty),
                         style: AppTypography.mono.copyWith(color: AppColors.error, fontSize: 12, fontWeight: FontWeight.w700)),
                   const SizedBox(width: 12),
                   // Qty controls
@@ -631,7 +649,8 @@ class _ReturnExchangeScreenState extends State<ReturnExchangeScreen> {
               return Padding(padding: const EdgeInsets.only(bottom: 6), child: Row(children: [
                 Expanded(child: Text('${item.name} × ${e.value}', style: AppTypography.bodySmall.copyWith(
                     color: AppColors.textPrimary(context)))),
-                Text(Formatters.currency(item.price * e.value), style: AppTypography.mono.copyWith(
+                // Use effective paid amount (discount-aware)
+                Text(Formatters.currency(_effectivePerUnit(item) * e.value), style: AppTypography.mono.copyWith(
                     color: AppColors.error, fontSize: 12)),
               ]));
             }),
