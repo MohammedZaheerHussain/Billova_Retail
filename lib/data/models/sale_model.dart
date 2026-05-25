@@ -21,8 +21,8 @@ class SaleItem {
 
   /// Gross profit for this line item: (selling_price - cost_price) * quantity
   double get profit => (price - costPrice) * quantity;
-  /// GST amount for this line item
-  double get gstAmount => total * gstRate / 100;
+  /// GST amount for this line item (rounded to prevent paise drift)
+  double get gstAmount => double.parse((total * gstRate / 100).toStringAsFixed(2));
   /// Taxable value (item total before GST)
   double get taxableValue => total;
 

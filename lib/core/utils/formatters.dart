@@ -10,13 +10,27 @@ class Formatters {
     decimalDigits: 2,
   );
 
+  static final _currencyWholeFormat = NumberFormat.currency(
+    locale: 'en_IN',
+    symbol: '₹',
+    decimalDigits: 0,
+  );
+
   static final _compactCurrency = NumberFormat.compactCurrency(
     locale: 'en_IN',
     symbol: '₹',
     decimalDigits: 1,
   );
 
-  static String currency(double amount) => _currencyFormat.format(amount);
+  /// Smart currency: shows ₹500 for whole amounts, ₹499.50 for fractional
+  /// Rounds to 2 decimal places first to eliminate floating-point dust
+  static String currency(double amount) {
+    final rounded = double.parse(amount.toStringAsFixed(2));
+    if (rounded == rounded.truncateToDouble()) {
+      return _currencyWholeFormat.format(rounded);
+    }
+    return _currencyFormat.format(rounded);
+  }
   static String currencyCompact(double amount) => _compactCurrency.format(amount);
 
   // ─── Numbers ───

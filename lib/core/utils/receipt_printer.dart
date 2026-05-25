@@ -75,15 +75,16 @@ class ReceiptPrinter {
     final date = sale.createdAt;
     final dateStr = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
     final timeStr = '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    final totalPaid = cashPaid + upiPaid;
-    final pendingDue = (sale.total - totalPaid).clamp(0.0, double.infinity);
+    final totalPaid = double.parse((cashPaid + upiPaid).toStringAsFixed(2));
+    final pendingDue = double.parse((sale.total - totalPaid).clamp(0.0, double.infinity).toStringAsFixed(2));
     final discountAmt = sale.discount;
     final discountPct = sale.discountPercent;
 
+    // CRITICAL: Use stored item.total — do NOT recalculate price*qty (floating-point drift)
     final itemRows = sale.items.map((item) =>
       '<tr><td style="text-align:left;padding:2px 0;">${item.name}</td>'
       '<td style="text-align:center;padding:2px 0;">${item.quantity}</td>'
-      '<td style="text-align:right;padding:2px 0;">${Formatters.currency(item.price * item.quantity)}</td></tr>'
+      '<td style="text-align:right;padding:2px 0;">${Formatters.currency(item.total)}</td></tr>'
     ).join('');
 
     final logoHtml = shopLogo.isNotEmpty

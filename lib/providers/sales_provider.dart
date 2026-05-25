@@ -105,19 +105,22 @@ class SalesProvider extends ChangeNotifier {
   bool get isUdhar => _isUdhar;
   void setUdhar(bool v) { _isUdhar = v; notifyListeners(); }
 
-  double get subtotal => _cart.fold(0, (sum, item) => sum + item.total);
-  double get total => (subtotal - discountAmount).clamp(0, double.infinity);
+  // ─── Rounded Financial Getters (prevent floating-point paise drift) ───
+  double get subtotal => double.parse(
+      _cart.fold(0.0, (sum, item) => sum + item.total).toStringAsFixed(2));
+  double get total => double.parse(
+      (subtotal - discountAmount).clamp(0, double.infinity).toStringAsFixed(2));
 
-  // ─── GST Getters ───
+  // ─── GST Getters (rounded to prevent odd-number split paise) ───
   bool get gstEnabled => _gstEnabled;
   /// Total GST across all cart items (only when enabled)
   double get gstAmount => _gstEnabled
-      ? _cart.fold(0.0, (sum, item) => sum + item.gstAmount)
+      ? double.parse(_cart.fold(0.0, (sum, item) => sum + item.gstAmount).toStringAsFixed(2))
       : 0;
-  double get cgst => gstAmount / 2;
-  double get sgst => gstAmount / 2;
+  double get cgst => double.parse((gstAmount / 2).toStringAsFixed(2));
+  double get sgst => double.parse((gstAmount - cgst).toStringAsFixed(2)); // remainder avoids 1-paise gap
   /// Grand total = subtotal - discount + GST
-  double get grandTotal => total + gstAmount;
+  double get grandTotal => double.parse((total + gstAmount).toStringAsFixed(2));
 
   int get cartItemCount => _cart.fold(0, (sum, item) => sum + item.quantity);
   bool get isCartEmpty => _cart.isEmpty;
