@@ -208,6 +208,9 @@ class CustomerProvider extends ChangeNotifier {
   /// Record sale by customer name (finds or creates, then updates stats)
   /// This is the MAIN entry point called after every sale in the billing flow.
   /// Phone number is the unique identifier — if it exists, reuse; if new, create.
+  ///
+  /// CRITICAL: Customer matching is phone-first. Name fallback is only used
+  /// when there is exactly ONE matching customer (no ambiguity risk).
   Future<void> recordSaleByName(String name, String phone, double amount, {int earnRate = 1}) async {
     if (name.isEmpty || name == 'Walk-in Customer') return;
 
@@ -216,7 +219,22 @@ class CustomerProvider extends ChangeNotifier {
     if (phone.trim().isNotEmpty) {
       customer = findByPhone(phone.trim());
     }
-    customer ??= findByName(name.trim());
+
+    // ─── STEP 1b: Name fallback ONLY when phone is empty AND exactly one match ───
+    // NEVER use name fallback when phone is provided but not found (could be new customer)
+    if (customer == null && phone.trim().isEmpty && name.trim().isNotEmpty) {
+      final nameMatches = _customers.where(
+        (c) => c.name.toLowerCase().trim() == name.toLowerCase().trim(),
+      ).toList();
+      if (nameMatches.length == 1) {
+        customer = nameMatches.first;
+        debugPrint('📋 recordSaleByName: single name match for "${name.trim()}" — using ${customer.phone}');
+      } else if (nameMatches.length > 1) {
+        debugPrint('⚠️ recordSaleByName: ${nameMatches.length} customers named "${name.trim()}" — '
+            'skipping name match to prevent collision');
+        // Don't match — will create a new entry (ambiguous)
+      }
+    }
 
     // ─── STEP 2: Not found → create new customer ───
     if (customer == null) {
@@ -226,7 +244,8 @@ class CustomerProvider extends ChangeNotifier {
         return; // addCustomer already handles the error
       }
       // Re-fetch from in-memory list (addCustomer adds it)
-      customer = findByPhone(phone.trim()) ?? findByName(name.trim());
+      customer = (phone.trim().isNotEmpty ? findByPhone(phone.trim()) : null) ??
+          findByName(name.trim());
       if (customer == null) {
         debugPrint('❌ recordSaleByName: Customer created but not found in list');
         return;

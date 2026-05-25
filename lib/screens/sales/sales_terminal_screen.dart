@@ -9,6 +9,7 @@ import '../../core/utils/receipt_printer.dart';
 import '../../core/constants.dart';
 import '../../data/models/item_model.dart';
 import '../../data/models/sale_model.dart';
+import '../../data/models/customer_model.dart';
 import '../../providers/sales_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/cash_till_provider.dart';
@@ -941,21 +942,24 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                   ),
           ),
 
-          // ─── Customer Info ───
+          // ─── Customer Info (Phone-First Identification) ───
           const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                child: _miniField(_customerNameCtrl, 'Customer Name (optional)'),
+                child: _miniField(_customerNameCtrl, 'Customer Name (optional)',
+                    onChanged: (_) => setState(() {})),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _miniField(_customerPhoneCtrl, 'Phone (optional)',
+                child: _miniField(_customerPhoneCtrl, 'Phone (for loyalty)',
                     keyboardType: TextInputType.phone,
                     onChanged: (_) => setState(() {})),
               ),
             ],
           ),
+          // ─── Customer Autocomplete Suggestions ───
+          _buildCustomerSuggestions(),
           // ─── Loyalty Points Badge ───
           _buildLoyaltyBadge(),
           const SizedBox(height: 10),
@@ -1186,17 +1190,96 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       ),
     );
   }
+
+  /// ─── Customer Autocomplete Suggestions ───
+  /// Shows matching customers when cashier types name or phone.
+  /// Displays "Name — Phone" for each match to prevent name collisions.
+  Widget _buildCustomerSuggestions() {
+    final customers = context.read<CustomerProvider>();
+    final phone = _customerPhoneCtrl.text.trim();
+    final name = _customerNameCtrl.text.trim();
+
+    // Don't show suggestions if we already have a phone-matched customer
+    if (phone.isNotEmpty && customers.findByPhone(phone) != null) {
+      return const SizedBox.shrink();
+    }
+
+    // Build suggestion list from partial name or phone match
+    List<CustomerModel> matches = [];
+    if (phone.length >= 3) {
+      matches = customers.customers.where((c) =>
+          c.phone.contains(phone)).take(5).toList();
+    } else if (name.length >= 2) {
+      final lower = name.toLowerCase();
+      matches = customers.customers.where((c) =>
+          c.name.toLowerCase().contains(lower)).take(5).toList();
+    }
+
+    if (matches.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.cardBorder(context)),
+      ),
+      constraints: const BoxConstraints(maxHeight: 150),
+      child: ListView.builder(
+        shrinkWrap: true,
+        itemCount: matches.length,
+        padding: EdgeInsets.zero,
+        itemBuilder: (_, i) {
+          final c = matches[i];
+          return InkWell(
+            onTap: () {
+              setState(() {
+                _customerNameCtrl.text = c.name;
+                _customerPhoneCtrl.text = c.phone;
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(children: [
+                Icon(Icons.person_rounded, size: 16, color: AppColors.textTertiary(context)),
+                const SizedBox(width: 8),
+                Expanded(child: Text(c.name,
+                    style: TextStyle(color: AppColors.textPrimary(context), fontSize: 12, fontWeight: FontWeight.w500))),
+                if (c.phone.isNotEmpty)
+                  Text(c.phone, style: TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.w600)),
+                if (c.loyaltyPoints > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text('${c.loyaltyPoints} pts',
+                        style: TextStyle(color: AppColors.warning, fontSize: 9, fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildLoyaltyBadge() {
     final loyalty = context.watch<LoyaltySettingsProvider>();
     if (!loyalty.isEnabled) return const SizedBox.shrink();
 
     final customers = context.read<CustomerProvider>();
     final phone = _customerPhoneCtrl.text.trim();
-    final name = _customerNameCtrl.text.trim();
 
-    // Try to find customer — phone first (more unique), then name
-    final customer = (phone.isNotEmpty ? customers.findByPhone(phone) : null) ??
-        (name.isNotEmpty ? customers.findByName(name) : null);
+    // ═══════════════════════════════════════════════════════════
+    // CRITICAL: Match customer by PHONE NUMBER ONLY for loyalty.
+    // NEVER use name-based fallback — two "Satish" with different
+    // phones must NEVER share loyalty points.
+    // ═══════════════════════════════════════════════════════════
+    final customer = phone.isNotEmpty ? customers.findByPhone(phone) : null;
 
     if (customer == null) {
       // No customer matched — clear state if needed
@@ -1206,6 +1289,25 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
           _availablePoints = 0;
           _usePoints = false;
         }));
+      }
+      // Show helpful hint if name is entered but no phone
+      final name = _customerNameCtrl.text.trim();
+      if (name.isNotEmpty && phone.isEmpty) {
+        return Container(
+          margin: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.accent.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.accent.withValues(alpha: 0.15)),
+          ),
+          child: Row(children: [
+            Icon(Icons.info_outline_rounded, color: AppColors.textTertiary(context), size: 16),
+            const SizedBox(width: 8),
+            Expanded(child: Text('Enter phone number to load loyalty points',
+                style: TextStyle(color: AppColors.textTertiary(context), fontSize: 11))),
+          ]),
+        );
       }
       return const SizedBox.shrink();
     }
@@ -1217,6 +1319,13 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
         _availablePoints = customer.loyaltyPoints;
         if (customer.loyaltyPoints < loyalty.minRedeem) _usePoints = false;
       }));
+    }
+
+    // Auto-fill name from matched customer if name field is empty
+    if (_customerNameCtrl.text.trim().isEmpty && customer.name.isNotEmpty) {
+      Future.microtask(() {
+        _customerNameCtrl.text = customer.name;
+      });
     }
 
     final hasPoints = customer.loyaltyPoints > 0;
@@ -1241,6 +1350,9 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
             size: 20),
         const SizedBox(width: 8),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Show matched customer identity for cashier clarity
+          Text('${customer.name} — ${customer.phone}',
+              style: TextStyle(color: AppColors.textPrimary(context), fontWeight: FontWeight.w600, fontSize: 11)),
           if (hasPoints)
             Text('${customer.loyaltyPoints} points (${Formatters.currency(pointsValue)} value)',
                 style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.w600, fontSize: 12))
