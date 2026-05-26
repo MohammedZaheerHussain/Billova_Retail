@@ -93,7 +93,7 @@ class BillHistoryScreen extends StatelessWidget {
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: ['All', 'Cash', 'UPI', 'Card', 'Credit'].map((mode) {
+                    children: ['All', 'Cash', 'UPI', 'Card', 'Udhar'].map((mode) {
                       final isActive = provider.paymentFilter == mode;
                       return Padding(
                         padding: const EdgeInsets.only(right: 6),
@@ -378,6 +378,11 @@ class BillHistoryScreen extends StatelessWidget {
                         '-${Formatters.currency(sale.discount.roundToDouble())}',
                         style: AppTypography.monoSmall.copyWith(color: AppColors.error),
                       ),
+                    if (sale.dueAmount > 0)
+                      Text(
+                        'Due: ${Formatters.currency(sale.dueAmount.roundToDouble())}',
+                        style: AppTypography.monoSmall.copyWith(color: AppColors.warning, fontWeight: FontWeight.w600),
+                      ),
                   ],
                 ),
                 SizedBox(width: 8),
@@ -398,6 +403,10 @@ class BillHistoryScreen extends StatelessWidget {
         return AppColors.info;
       case 'card':
         return AppColors.accent;
+      case 'udhar':
+        return AppColors.warning;
+      case 'partial':
+        return const Color(0xFFFFA726); // Amber for partial payment
       case 'credit':
         return AppColors.warning;
       case 'split':

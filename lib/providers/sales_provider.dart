@@ -266,6 +266,8 @@ class SalesProvider extends ChangeNotifier {
             // include — this sale has UPI component
           } else if (filterLower == 'card' && s.cardAmount > 0) {
             // include — this sale has card component
+          } else if (filterLower == 'udhar' && s.dueAmount > 0) {
+            // include — this sale has unpaid Udhar amount
           } else {
             return false;
           }
@@ -359,9 +361,7 @@ class SalesProvider extends ChangeNotifier {
       // Calculate due amount for Udhar sales
       final double saleDueAmount;
       if (_isUdhar) {
-        saleDueAmount = double.parse(
-          (saleGrandTotal - finalCash - finalUpi - finalCard).clamp(0.0, double.infinity).toStringAsFixed(2)
-        );
+        saleDueAmount = (saleGrandTotal - finalCash - finalUpi - finalCard).clamp(0.0, double.infinity).roundToDouble();
       } else {
         saleDueAmount = 0;
       }

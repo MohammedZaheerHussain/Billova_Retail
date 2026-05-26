@@ -199,6 +199,8 @@ class BillDetailDialog extends StatelessWidget {
                 _row(context, 'UPI Paid', Formatters.currency(sale.upiAmount.roundToDouble()), fontSize: 12),
               ] else
                 _row(context, 'Payment', sale.paymentMode, fontSize: 12),
+              if (sale.dueAmount > 0)
+                _row(context, '⚠️ Due Amount', Formatters.currency(sale.dueAmount.roundToDouble()), color: AppColors.warning, isBold: true),
               const SizedBox(height: 16),
 
               // ─── Actions ───
