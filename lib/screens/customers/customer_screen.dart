@@ -27,7 +27,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
   // ─── Sort & Filter State ───
   String _sortMode = 'A-Z';
   String _filterMode = 'All';
-  static const _sortOptions = ['A-Z', 'Z-A', 'Newest', 'Oldest', 'Top Spender'];
+  static const _sortOptions = ['A-Z', 'Z-A', 'Newest', 'Oldest', 'Top Spender', 'Credit/Udhar'];
   static const _filterOptions = ['All', 'Credit/Udhar', 'No Due', 'High Spenders', 'Recent'];
 
   @override
@@ -215,6 +215,11 @@ class _CustomerScreenState extends State<CustomerScreen> {
           return spentB.compareTo(spentA);
         });
         break;
+      case 'Credit/Udhar':
+        // Filter to only due customers + sort highest due first
+        list = list.where((c) => c.balance > 0).toList();
+        list.sort((a, b) => b.balance.compareTo(a.balance));
+        break;
     }
 
     return list;
@@ -381,7 +386,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
   // FILTER BAR — pill chips + sort dropdown
   // ═══════════════════════════════════════════════════════════
   Widget _buildFilterSortBar(int totalCount, int filteredCount) {
-    final showCount = _filterMode != 'All' || _search.isNotEmpty;
+    final showCount = _filterMode != 'All' || _search.isNotEmpty || _sortMode == 'Credit/Udhar';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
