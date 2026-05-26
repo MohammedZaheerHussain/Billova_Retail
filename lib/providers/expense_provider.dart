@@ -84,8 +84,8 @@ class ExpenseProvider extends ChangeNotifier {
     );
 
     _filteredExpenses = _allExpenses.where((e) {
-      final localTime = e.createdAt.toLocal();
-      return !localTime.isBefore(range.start) && localTime.isBefore(range.end);
+      // createdAt is already local (stripped in fromMap) — no toLocal() needed
+      return !e.createdAt.isBefore(range.start) && e.createdAt.isBefore(range.end);
     }).toList();
   }
 

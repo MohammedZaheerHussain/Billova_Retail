@@ -35,6 +35,17 @@ class ExpenseModel {
     };
   }
 
+  /// Strip timezone markers and parse as LOCAL time.
+  /// DateTime.now() stores local IST, but Supabase adds 'Z' (UTC marker).
+  /// We strip it to avoid double-shifting when filtering by date.
+  static DateTime _parseAsLocal(String s) {
+    final stripped = s
+        .replaceAll('Z', '')
+        .replaceFirst(RegExp(r'[+-]\d{2}:\d{2}$'), '')
+        .replaceFirst(RegExp(r'[+-]\d{4}$'), '');
+    return DateTime.parse(stripped);
+  }
+
   factory ExpenseModel.fromMap(Map<String, dynamic> map) {
     return ExpenseModel(
       id: map['id'] as String,
@@ -43,8 +54,8 @@ class ExpenseModel {
       category: map['category'] as String? ?? 'General',
       paymentMode: map['payment_mode'] as String? ?? 'Cash',
       isDeleted: map['is_deleted'] == 1 || map['is_deleted'] == true,
-      createdAt: DateTime.parse(map['created_at'] as String),
-      updatedAt: DateTime.parse(map['updated_at'] as String),
+      createdAt: _parseAsLocal(map['created_at'] as String),
+      updatedAt: _parseAsLocal(map['updated_at'] as String),
     );
   }
 
