@@ -192,10 +192,28 @@ class _CustomerScreenState extends State<CustomerScreen> {
         list.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
         break;
       case 'Newest':
-        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        list.sort((a, b) {
+          final keyA = a.phone.isNotEmpty ? a.phone : 'name:${a.name.toLowerCase().trim()}';
+          final keyB = b.phone.isNotEmpty ? b.phone : 'name:${b.name.toLowerCase().trim()}';
+          final dateA = (summaries[keyA]?['lastPurchaseDate'] as DateTime?) ?? a.lastPurchaseDate;
+          final dateB = (summaries[keyB]?['lastPurchaseDate'] as DateTime?) ?? b.lastPurchaseDate;
+          if (dateA == null && dateB == null) return 0;
+          if (dateA == null) return 1;  // no purchase → push to bottom
+          if (dateB == null) return -1;
+          return dateB.compareTo(dateA); // latest first
+        });
         break;
       case 'Oldest':
-        list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        list.sort((a, b) {
+          final keyA = a.phone.isNotEmpty ? a.phone : 'name:${a.name.toLowerCase().trim()}';
+          final keyB = b.phone.isNotEmpty ? b.phone : 'name:${b.name.toLowerCase().trim()}';
+          final dateA = (summaries[keyA]?['lastPurchaseDate'] as DateTime?) ?? a.lastPurchaseDate;
+          final dateB = (summaries[keyB]?['lastPurchaseDate'] as DateTime?) ?? b.lastPurchaseDate;
+          if (dateA == null && dateB == null) return 0;
+          if (dateA == null) return 1;  // no purchase → push to bottom
+          if (dateB == null) return -1;
+          return dateA.compareTo(dateB); // oldest first
+        });
         break;
       case 'Top Spender':
         list.sort((a, b) {
