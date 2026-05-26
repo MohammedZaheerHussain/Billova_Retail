@@ -92,6 +92,59 @@ class SalesProvider extends ChangeNotifier {
     return summaries;
   }
 
+  /// Per-staff sales analytics — computed from in-memory sales data.
+  /// Returns a map keyed by staffId with today/weekly/monthly stats.
+  Map<String, Map<String, dynamic>> getStaffSalesStats() {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final weekStart = todayStart.subtract(const Duration(days: 7));
+    final monthStart = DateTime(now.year, now.month, 1);
+
+    final Map<String, Map<String, dynamic>> stats = {};
+    for (final sale in _allSales) {
+      if (sale.staffId.isEmpty) continue;
+      stats.putIfAbsent(sale.staffId, () => {
+        'staffName': sale.staffName,
+        'todaySales': 0.0,
+        'weeklySales': 0.0,
+        'monthlySales': 0.0,
+        'todayBills': 0,
+        'weeklyBills': 0,
+        'monthlyBills': 0,
+        'totalSales': 0.0,
+        'totalBills': 0,
+        'lastSaleTime': sale.createdAt,
+      });
+      final s = stats[sale.staffId]!;
+      // Always track the most recent staff name
+      if (sale.staffName.isNotEmpty) s['staffName'] = sale.staffName;
+
+      final saleDate = sale.createdAt;
+      // Today
+      if (saleDate.isAfter(todayStart) || saleDate.isAtSameMomentAs(todayStart)) {
+        s['todaySales'] = (s['todaySales'] as double) + sale.total;
+        s['todayBills'] = (s['todayBills'] as int) + 1;
+      }
+      // This week (last 7 days)
+      if (saleDate.isAfter(weekStart)) {
+        s['weeklySales'] = (s['weeklySales'] as double) + sale.total;
+        s['weeklyBills'] = (s['weeklyBills'] as int) + 1;
+      }
+      // This month
+      if (saleDate.isAfter(monthStart) || saleDate.isAtSameMomentAs(monthStart)) {
+        s['monthlySales'] = (s['monthlySales'] as double) + sale.total;
+        s['monthlyBills'] = (s['monthlyBills'] as int) + 1;
+      }
+      // Lifetime
+      s['totalSales'] = (s['totalSales'] as double) + sale.total;
+      s['totalBills'] = (s['totalBills'] as int) + 1;
+      // Last sale time
+      if (saleDate.isAfter(s['lastSaleTime'] as DateTime)) {
+        s['lastSaleTime'] = saleDate;
+      }
+    }
+    return stats;
+  }
 
   // Getters — Cart
   List<SaleItem> get cart => _cart;

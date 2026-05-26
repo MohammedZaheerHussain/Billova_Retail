@@ -6,6 +6,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/date_filter.dart';
 import '../../widgets/date_filter_bar.dart';
 import '../../providers/staff_provider.dart';
+import '../../providers/sales_provider.dart';
 import '../../data/models/staff_model.dart';
 import '../../data/models/attendance_model.dart';
 
@@ -327,8 +328,9 @@ class _StaffScreenState extends State<StaffScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<StaffProvider>(
-      builder: (context, provider, _) {
+    return Consumer2<StaffProvider, SalesProvider>(
+      builder: (context, provider, salesProvider, _) {
+        final staffSalesStats = salesProvider.getStaffSalesStats();
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: Padding(
@@ -356,23 +358,24 @@ class _StaffScreenState extends State<StaffScreen> {
                 ),
                 const SizedBox(height: 20),
 
+                // ─── Top Row: Directory + Attendance ───
                 Expanded(
+                  flex: 3,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ─── Left: Staff Directory ───
-                      Expanded(
-                        flex: 3,
-                        child: _buildStaffDirectory(provider),
-                      ),
+                      Expanded(flex: 3, child: _buildStaffDirectory(provider)),
                       const SizedBox(width: 20),
-                      // ─── Right: Today's Attendance ───
-                      Expanded(
-                        flex: 2,
-                        child: _buildAttendanceLog(provider),
-                      ),
+                      Expanded(flex: 2, child: _buildAttendanceLog(provider)),
                     ],
                   ),
+                ),
+                const SizedBox(height: 20),
+
+                // ─── Bottom: Live Staff Sales Performance ───
+                Expanded(
+                  flex: 2,
+                  child: _buildPerformanceDashboard(provider, staffSalesStats),
                 ),
               ],
             ),
@@ -827,6 +830,233 @@ class _StaffScreenState extends State<StaffScreen> {
         ),
       ]),
     );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ─── LIVE STAFF SALES PERFORMANCE DASHBOARD ───
+  // ═══════════════════════════════════════════════════════════════
+  Widget _buildPerformanceDashboard(
+      StaffProvider staffProvider, Map<String, Map<String, dynamic>> salesStats) {
+    // Only show staff-role members (not admins)
+    final staffMembers = staffProvider.staff.where((s) => s.role == 'staff').toList();
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ─── Header ───
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.leaderboard_rounded, color: Colors.white, size: 18),
+            ),
+            const SizedBox(width: 10),
+            Text('Live Staff Sales Performance',
+                style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(width: 6, height: 6,
+                    decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
+                const SizedBox(width: 6),
+                Text('LIVE', style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.success, fontWeight: FontWeight.w700, fontSize: 10)),
+              ]),
+            ),
+          ]),
+          const SizedBox(height: 14),
+
+          // ─── Table Header ───
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surface(context),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(children: [
+              Expanded(flex: 2, child: Text('STAFF', style: _headerStyle)),
+              Expanded(flex: 1, child: Text('TODAY', style: _headerStyle)),
+              Expanded(flex: 1, child: Text('MONTH', style: _headerStyle)),
+              Expanded(flex: 1, child: Text('BILLS', style: _headerStyle)),
+              Expanded(flex: 1, child: Text('AVG BILL', style: _headerStyle)),
+              Expanded(flex: 2, child: Text('TARGET PROGRESS', style: _headerStyle)),
+              Expanded(flex: 1, child: Text('LAST SALE', style: _headerStyle)),
+            ]),
+          ),
+          const SizedBox(height: 6),
+
+          // ─── Staff Rows ───
+          Expanded(
+            child: staffMembers.isEmpty
+                ? Center(child: Text('No staff members',
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))))
+                : ListView.separated(
+                    itemCount: staffMembers.length,
+                    separatorBuilder: (_, __) => Divider(color: AppColors.cardBorder(context), height: 1),
+                    itemBuilder: (_, i) {
+                      final staff = staffMembers[i];
+                      final stats = salesStats[staff.id];
+                      return _performanceRow(staff, stats);
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _performanceRow(StaffModel staff, Map<String, dynamic>? stats) {
+    final todaySales = (stats?['todaySales'] as double?) ?? 0;
+    final monthlySales = (stats?['monthlySales'] as double?) ?? 0;
+    final monthlyBills = (stats?['monthlyBills'] as int?) ?? 0;
+    final todayBills = (stats?['todayBills'] as int?) ?? 0;
+    final avgBill = monthlyBills > 0 ? monthlySales / monthlyBills : 0.0;
+    final target = staff.monthlySaleTarget;
+    final progress = target > 0 ? (monthlySales / target).clamp(0.0, 1.5) : 0.0;
+    final progressPct = (progress * 100).round();
+    final lastSale = stats?['lastSaleTime'] as DateTime?;
+
+    // Progress bar color
+    Color progressColor;
+    if (progressPct >= 100) {
+      progressColor = AppColors.success;
+    } else if (progressPct >= 60) {
+      progressColor = AppColors.accent;
+    } else if (progressPct >= 30) {
+      progressColor = AppColors.warning;
+    } else {
+      progressColor = AppColors.error;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(children: [
+        // Staff name + avatar
+        Expanded(
+          flex: 2,
+          child: Row(children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+              child: Text(staff.name.isNotEmpty ? staff.name[0].toUpperCase() : '?',
+                  style: AppTypography.mono.copyWith(
+                      color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(staff.name, overflow: TextOverflow.ellipsis,
+                    style: AppTypography.bodyMedium.copyWith(
+                        color: AppColors.textPrimary(context), fontWeight: FontWeight.w600, fontSize: 13)),
+                Text('${todayBills} bills today',
+                    style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.textTertiary(context), fontSize: 10)),
+              ]),
+            ),
+          ]),
+        ),
+        // Today Sales
+        Expanded(
+          flex: 1,
+          child: Text(Formatters.currency(todaySales),
+              style: AppTypography.mono.copyWith(
+                  color: todaySales > 0 ? AppColors.success : AppColors.textTertiary(context),
+                  fontWeight: FontWeight.w700, fontSize: 13)),
+        ),
+        // Monthly Sales
+        Expanded(
+          flex: 1,
+          child: Text(Formatters.currency(monthlySales),
+              style: AppTypography.mono.copyWith(
+                  color: AppColors.textPrimary(context), fontWeight: FontWeight.w600, fontSize: 13)),
+        ),
+        // Bills
+        Expanded(
+          flex: 1,
+          child: Text('$monthlyBills',
+              style: AppTypography.mono.copyWith(
+                  color: AppColors.textSecondary(context), fontSize: 13)),
+        ),
+        // Avg Bill
+        Expanded(
+          flex: 1,
+          child: Text(Formatters.currency(avgBill),
+              style: AppTypography.mono.copyWith(
+                  color: AppColors.textSecondary(context), fontSize: 12)),
+        ),
+        // Target Progress
+        Expanded(
+          flex: 2,
+          child: target > 0
+              ? Row(children: [
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: progress.clamp(0.0, 1.0).toDouble(),
+                          minHeight: 8,
+                          backgroundColor: AppColors.surface(context),
+                          valueColor: AlwaysStoppedAnimation(progressColor),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text('${Formatters.currency(monthlySales)} / ${Formatters.currency(target)}',
+                          style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textTertiary(context), fontSize: 9)),
+                    ]),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: progressColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text('$progressPct%',
+                        style: AppTypography.mono.copyWith(
+                            color: progressColor, fontWeight: FontWeight.w700, fontSize: 11)),
+                  ),
+                ])
+              : Text('No target',
+                  style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
+        ),
+        // Last Sale
+        Expanded(
+          flex: 1,
+          child: Text(
+            lastSale != null ? _formatLastSale(lastSale) : '—',
+            style: AppTypography.mono.copyWith(
+                color: AppColors.textSecondary(context), fontSize: 11),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  String _formatLastSale(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return Formatters.date(dt);
   }
 }
 
