@@ -39,35 +39,55 @@ class AttendanceModel {
     };
   }
 
-  /// Parse DateTime ensuring LOCAL timezone (fixes UTC/IST mismatch)
-  static DateTime _parseLocal(String s) {
-    final dt = DateTime.parse(s);
-    return dt.isUtc ? dt.toLocal() : dt;
+  /// Strip timezone markers and parse as LOCAL time.
+  /// Reason: DateTime.now() stores local IST, toIso8601String() has no offset,
+  /// but Supabase adds 'Z' (UTC marker). We must strip it to avoid double-shift.
+  static DateTime _parseAsLocal(String s) {
+    // Remove 'Z', '+HH:MM', or '+HHMM' suffixes → Dart parses as local
+    final stripped = s
+        .replaceAll('Z', '')
+        .replaceFirst(RegExp(r'[+-]\d{2}:\d{2}$'), '')
+        .replaceFirst(RegExp(r'[+-]\d{4}$'), '');
+    return DateTime.parse(stripped);
   }
 
   factory AttendanceModel.fromMap(Map<String, dynamic> map) {
-    final clockOut = map['clock_out_time'] as String? ?? '';
-    final clockIn = _parseLocal(map['clock_in_time'] as String);
-    final clockOutDt = clockOut.isNotEmpty ? DateTime.tryParse(clockOut) : null;
-    final clockOutLocal = clockOutDt != null ? (clockOutDt.isUtc ? clockOutDt.toLocal() : clockOutDt) : null;
-
-    // Recalculate hours safely (never negative)
-    double hours = (map['total_hours'] as num?)?.toDouble() ?? 0;
-    if (clockOutLocal != null) {
-      final calc = clockOutLocal.difference(clockIn).inMinutes / 60.0;
-      hours = calc < 0 ? 0 : double.parse(calc.toStringAsFixed(2));
+    final clockOutStr = map['clock_out_time'] as String? ?? '';
+    final clockIn = _parseAsLocal(map['clock_in_time'] as String);
+    DateTime? clockOut;
+    if (clockOutStr.isNotEmpty) {
+      clockOut = DateTime.tryParse(
+        clockOutStr
+            .replaceAll('Z', '')
+            .replaceFirst(RegExp(r'[+-]\d{2}:\d{2}$'), '')
+            .replaceFirst(RegExp(r'[+-]\d{4}$'), ''),
+      );
     }
+
+    // Calculate hours safely — supports overnight shifts
+    double hours = (map['total_hours'] as num?)?.toDouble() ?? 0;
+    if (clockOut != null) {
+      var diff = clockOut.difference(clockIn);
+      // Overnight shift: clockOut appears before clockIn (e.g., in 9PM → out 6AM)
+      if (diff.isNegative) {
+        clockOut = clockOut.add(const Duration(days: 1));
+        diff = clockOut.difference(clockIn);
+      }
+      hours = diff.isNegative ? 0 : double.parse((diff.inMinutes / 60.0).toStringAsFixed(2));
+    }
+
+    final createdAtStr = map['created_at'] as String;
 
     return AttendanceModel(
       id: map['id'] as String,
       staffId: map['staff_id'] as String,
       staffName: map['staff_name'] as String? ?? '',
       clockInTime: clockIn,
-      clockOutTime: clockOutLocal,
+      clockOutTime: clockOut,
       totalHours: hours,
       date: map['date'] as String? ?? '',
       isDeleted: map['is_deleted'] == 1 || map['is_deleted'] == true,
-      createdAt: _parseLocal(map['created_at'] as String),
+      createdAt: _parseAsLocal(createdAtStr),
     );
   }
 
