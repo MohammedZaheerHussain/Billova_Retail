@@ -28,7 +28,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
   String _sortMode = 'A-Z';
   String _filterMode = 'All';
   static const _sortOptions = ['A-Z', 'Z-A', 'Newest', 'Oldest', 'Top Spender', 'Credit/Udhar'];
-  static const _filterOptions = ['All', 'Credit/Udhar', 'No Due', 'High Spenders', 'Recent'];
+  static const _filterOptions = ['All', 'Credit/Udhar', 'No Due', 'High Spenders'];
 
   @override
   void initState() {
@@ -179,15 +179,6 @@ class _CustomerScreenState extends State<CustomerScreen> {
           final s = summaries[key];
           final spent = (s?['totalSpent'] as double?) ?? c.totalSpent;
           return spent >= 1000;
-        }).toList();
-        break;
-      case 'Recent':
-        final cutoff = DateTime.now().subtract(const Duration(days: 30));
-        list = list.where((c) {
-          final key = c.phone.isNotEmpty ? c.phone : 'name:${c.name.toLowerCase().trim()}';
-          final s = summaries[key];
-          final lastDate = (s?['lastPurchaseDate'] as DateTime?) ?? c.lastPurchaseDate;
-          return lastDate != null && lastDate.isAfter(cutoff);
         }).toList();
         break;
     }
