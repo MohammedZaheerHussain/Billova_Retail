@@ -458,7 +458,6 @@ class StaffProvider extends ChangeNotifier {
   static const List<String> _staffAllowedModules = [
     'Sales Terminal',
     'Returns & Exchange',
-    'Master Inventory',
     'Clearance Stock',
     'Customers',
     'Bill History',

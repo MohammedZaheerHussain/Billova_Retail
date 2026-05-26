@@ -92,7 +92,7 @@ class _AppShellState extends State<AppShell> {
     _NavItem(icon: Icons.swap_horiz_rounded, label: 'Returns & Exchange', shortcut: 'F4', adminOnly: false, section: 'TRANSACTIONS'),
     _NavItem(icon: Icons.local_shipping_rounded, label: 'Purchases (In)', shortcut: 'F5', adminOnly: true, section: 'TRANSACTIONS'),
     // INVENTORY & CLEARANCE
-    _NavItem(icon: Icons.inventory_2_rounded, label: 'Master Inventory', shortcut: 'F6', adminOnly: false, section: 'INVENTORY & CLEARANCE'),
+    _NavItem(icon: Icons.inventory_2_rounded, label: 'Master Inventory', shortcut: 'F6', adminOnly: true, section: 'INVENTORY & CLEARANCE'),
     _NavItem(icon: Icons.cleaning_services_rounded, label: 'Clearance Stock', shortcut: 'F7', adminOnly: false, section: 'INVENTORY & CLEARANCE'),
     // DIRECTORY
     _NavItem(icon: Icons.people_outline_rounded, label: 'Customers', shortcut: 'F8', adminOnly: false, section: 'DIRECTORY'),
