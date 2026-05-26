@@ -164,17 +164,22 @@ class _WebDB {
         .toList();
 
     if (orderBy != null) {
-      final parts = orderBy.split(' ');
-      final col = parts[0];
-      final desc = parts.length > 1 && parts[1].toUpperCase() == 'DESC';
+      // Support multi-column: "date DESC, clock_in_time DESC"
+      final sortCols = orderBy.split(',').map((s) => s.trim()).toList();
       rows.sort((a, b) {
-        final va = a[col];
-        final vb = b[col];
-        if (va == null && vb == null) return 0;
-        if (va == null) return desc ? 1 : -1;
-        if (vb == null) return desc ? -1 : 1;
-        final cmp = Comparable.compare(va as Comparable, vb as Comparable);
-        return desc ? -cmp : cmp;
+        for (final sortExpr in sortCols) {
+          final parts = sortExpr.split(' ');
+          final col = parts[0];
+          final desc = parts.length > 1 && parts[1].toUpperCase() == 'DESC';
+          final va = a[col];
+          final vb = b[col];
+          if (va == null && vb == null) continue;
+          if (va == null) return desc ? 1 : -1;
+          if (vb == null) return desc ? -1 : 1;
+          final cmp = Comparable.compare(va as Comparable, vb as Comparable);
+          if (cmp != 0) return desc ? -cmp : cmp;
+        }
+        return 0;
       });
     }
 
@@ -201,7 +206,7 @@ class _WebDB {
   bool _matchesWhere(Map<String, dynamic> row, String? where, List<dynamic>? args) {
     if (where == null) return true;
 
-    // Parse simple conditions: "col = ?" and "col LIKE ?"
+    // Parse simple conditions: "col = ?", "col LIKE ?", "col >= ?", "col <= ?"
     final conditions = where.split(' AND ');
     int argIdx = 0;
 
@@ -216,6 +221,56 @@ class _WebDB {
           final val = row[col]?.toString() ?? '';
           if (!val.contains(pattern)) return false;
           argIdx++;
+        }
+      } else if (trimmed.contains(' >= ')) {
+        final parts = trimmed.split(' >= ');
+        final col = parts[0].trim();
+        if (parts[1].trim() == '?') {
+          // Parameterized: compare row[col] >= args[argIdx] (string or num)
+          if (args != null && argIdx < args.length) {
+            final rowVal = row[col];
+            final argVal = args[argIdx];
+            if (rowVal is num && argVal is num) {
+              if (rowVal < argVal) return false;
+            } else {
+              // String comparison (dates, etc.)
+              if (rowVal.toString().compareTo(argVal.toString()) < 0) return false;
+            }
+            argIdx++;
+          }
+        } else {
+          // Column-to-column or literal
+          final otherCol = parts[1].trim();
+          final v1 = row[col];
+          final v2 = row[otherCol] ?? num.tryParse(otherCol);
+          if (v1 is num && v2 is num) {
+            if (v1 < v2) return false;
+          }
+        }
+      } else if (trimmed.contains(' <= ')) {
+        final parts = trimmed.split(' <= ');
+        final col = parts[0].trim();
+        if (parts[1].trim() == '?') {
+          // Parameterized: compare row[col] <= args[argIdx] (string or num)
+          if (args != null && argIdx < args.length) {
+            final rowVal = row[col];
+            final argVal = args[argIdx];
+            if (rowVal is num && argVal is num) {
+              if (rowVal > argVal) return false;
+            } else {
+              // String comparison (dates, etc.)
+              if (rowVal.toString().compareTo(argVal.toString()) > 0) return false;
+            }
+            argIdx++;
+          }
+        } else {
+          // Column-to-column comparison (e.g., quantity <= low_stock_threshold)
+          final otherCol = parts[1].trim();
+          final v1 = row[col];
+          final v2 = row[otherCol];
+          if (v1 is num && v2 is num) {
+            if (v1 > v2) return false;
+          }
         }
       } else if (trimmed.contains(' = ')) {
         final parts = trimmed.split(' = ');
@@ -232,14 +287,6 @@ class _WebDB {
             if (row[col] != 0 && row[col] != false) return false;
           }
         }
-      } else if (trimmed.contains(' <= ')) {
-        // e.g., quantity <= low_stock_threshold
-        final parts = trimmed.split(' <= ');
-        final col = parts[0].trim();
-        final otherCol = parts[1].trim();
-        final v1 = (row[col] as num?) ?? 0;
-        final v2 = (row[otherCol] as num?) ?? 0;
-        if (v1 > v2) return false;
       } else if (trimmed.contains(' > ')) {
         final parts = trimmed.split(' > ');
         final col = parts[0].trim();

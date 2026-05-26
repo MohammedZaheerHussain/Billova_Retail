@@ -39,18 +39,35 @@ class AttendanceModel {
     };
   }
 
+  /// Parse DateTime ensuring LOCAL timezone (fixes UTC/IST mismatch)
+  static DateTime _parseLocal(String s) {
+    final dt = DateTime.parse(s);
+    return dt.isUtc ? dt.toLocal() : dt;
+  }
+
   factory AttendanceModel.fromMap(Map<String, dynamic> map) {
     final clockOut = map['clock_out_time'] as String? ?? '';
+    final clockIn = _parseLocal(map['clock_in_time'] as String);
+    final clockOutDt = clockOut.isNotEmpty ? DateTime.tryParse(clockOut) : null;
+    final clockOutLocal = clockOutDt != null ? (clockOutDt.isUtc ? clockOutDt.toLocal() : clockOutDt) : null;
+
+    // Recalculate hours safely (never negative)
+    double hours = (map['total_hours'] as num?)?.toDouble() ?? 0;
+    if (clockOutLocal != null) {
+      final calc = clockOutLocal.difference(clockIn).inMinutes / 60.0;
+      hours = calc < 0 ? 0 : double.parse(calc.toStringAsFixed(2));
+    }
+
     return AttendanceModel(
       id: map['id'] as String,
       staffId: map['staff_id'] as String,
       staffName: map['staff_name'] as String? ?? '',
-      clockInTime: DateTime.parse(map['clock_in_time'] as String),
-      clockOutTime: clockOut.isNotEmpty ? DateTime.tryParse(clockOut) : null,
-      totalHours: (map['total_hours'] as num?)?.toDouble() ?? 0,
+      clockInTime: clockIn,
+      clockOutTime: clockOutLocal,
+      totalHours: hours,
       date: map['date'] as String? ?? '',
       isDeleted: map['is_deleted'] == 1 || map['is_deleted'] == true,
-      createdAt: DateTime.parse(map['created_at'] as String),
+      createdAt: _parseLocal(map['created_at'] as String),
     );
   }
 
