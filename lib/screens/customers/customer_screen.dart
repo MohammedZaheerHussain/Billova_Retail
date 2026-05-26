@@ -24,6 +24,12 @@ class _CustomerScreenState extends State<CustomerScreen> {
   final Set<String> _selectedIds = {};
   bool _isSelectMode = false;
 
+  // ─── Sort & Filter State ───
+  String _sortMode = 'A-Z';
+  String _filterMode = 'All';
+  static const _sortOptions = ['A-Z', 'Z-A', 'Newest', 'Oldest', 'Top Spender'];
+  static const _filterOptions = ['All', 'Credit/Udhar', 'No Due', 'High Spenders', 'Recent'];
+
   @override
   void initState() {
     super.initState();
@@ -149,6 +155,71 @@ class _CustomerScreenState extends State<CustomerScreen> {
     );
   }
 
+  /// Apply search + filter + sort in one pass (memoized per build)
+  List<CustomerModel> _applyFilterAndSort(List<CustomerModel> customers, Map<String, Map<String, dynamic>> summaries) {
+    var list = List<CustomerModel>.from(customers);
+
+    // 1. Search filter
+    if (_search.isNotEmpty) {
+      final q = _search.toLowerCase();
+      list = list.where((c) => c.name.toLowerCase().contains(q) || c.phone.contains(q)).toList();
+    }
+
+    // 2. Category filter
+    switch (_filterMode) {
+      case 'Credit/Udhar':
+        list = list.where((c) => c.balance > 0).toList();
+        break;
+      case 'No Due':
+        list = list.where((c) => c.balance <= 0).toList();
+        break;
+      case 'High Spenders':
+        list = list.where((c) {
+          final key = c.phone.isNotEmpty ? c.phone : 'name:${c.name.toLowerCase().trim()}';
+          final s = summaries[key];
+          final spent = (s?['totalSpent'] as double?) ?? c.totalSpent;
+          return spent >= 1000;
+        }).toList();
+        break;
+      case 'Recent':
+        final cutoff = DateTime.now().subtract(const Duration(days: 30));
+        list = list.where((c) {
+          final key = c.phone.isNotEmpty ? c.phone : 'name:${c.name.toLowerCase().trim()}';
+          final s = summaries[key];
+          final lastDate = (s?['lastPurchaseDate'] as DateTime?) ?? c.lastPurchaseDate;
+          return lastDate != null && lastDate.isAfter(cutoff);
+        }).toList();
+        break;
+    }
+
+    // 3. Sort
+    switch (_sortMode) {
+      case 'A-Z':
+        list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        break;
+      case 'Z-A':
+        list.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+        break;
+      case 'Newest':
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
+      case 'Oldest':
+        list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
+      case 'Top Spender':
+        list.sort((a, b) {
+          final keyA = a.phone.isNotEmpty ? a.phone : 'name:${a.name.toLowerCase().trim()}';
+          final keyB = b.phone.isNotEmpty ? b.phone : 'name:${b.name.toLowerCase().trim()}';
+          final spentA = (summaries[keyA]?['totalSpent'] as double?) ?? a.totalSpent;
+          final spentB = (summaries[keyB]?['totalSpent'] as double?) ?? b.totalSpent;
+          return spentB.compareTo(spentA);
+        });
+        break;
+    }
+
+    return list;
+  }
+
   @override
   Widget build(BuildContext context) {
     final salesProvider = context.watch<SalesProvider>();
@@ -156,11 +227,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
 
     return Consumer<CustomerProvider>(
       builder: (context, provider, _) {
-        final filtered = _search.isEmpty
-            ? provider.customers
-            : provider.customers.where((c) =>
-                c.name.toLowerCase().contains(_search.toLowerCase()) ||
-                c.phone.contains(_search)).toList();
+        final filtered = _applyFilterAndSort(provider.customers, customerSummaries);
 
         return Scaffold(
           backgroundColor: Colors.transparent,
@@ -283,7 +350,10 @@ class _CustomerScreenState extends State<CustomerScreen> {
                         borderSide: BorderSide(color: AppColors.cardBorder(context))),
                   ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 12),
+                // ─── Filter Chips + Sort Dropdown ───
+                _buildFilterSortBar(provider.customers.length, filtered.length),
+                const SizedBox(height: 12),
                 Expanded(
                   child: provider.isLoading
                       ? Center(child: CircularProgressIndicator(color: AppColors.accent))
@@ -307,6 +377,112 @@ class _CustomerScreenState extends State<CustomerScreen> {
     );
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // FILTER BAR — pill chips + sort dropdown
+  // ═══════════════════════════════════════════════════════════
+  Widget _buildFilterSortBar(int totalCount, int filteredCount) {
+    final showCount = _filterMode != 'All' || _search.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            // Filter chips (scrollable)
+            Expanded(
+              child: SizedBox(
+                height: 36,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _filterOptions.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 6),
+                  itemBuilder: (_, i) {
+                    final opt = _filterOptions[i];
+                    final isActive = _filterMode == opt;
+                    final isCredit = opt == 'Credit/Udhar';
+                    final chipColor = isCredit && isActive
+                        ? AppColors.warning
+                        : isActive
+                            ? AppColors.accent
+                            : Colors.transparent;
+
+                    return GestureDetector(
+                      onTap: () => setState(() => _filterMode = opt),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: isActive ? chipColor.withValues(alpha: 0.15) : AppColors.surface(context),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isActive ? chipColor : AppColors.cardBorder(context),
+                            width: isActive ? 1.5 : 1,
+                          ),
+                          boxShadow: isActive
+                              ? [BoxShadow(color: chipColor.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 2))]
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isCredit) ...[
+                              Icon(Icons.account_balance_wallet_rounded,
+                                  size: 13, color: isActive ? AppColors.warning : AppColors.textTertiary(context)),
+                              const SizedBox(width: 4),
+                            ],
+                            Text(
+                              opt,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                                color: isActive ? chipColor : AppColors.textSecondary(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Sort dropdown
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.surface(context),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.cardBorder(context)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _sortMode,
+                  isDense: true,
+                  icon: Icon(Icons.swap_vert_rounded, size: 16, color: AppColors.accent),
+                  dropdownColor: AppColors.card(context),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary(context)),
+                  items: _sortOptions.map((s) => DropdownMenuItem(
+                    value: s,
+                    child: Text(s, style: TextStyle(fontSize: 12, color: AppColors.textPrimary(context))),
+                  )).toList(),
+                  onChanged: (v) { if (v != null) setState(() => _sortMode = v); },
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (showCount)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Showing $filteredCount of $totalCount customers',
+              style: TextStyle(fontSize: 11, color: AppColors.textTertiary(context), fontWeight: FontWeight.w500),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _customerTile(CustomerModel customer, CustomerProvider provider, Map<String, Map<String, dynamic>> summaries) {
     // Match by phone first — must align with getCustomerSummaries() key format
     final key = customer.phone.isNotEmpty
@@ -320,11 +496,22 @@ class _CustomerScreenState extends State<CustomerScreen> {
         ? '${lastDate.day} ${_monthName(lastDate.month)}'
         : 'Never';
 
+    // Credit severity color
+    Color _creditColor(double bal) {
+      if (bal >= 2000) return AppColors.error;
+      if (bal >= 500) return AppColors.warning;
+      return const Color(0xFFFF8C00); // dark orange for low amounts
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.cardBorder(context)),
+        border: Border.all(
+          color: customer.balance > 0
+              ? _creditColor(customer.balance).withValues(alpha: 0.3)
+              : AppColors.cardBorder(context),
+        ),
       ),
       child: ListTile(
         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -332,12 +519,16 @@ class _CustomerScreenState extends State<CustomerScreen> {
         leading: Container(
           width: 44, height: 44,
           decoration: BoxDecoration(
-            color: AppColors.accent.withValues(alpha: 0.1),
+            color: customer.balance > 0
+                ? _creditColor(customer.balance).withValues(alpha: 0.1)
+                : AppColors.accent.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Center(child: Text(
             customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?',
-            style: AppTypography.h3.copyWith(color: AppColors.accent),
+            style: AppTypography.h3.copyWith(
+              color: customer.balance > 0 ? _creditColor(customer.balance) : AppColors.accent,
+            ),
           )),
         ),
         title: Text(customer.name,
@@ -355,29 +546,44 @@ class _CustomerScreenState extends State<CustomerScreen> {
                 ]),
               ),
             SizedBox(height: 6),
-            Row(children: [
-              _statBadge(Icons.receipt_rounded, '$totalOrders', 'Orders'),
-              const SizedBox(width: 10),
-              _statBadge(Icons.currency_rupee_rounded, Formatters.currency(totalSpent), 'Spent'),
-              const SizedBox(width: 10),
-              _statBadge(Icons.star_rounded, '${customer.loyaltyPoints}', 'Points'),
-              const SizedBox(width: 10),
-              _statBadge(Icons.calendar_today_rounded, lastPurchase, 'Last'),
-            ]),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                _statBadge(Icons.receipt_rounded, '$totalOrders', 'Orders'),
+                _statBadge(Icons.currency_rupee_rounded, Formatters.currency(totalSpent), 'Spent'),
+                _statBadge(Icons.star_rounded, '${customer.loyaltyPoints}', 'Points'),
+                _statBadge(Icons.calendar_today_rounded, lastPurchase, 'Last'),
+              ],
+            ),
             if (customer.balance > 0) ...[
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.15),
+                  color: _creditColor(customer.balance).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+                  border: Border.all(color: _creditColor(customer.balance).withValues(alpha: 0.4)),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.access_time_rounded, size: 12, color: AppColors.warning),
+                  Icon(
+                    customer.balance >= 2000 ? Icons.warning_rounded : Icons.access_time_rounded,
+                    size: 12,
+                    color: _creditColor(customer.balance),
+                  ),
                   const SizedBox(width: 4),
-                  Text('Udhar: ${Formatters.currency(customer.balance)}',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.warning)),
+                  Text(
+                    customer.balance >= 2000
+                        ? '🔴 Udhar: ${Formatters.currency(customer.balance)}'
+                        : customer.balance >= 500
+                            ? '🟠 Pending: ${Formatters.currency(customer.balance)}'
+                            : 'Pending: ${Formatters.currency(customer.balance)}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: _creditColor(customer.balance),
+                    ),
+                  ),
                 ]),
               ),
             ],
