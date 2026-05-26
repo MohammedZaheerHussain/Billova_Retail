@@ -184,19 +184,19 @@ class BillDetailDialog extends StatelessWidget {
               ),
               SizedBox(height: 16),
 
-              // ─── Totals ───
-              _row(context, 'Subtotal', Formatters.currency(sale.subtotal)),
-              if (sale.discount > 0) _row(context, 'Discount', '- ${Formatters.currency(sale.discount)}', color: AppColors.error),
+              // ─── Totals (round to whole rupees for clean display) ───
+              _row(context, 'Subtotal', Formatters.currency(sale.subtotal.roundToDouble())),
+              if (sale.discount > 0) _row(context, 'Discount', '- ${Formatters.currency(sale.discount.roundToDouble())}', color: AppColors.error),
               if (sale.gstAmount > 0) ...[
                 _row(context, 'CGST', '+ ${Formatters.currency(sale.cgst)}', color: AppColors.accent),
                 _row(context, 'SGST', '+ ${Formatters.currency(sale.sgst)}', color: AppColors.accent),
               ],
               Divider(color: AppColors.cardBorder(context)),
-              _row(context, 'Total', Formatters.currency(sale.total), isBold: true, color: AppColors.success),
+              _row(context, 'Total', Formatters.currency(sale.total.roundToDouble()), isBold: true, color: AppColors.success),
               // Show payment breakdown — if split, show both amounts
               if (sale.cashAmount > 0 && sale.upiAmount > 0) ...[
-                _row(context, 'Cash Paid', Formatters.currency(sale.cashAmount), fontSize: 12),
-                _row(context, 'UPI Paid', Formatters.currency(sale.upiAmount), fontSize: 12),
+                _row(context, 'Cash Paid', Formatters.currency(sale.cashAmount.roundToDouble()), fontSize: 12),
+                _row(context, 'UPI Paid', Formatters.currency(sale.upiAmount.roundToDouble()), fontSize: 12),
               ] else
                 _row(context, 'Payment', sale.paymentMode, fontSize: 12),
               const SizedBox(height: 16),
@@ -263,7 +263,7 @@ class BillDetailDialog extends StatelessWidget {
 
   void _shareViaWhatsApp(BuildContext context) async {
     final items = sale.items
-        .map((i) => '${i.name} x${i.quantity} = ${Formatters.currency(i.total)}')
+        .map((i) => '${i.name} x${i.quantity} = ${Formatters.currency(i.total.roundToDouble())}')
         .join('\n');
 
     final message = '''
@@ -274,9 +274,9 @@ Date: ${Formatters.dateTime(sale.createdAt)}
 ${sale.customerName.isNotEmpty ? 'Customer: ${sale.customerName}\n' : ''}
 $items
 ━━━━━━━━━━━━━━
-Subtotal: ${Formatters.currency(sale.subtotal)}
-${sale.discount > 0 ? 'Discount: -${Formatters.currency(sale.discount)}\n' : ''}${sale.gstAmount > 0 ? 'CGST: +${Formatters.currency(sale.cgst)}\nSGST: +${Formatters.currency(sale.sgst)}\n' : ''}*Total: ${Formatters.currency(sale.total)}*
-Payment: ${sale.cashAmount > 0 && sale.upiAmount > 0 ? 'Cash ${Formatters.currency(sale.cashAmount)} + UPI ${Formatters.currency(sale.upiAmount)}' : sale.paymentMode}
+Subtotal: ${Formatters.currency(sale.subtotal.roundToDouble())}
+${sale.discount > 0 ? 'Discount: -${Formatters.currency(sale.discount.roundToDouble())}\n' : ''}${sale.gstAmount > 0 ? 'CGST: +${Formatters.currency(sale.cgst)}\nSGST: +${Formatters.currency(sale.sgst)}\n' : ''}*Total: ${Formatters.currency(sale.total.roundToDouble())}*
+Payment: ${sale.cashAmount > 0 && sale.upiAmount > 0 ? 'Cash ${Formatters.currency(sale.cashAmount.roundToDouble())} + UPI ${Formatters.currency(sale.upiAmount.roundToDouble())}' : sale.paymentMode}
 
 Thank you for your purchase! 🙏
 ''';

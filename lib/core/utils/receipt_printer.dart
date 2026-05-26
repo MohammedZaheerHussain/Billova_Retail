@@ -75,16 +75,17 @@ class ReceiptPrinter {
     final date = sale.createdAt;
     final dateStr = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
     final timeStr = '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    final totalPaid = double.parse((cashPaid + upiPaid).toStringAsFixed(2));
-    final pendingDue = double.parse((sale.total - totalPaid).clamp(0.0, double.infinity).toStringAsFixed(2));
-    final discountAmt = sale.discount;
+    final totalPaid = (cashPaid + upiPaid).roundToDouble();
+    final pendingDue = (sale.total.roundToDouble() - totalPaid).clamp(0.0, double.infinity).roundToDouble();
+    final discountAmt = sale.discount.roundToDouble();
     final discountPct = sale.discountPercent;
 
     // CRITICAL: Use stored item.total — do NOT recalculate price*qty (floating-point drift)
+    // Round to whole rupees for clean thermal receipt
     final itemRows = sale.items.map((item) =>
       '<tr><td style="text-align:left;padding:2px 0;">${item.name}</td>'
       '<td style="text-align:center;padding:2px 0;">${item.quantity}</td>'
-      '<td style="text-align:right;padding:2px 0;">${Formatters.currency(item.total)}</td></tr>'
+      '<td style="text-align:right;padding:2px 0;">${Formatters.currency(item.total.roundToDouble())}</td></tr>'
     ).join('');
 
     final logoHtml = shopLogo.isNotEmpty
@@ -139,10 +140,10 @@ class ReceiptPrinter {
         '<div class="divider"></div>'
         '<table><tr style="font-weight:bold;"><td>Item</td><td style="text-align:center;">Qty</td><td style="text-align:right;">Amt</td></tr>$itemRows</table>'
         '<div class="divider"></div>'
-        '<table><tr><td>Subtotal</td><td style="text-align:right;">${Formatters.currency(sale.subtotal)}</td></tr>'
+        '<table><tr><td>Subtotal</td><td style="text-align:right;">${Formatters.currency(sale.subtotal.roundToDouble())}</td></tr>'
         '$discountRow'
         '${gstRows.toString()}'
-        '<tr class="total-row"><td>TOTAL</td><td style="text-align:right;">${Formatters.currency(sale.total)}</td></tr></table>'
+        '<tr class="total-row"><td>TOTAL</td><td style="text-align:right;">${Formatters.currency(sale.total.roundToDouble())}</td></tr></table>'
         '${paymentRows.toString()}'
         '<div class="divider"></div>'
         '<div class="center footer"><div>$footerText</div><div>Returns within 7 days with invoice</div></div>'

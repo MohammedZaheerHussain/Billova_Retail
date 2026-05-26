@@ -52,7 +52,7 @@ class SalesProvider extends ChangeNotifier {
   String get paymentFilter => _paymentFilter;
 
   // Summary getters (based on filtered data)
-  double get filteredTotal => _filteredSales.fold(0, (sum, s) => sum + s.total);
+  double get filteredTotal => _filteredSales.fold(0.0, (sum, s) => sum + s.total.roundToDouble());
   int get filteredCount => _filteredSales.length;
   int get filteredItemCount => _filteredSales.fold(0, (sum, s) => sum + s.totalItems);
 
@@ -99,9 +99,11 @@ class SalesProvider extends ChangeNotifier {
   String get customerPhone => _customerPhone;
   String get paymentMode => _paymentMode;
   double get discountPercent => _discountPercent;
+  /// Discount amount — rounded to WHOLE RUPEES (Indian retail standard).
+  /// This prevents paise amounts like ₹499.50 from percentage discounts.
   double get discountAmount {
     final raw = subtotal * (_discountPercent / 100);
-    return double.parse(raw.toStringAsFixed(2));
+    return raw.roundToDouble();  // Always whole rupees — no paise
   }
   bool get isUdhar => _isUdhar;
   void setUdhar(bool v) { _isUdhar = v; notifyListeners(); }
@@ -109,8 +111,7 @@ class SalesProvider extends ChangeNotifier {
   // ─── Rounded Financial Getters (prevent floating-point paise drift) ───
   double get subtotal => double.parse(
       _cart.fold(0.0, (sum, item) => sum + item.total).toStringAsFixed(2));
-  double get total => double.parse(
-      (subtotal - discountAmount).clamp(0, double.infinity).toStringAsFixed(2));
+  double get total => (subtotal - discountAmount).clamp(0, double.infinity).roundToDouble();
 
   // ─── GST Getters (rounded to prevent odd-number split paise) ───
   bool get gstEnabled => _gstEnabled;
@@ -301,17 +302,18 @@ class SalesProvider extends ChangeNotifier {
     try {
       final invoiceNumber = await _db.nextInvoiceNumber();
 
-      // Round discount to 2 decimals to prevent floating-point drift
-      final roundedDiscount = double.parse(discountAmount.toStringAsFixed(2));
+      // Discount already rounded to whole rupees by getter
+      final roundedDiscount = discountAmount;
 
-      // Apply loyalty discount to the final total
-      final finalTotal = (total - loyaltyDiscount).clamp(0.0, double.infinity);
+      // Apply loyalty discount — round to whole rupees
+      final finalTotal = (total - loyaltyDiscount).clamp(0.0, double.infinity).roundToDouble();
 
       // Calculate GST on the final total after discount
       final saleGstAmount = _gstEnabled ? gstAmount : 0.0;
-      final saleCgst = saleGstAmount / 2;
-      final saleSgst = saleGstAmount / 2;
-      final saleGrandTotal = double.parse((finalTotal + saleGstAmount).toStringAsFixed(2));
+      final saleCgst = double.parse((saleGstAmount / 2).toStringAsFixed(2));
+      final saleSgst = double.parse((saleGstAmount - saleCgst).toStringAsFixed(2));
+      // Grand total: round to whole rupees (safety net)
+      final saleGrandTotal = (finalTotal + saleGstAmount).roundToDouble();
 
       // ═══════════════════════════════════════════════════════════
       // AUTO-SET PAYMENT AMOUNTS: For single-method payments,

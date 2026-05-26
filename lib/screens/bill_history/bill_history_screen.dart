@@ -248,7 +248,7 @@ class BillHistoryScreen extends StatelessWidget {
     final widgets = <Widget>[];
     for (final dateLabel in keys) {
       final items = grouped[dateLabel]!;
-      final dayTotal = items.fold<double>(0, (sum, s) => sum + s.total);
+      final dayTotal = items.fold<double>(0, (sum, s) => sum + s.total.roundToDouble());
 
       // Date group header
       widgets.add(
@@ -366,7 +366,7 @@ class BillHistoryScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      Formatters.currency(sale.total),
+                      Formatters.currency(sale.total.roundToDouble()),
                       style: AppTypography.mono.copyWith(
                         color: AppColors.success,
                         fontWeight: FontWeight.w700,
@@ -375,7 +375,7 @@ class BillHistoryScreen extends StatelessWidget {
                     ),
                     if (sale.discount > 0)
                       Text(
-                        '-${Formatters.currency(sale.discount)}',
+                        '-${Formatters.currency(sale.discount.roundToDouble())}',
                         style: AppTypography.monoSmall.copyWith(color: AppColors.error),
                       ),
                   ],
