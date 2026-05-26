@@ -28,7 +28,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
   String _sortMode = 'A-Z';
   String _filterMode = 'All';
   static const _sortOptions = ['A-Z', 'Z-A', 'Newest', 'Oldest', 'Top Spender', 'Credit/Udhar'];
-  static const _filterOptions = ['All', 'Credit/Udhar', 'No Due', 'High Spenders'];
+  static const _filterOptions = ['All', 'Credit/Udhar'];
 
   @override
   void initState() {
@@ -169,17 +169,6 @@ class _CustomerScreenState extends State<CustomerScreen> {
     switch (_filterMode) {
       case 'Credit/Udhar':
         list = list.where((c) => c.balance > 0).toList();
-        break;
-      case 'No Due':
-        list = list.where((c) => c.balance <= 0).toList();
-        break;
-      case 'High Spenders':
-        list = list.where((c) {
-          final key = c.phone.isNotEmpty ? c.phone : 'name:${c.name.toLowerCase().trim()}';
-          final s = summaries[key];
-          final spent = (s?['totalSpent'] as double?) ?? c.totalSpent;
-          return spent >= 1000;
-        }).toList();
         break;
     }
 
