@@ -324,7 +324,10 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                         storageLocation: locationCtrl.text.trim(),
                         price: double.tryParse(sellingPriceCtrl.text) ?? double.tryParse(costPriceCtrl.text) ?? 0,
                         costPrice: double.tryParse(costPriceCtrl.text) ?? 0,
-                        quantity: int.tryParse(qtyCtrl.text) ?? 0,
+                        // DO NOT set quantity here — addPurchase() will increment
+                        // stock via existingItem.quantity + purchaseQty.
+                        // Setting qty here causes DOUBLE-COUNTING (e.g. 100→200).
+                        quantity: 0,
                       );
                       if (ctx.mounted) Navigator.pop(ctx);
                       await inv.loadItems();
