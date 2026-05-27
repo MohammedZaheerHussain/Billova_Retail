@@ -387,6 +387,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final perms = PermissionHelper(userRole);
 
     // Calculate total sold & revenue from all sales history
+    // Revenue and profit use ACTUAL paid amounts (after bill discount),
+    // not MRP. Discount is proportionally distributed across items.
     final allSales = context.read<SalesProvider>().allSales;
     int totalSold = 0;
     double totalRevenue = 0;
@@ -395,8 +397,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
       for (final si in sale.items) {
         if (si.itemId == item.id) {
           totalSold += si.quantity;
-          totalRevenue += si.total;
-          totalProfit += si.profit;
+          // Proportional discount: this item's share of the bill discount
+          // effectiveRevenue = (itemTotal / subtotal) * sale.total
+          // sale.total already = subtotal - discount (actual paid amount)
+          final proportion = sale.subtotal > 0 ? si.total / sale.subtotal : 0.0;
+          final effectiveRevenue = proportion * sale.total;
+          final costOfGoods = si.costPrice * si.quantity;
+          totalRevenue += effectiveRevenue;
+          totalProfit += (effectiveRevenue - costOfGoods);
         }
       }
     }
