@@ -154,7 +154,7 @@ class BusinessAnalytics {
     return dist;
   }
 
-  /// Month revenue by category
+  /// Month revenue by category (discount-adjusted)
   Map<String, double> get monthCategoryRevenue {
     final monthSales = _salesInRange(_monthStart, _now);
     final catMap = <String, String>{};
@@ -165,13 +165,14 @@ class BusinessAnalytics {
     for (final sale in monthSales) {
       for (final item in sale.items) {
         final cat = catMap[item.itemId] ?? 'Uncategorized';
-        result[cat] = (result[cat] ?? 0) + item.total;
+        final proportion = sale.subtotal > 0 ? item.total / sale.subtotal : 0.0;
+        result[cat] = (result[cat] ?? 0) + (proportion * sale.total);
       }
     }
     return result;
   }
 
-  /// Month top selling products
+  /// Month top selling products (discount-adjusted revenue)
   List<Map<String, dynamic>> get monthTopProducts {
     final monthSales = _salesInRange(_monthStart, _now);
     final productCount = <String, int>{};
@@ -179,7 +180,8 @@ class BusinessAnalytics {
     for (final sale in monthSales) {
       for (final item in sale.items) {
         productCount[item.name] = (productCount[item.name] ?? 0) + item.quantity;
-        productRevenue[item.name] = (productRevenue[item.name] ?? 0) + item.total;
+        final proportion = sale.subtotal > 0 ? item.total / sale.subtotal : 0.0;
+        productRevenue[item.name] = (productRevenue[item.name] ?? 0) + (proportion * sale.total);
       }
     }
     final list = productCount.keys.map((name) => {
@@ -214,6 +216,7 @@ class BusinessAnalytics {
   // ─── Product Performance ───
 
   /// Returns sorted list: [{name, qty, revenue, profit, category}]
+  /// Revenue and profit are discount-adjusted (proportional allocation).
   List<Map<String, dynamic>> get productPerformance {
     final Map<String, Map<String, dynamic>> products = {};
     for (final sale in allSales) {
@@ -222,9 +225,12 @@ class BusinessAnalytics {
         products.putIfAbsent(key, () => {
           'name': key, 'qty': 0, 'revenue': 0.0, 'profit': 0.0, 'costTotal': 0.0,
         });
+        final proportion = sale.subtotal > 0 ? item.total / sale.subtotal : 0.0;
+        final effectiveRevenue = proportion * sale.total;
+        final costOfGoods = item.costPrice * item.quantity;
         products[key]!['qty'] = (products[key]!['qty'] as int) + item.quantity;
-        products[key]!['revenue'] = (products[key]!['revenue'] as double) + item.total;
-        products[key]!['profit'] = (products[key]!['profit'] as double) + item.profit;
+        products[key]!['revenue'] = (products[key]!['revenue'] as double) + effectiveRevenue;
+        products[key]!['profit'] = (products[key]!['profit'] as double) + (effectiveRevenue - costOfGoods);
       }
     }
     final list = products.values.toList()
@@ -305,7 +311,7 @@ class BusinessAnalytics {
 
   // ─── Category Analytics ───
 
-  /// Revenue by category: {categoryName: totalRevenue}
+  /// Revenue by category (discount-adjusted): {categoryName: totalRevenue}
   Map<String, double> get categoryRevenue {
     final Map<String, double> result = {};
     // Build item-id to category map
@@ -316,13 +322,14 @@ class BusinessAnalytics {
     for (final sale in allSales) {
       for (final item in sale.items) {
         final cat = catMap[item.itemId] ?? 'Uncategorized';
-        result[cat] = (result[cat] ?? 0) + item.total;
+        final proportion = sale.subtotal > 0 ? item.total / sale.subtotal : 0.0;
+        result[cat] = (result[cat] ?? 0) + (proportion * sale.total);
       }
     }
     return result;
   }
 
-  /// Profit by category
+  /// Profit by category (discount-adjusted)
   Map<String, double> get categoryProfit {
     final Map<String, double> result = {};
     final catMap = <String, String>{};
@@ -332,7 +339,10 @@ class BusinessAnalytics {
     for (final sale in allSales) {
       for (final item in sale.items) {
         final cat = catMap[item.itemId] ?? 'Uncategorized';
-        result[cat] = (result[cat] ?? 0) + item.profit;
+        final proportion = sale.subtotal > 0 ? item.total / sale.subtotal : 0.0;
+        final effectiveRevenue = proportion * sale.total;
+        final costOfGoods = item.costPrice * item.quantity;
+        result[cat] = (result[cat] ?? 0) + (effectiveRevenue - costOfGoods);
       }
     }
     return result;
