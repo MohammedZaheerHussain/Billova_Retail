@@ -164,6 +164,9 @@ class SupabaseService {
           cloudData['items'] = jsonDecode(cloudData['items'] as String);
         } catch (_) {}
       }
+      // Strip local-only columns that don't exist in Supabase schema.
+      // These cause PGRST204 errors and block sync entirely.
+      _stripLocalOnlyColumns(table, cloudData);
 
       switch (action) {
         case 'insert':
@@ -187,6 +190,21 @@ class SupabaseService {
       debugPrint('☁️ Sync failed for $table/$recordId: $e');
       await _queueSync(table, recordId, action, data);
       return false;
+    }
+  }
+
+  /// Remove columns that exist locally but NOT in Supabase schema.
+  /// Without this, upsert fails with PGRST204 and data never syncs.
+  static void _stripLocalOnlyColumns(String table, Map<String, dynamic> data) {
+    const localOnlyColumns = <String, List<String>>{
+      'expenses': ['payment_mode'],
+      'cash_till': ['actual_closing_cash'],
+    };
+    final cols = localOnlyColumns[table];
+    if (cols != null) {
+      for (final col in cols) {
+        data.remove(col);
+      }
     }
   }
 
@@ -220,6 +238,9 @@ class SupabaseService {
 
         final action = item['action'] as String;
         final table = item['table_name'] as String;
+
+        // Strip local-only columns on retry too
+        _stripLocalOnlyColumns(table, cloudData);
 
         if (action == 'delete') {
           await _client.from(table).update({
