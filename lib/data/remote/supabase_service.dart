@@ -68,6 +68,7 @@ class SupabaseService {
       await pullTable('categories');
       await pullTable('clearance_items');
       await pullTable('loyalty_transactions');
+      await pullTable('revenue_snapshots');
       debugPrint('✅ Full data pull complete');
     } catch (e) {
       debugPrint('⚠️ Data pull had errors (non-fatal): $e');

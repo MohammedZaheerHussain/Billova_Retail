@@ -33,6 +33,7 @@ class _WebDB {
     _tables['sync_queue'] = [];
     _tables['loyalty_transactions'] = [];
     _tables['clearance_items'] = [];
+    _tables['revenue_snapshots'] = [];
     _initialized = true;
 
     // ─── CRITICAL: Restore sync queue from localStorage ───
@@ -672,6 +673,27 @@ class DBHelper {
         )
       ''');
       await db.execute('CREATE INDEX IF NOT EXISTS idx_loyalty_tx_customer ON loyalty_transactions(customer_id)');
+
+    // ─── Revenue Snapshots Table (monthly revenue persistence) ───
+    await db.execute('''
+      CREATE TABLE revenue_snapshots (
+        id TEXT PRIMARY KEY,
+        year INTEGER NOT NULL,
+        month INTEGER NOT NULL,
+        total_revenue REAL DEFAULT 0,
+        total_profit REAL DEFAULT 0,
+        total_discounts REAL DEFAULT 0,
+        total_cogs REAL DEFAULT 0,
+        total_expenses REAL DEFAULT 0,
+        net_profit REAL DEFAULT 0,
+        sales_count INTEGER DEFAULT 0,
+        category_revenue TEXT DEFAULT '{}',
+        is_deleted INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+    await db.execute('CREATE UNIQUE INDEX idx_snapshot_year_month ON revenue_snapshots(year, month)');
     }
 
     // v9: Add updated_at + is_deleted to categories for sync support
@@ -748,6 +770,31 @@ class DBHelper {
       try {
         await db.execute("ALTER TABLE cash_till ADD COLUMN actual_closing_cash REAL DEFAULT -1");
       } catch (_) {} // Column may already exist
+    }
+
+    // v15: Revenue snapshots table — monthly revenue data persistence
+    if (oldVersion < 15) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS revenue_snapshots (
+          id TEXT PRIMARY KEY,
+          year INTEGER NOT NULL,
+          month INTEGER NOT NULL,
+          total_revenue REAL DEFAULT 0,
+          total_profit REAL DEFAULT 0,
+          total_discounts REAL DEFAULT 0,
+          total_cogs REAL DEFAULT 0,
+          total_expenses REAL DEFAULT 0,
+          net_profit REAL DEFAULT 0,
+          sales_count INTEGER DEFAULT 0,
+          category_revenue TEXT DEFAULT '{}',
+          is_deleted INTEGER DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      ''');
+      try {
+        await db.execute('CREATE UNIQUE INDEX idx_snapshot_year_month ON revenue_snapshots(year, month)');
+      } catch (_) {} // Index may already exist
     }
   }
 
@@ -1225,6 +1272,7 @@ class DBHelper {
       'items', 'sales', 'expenses', 'cash_till',
       'customers', 'vendors', 'staff', 'attendance', 'purchases',
       'categories', 'clearance_items', 'loyalty_transactions', 'settings',
+      'revenue_snapshots',
     ];
     if (kIsWeb) {
       final web = await _web;
@@ -1250,5 +1298,68 @@ class DBHelper {
       } catch (_) {} // table might not exist yet
     }
     // sync_queue intentionally NOT cleared on native either
+  }
+
+  // ─── Revenue Snapshots ───
+
+  /// Save a monthly revenue snapshot to the DB
+  Future<void> saveRevenueSnapshot(Map<String, dynamic> snapshot) async {
+    final year = snapshot['year'] as int;
+    final month = snapshot['month'] as int;
+    final id = 'snapshot_${year}_${month.toString().padLeft(2, '0')}';
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    // Encode category_revenue map as JSON string
+    final catRevenue = snapshot['category_revenue'];
+    final catRevenueStr = catRevenue is Map ? jsonEncode(catRevenue) : '{}';
+
+    final record = <String, dynamic>{
+      'id': id,
+      'year': year,
+      'month': month,
+      'total_revenue': snapshot['total_revenue'] ?? 0.0,
+      'total_profit': snapshot['total_profit'] ?? 0.0,
+      'total_discounts': snapshot['total_discounts'] ?? 0.0,
+      'total_cogs': snapshot['total_cogs'] ?? 0.0,
+      'total_expenses': snapshot['total_expenses'] ?? 0.0,
+      'net_profit': snapshot['net_profit'] ?? 0.0,
+      'sales_count': snapshot['sales_count'] ?? 0,
+      'category_revenue': catRevenueStr,
+      'is_deleted': 0,
+      'created_at': now,
+      'updated_at': now,
+    };
+
+    await insert('revenue_snapshots', record);
+    debugPrint('📸 Saved revenue snapshot: $year-$month');
+  }
+
+  /// Get a specific month's revenue snapshot
+  Future<Map<String, dynamic>?> getRevenueSnapshot(int year, int month) async {
+    final id = 'snapshot_${year}_${month.toString().padLeft(2, '0')}';
+    final result = await getById('revenue_snapshots', id);
+    if (result != null && result['category_revenue'] is String) {
+      try {
+        result['category_revenue'] = jsonDecode(result['category_revenue'] as String);
+      } catch (_) {
+        result['category_revenue'] = <String, dynamic>{};
+      }
+    }
+    return result;
+  }
+
+  /// Get all revenue snapshots (for history view)
+  Future<List<Map<String, dynamic>>> getAllRevenueSnapshots() async {
+    final results = await getAll('revenue_snapshots', orderBy: 'year DESC, month DESC');
+    for (final r in results) {
+      if (r['category_revenue'] is String) {
+        try {
+          r['category_revenue'] = jsonDecode(r['category_revenue'] as String);
+        } catch (_) {
+          r['category_revenue'] = <String, dynamic>{};
+        }
+      }
+    }
+    return results;
   }
 }

@@ -9,6 +9,7 @@ import '../../core/utils/business_analytics.dart';
 import '../../core/utils/permission_helper.dart';
 import '../../data/local/db_helper.dart';
 import '../../data/remote/groq_service.dart';
+import '../../data/remote/supabase_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
@@ -59,11 +60,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   BusinessAnalytics? _analytics;
   List<BusinessInsight> _insights = [];
 
+  // Revenue by Category filter: 0 = This Week, 1 = This Month, 2+ = Past months
+  int _revFilterIndex = 1; // Default: This Month
+  List<Map<String, dynamic>> _pastSnapshots = []; // historical month snapshots from DB
+  static const List<String> _monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
   @override
   void initState() {
     super.initState();
     _loadDashboardData();
     _checkMonthlyBackup();
+    _loadPastSnapshots();
     // Re-load when Supabase data pull completes (web: in-memory DB starts empty)
     AppShell.dataVersion.addListener(_onDataReady);
   }
@@ -245,6 +255,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _analytics = analytics;
         _insights = analytics.generateInsights();
       });
+      // Auto-save monthly snapshots for completed months
+      _autoSaveMonthSnapshots(analytics);
+    }
+  }
+
+  /// Load past monthly snapshots from DB for the filter dropdown
+  Future<void> _loadPastSnapshots() async {
+    try {
+      final snapshots = await _db.getAllRevenueSnapshots();
+      if (mounted) {
+        setState(() => _pastSnapshots = snapshots);
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to load past snapshots: $e');
+    }
+  }
+
+  /// Auto-save monthly revenue snapshots for all completed months
+  /// that don't yet have a snapshot in the DB.
+  /// Runs every time dashboard loads — idempotent (won't duplicate).
+  Future<void> _autoSaveMonthSnapshots(BusinessAnalytics analytics) async {
+    try {
+      final now = DateTime.now();
+      // Check the last 6 months for missing snapshots
+      for (int i = 1; i <= 6; i++) {
+        final target = DateTime(now.year, now.month - i, 1);
+        final year = target.year;
+        final month = target.month;
+
+        // Skip if snapshot already exists
+        final existing = await _db.getRevenueSnapshot(year, month);
+        if (existing != null) continue;
+
+        // Build snapshot from sales data
+        final snapshot = analytics.buildMonthlySnapshot(year: year, month: month);
+
+        // Only save if there was actual data that month
+        if ((snapshot['sales_count'] as int) > 0) {
+          await _db.saveRevenueSnapshot(snapshot);
+
+          // Sync to Supabase
+          try {
+            final supabase = SupabaseService.instance;
+            if (supabase.isLoggedIn) {
+              final id = 'snapshot_${year}_${month.toString().padLeft(2, '0')}';
+              final record = await _db.getById('revenue_snapshots', id);
+              if (record != null) {
+                await supabase.syncRecord('revenue_snapshots', id, 'insert', record);
+              }
+            }
+          } catch (_) {} // Non-critical — sync queue will retry
+        }
+      }
+
+      // Reload snapshots after saving new ones
+      await _loadPastSnapshots();
+    } catch (e) {
+      debugPrint('⚠️ Auto-save snapshots error: $e');
     }
   }
 
@@ -1188,13 +1256,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildCategoryRevenueChart() {
     if (_analytics == null) return const SizedBox.shrink();
-    final catRev = _analytics!.monthCategoryRevenue;
-    if (catRev.isEmpty) return const SizedBox.shrink();
+
+    // Determine which data to show based on filter
+    Map<String, double> catRev;
+    String filterLabel;
+
+    if (_revFilterIndex == 0) {
+      // This Week
+      catRev = _analytics!.weekCategoryRevenue;
+      filterLabel = 'This Week';
+    } else if (_revFilterIndex == 1) {
+      // This Month
+      catRev = _analytics!.monthCategoryRevenue;
+      filterLabel = 'This Month';
+    } else {
+      // Past month from snapshot
+      final snapIdx = _revFilterIndex - 2;
+      if (snapIdx < _pastSnapshots.length) {
+        final snap = _pastSnapshots[snapIdx];
+        final rawCatRev = snap['category_revenue'];
+        if (rawCatRev is Map) {
+          catRev = rawCatRev.map((k, v) => MapEntry(
+              k.toString(), (v as num).toDouble()));
+        } else {
+          catRev = {};
+        }
+        final m = (snap['month'] as num).toInt();
+        final y = (snap['year'] as num).toInt();
+        filterLabel = '${_monthNames[m - 1]} $y';
+      } else {
+        catRev = {};
+        filterLabel = 'N/A';
+      }
+    }
 
     final sorted = catRev.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final topCats = sorted.take(6).toList();
-    final maxVal = topCats.first.value;
+    final maxVal = topCats.isNotEmpty ? topCats.first.value : 0.0;
+
+    // Build filter chip labels
+    final filterLabels = <String>['Week', 'Month'];
+    for (final snap in _pastSnapshots) {
+      final m = (snap['month'] as num).toInt();
+      final y = (snap['year'] as num).toInt();
+      filterLabels.add('${_monthNames[m - 1]} $y');
+    }
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1206,45 +1313,98 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header with title
           Row(children: [
             Icon(Icons.donut_large_rounded, color: AppColors.accent, size: 18),
             const SizedBox(width: 8),
-            Text('Revenue by Category', style: AppTypography.h4.copyWith(
-                color: AppColors.textPrimary(context))),
+            Expanded(
+              child: Text('Revenue by Category', style: AppTypography.h4.copyWith(
+                  color: AppColors.textPrimary(context))),
+            ),
           ]),
-          const SizedBox(height: 16),
-          ...topCats.asMap().entries.map((e) {
-            final cat = e.value;
-            final pct = maxVal > 0 ? cat.value / maxVal : 0.0;
-            final color = _pieColors[e.key % _pieColors.length];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Container(width: 10, height: 10, decoration: BoxDecoration(
-                        color: color, borderRadius: BorderRadius.circular(2))),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(cat.key, style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textPrimary(context), fontWeight: FontWeight.w500))),
-                    Text(Formatters.currency(cat.value), style: AppTypography.mono.copyWith(
-                        color: AppColors.textSecondary(context), fontSize: 12)),
-                  ]),
-                  const SizedBox(height: 4),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: LinearProgressIndicator(
-                      value: pct.clamp(0.0, 1.0),
-                      backgroundColor: AppColors.surface(context),
-                      color: color,
-                      minHeight: 6,
+          const SizedBox(height: 12),
+
+          // Filter chips row
+          SizedBox(
+            height: 32,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: filterLabels.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
+              itemBuilder: (context, index) {
+                final isActive = _revFilterIndex == index;
+                return GestureDetector(
+                  onTap: () => setState(() => _revFilterIndex = index),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: isActive ? AppColors.primaryGradient : null,
+                      color: isActive ? null : AppColors.surface(context),
+                      borderRadius: BorderRadius.circular(8),
+                      border: isActive ? null : Border.all(
+                          color: AppColors.cardBorder(context)),
+                    ),
+                    child: Text(
+                      filterLabels[index],
+                      style: AppTypography.labelSmall.copyWith(
+                        color: isActive
+                            ? Colors.white
+                            : AppColors.textSecondary(context),
+                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
-                ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Data rows
+          if (topCats.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: Text('No revenue data for $filterLabel',
+                    style: AppTypography.bodyMedium.copyWith(
+                        color: AppColors.textTertiary(context))),
               ),
-            );
-          }),
+            )
+          else
+            ...topCats.asMap().entries.map((e) {
+              final cat = e.value;
+              final pct = maxVal > 0 ? cat.value / maxVal : 0.0;
+              final color = _pieColors[e.key % _pieColors.length];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Container(width: 10, height: 10, decoration: BoxDecoration(
+                          color: color, borderRadius: BorderRadius.circular(2))),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(cat.key, style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.textPrimary(context), fontWeight: FontWeight.w500))),
+                      Text(Formatters.currency(cat.value), style: AppTypography.mono.copyWith(
+                          color: AppColors.textSecondary(context), fontSize: 12)),
+                    ]),
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: pct.clamp(0.0, 1.0),
+                        backgroundColor: AppColors.surface(context),
+                        color: color,
+                        minHeight: 6,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );

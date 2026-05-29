@@ -155,14 +155,20 @@ class BusinessAnalytics {
   }
 
   /// Month revenue by category (discount-adjusted)
-  Map<String, double> get monthCategoryRevenue {
-    final monthSales = _salesInRange(_monthStart, _now);
+  Map<String, double> get monthCategoryRevenue => categoryRevenueInRange(_monthStart, _now);
+
+  /// Week revenue by category (last 7 days, discount-adjusted)
+  Map<String, double> get weekCategoryRevenue => categoryRevenueInRange(_weekStart, _now);
+
+  /// Revenue by category for any date range (discount-adjusted)
+  Map<String, double> categoryRevenueInRange(DateTime start, DateTime end) {
+    final rangeSales = _salesInRange(start, end);
     final catMap = <String, String>{};
     for (final item in allItems) {
       catMap[item.id] = item.category.isEmpty ? 'Uncategorized' : item.category;
     }
     final Map<String, double> result = {};
-    for (final sale in monthSales) {
+    for (final sale in rangeSales) {
       for (final item in sale.items) {
         final cat = catMap[item.itemId] ?? 'Uncategorized';
         final proportion = sale.subtotal > 0 ? item.total / sale.subtotal : 0.0;
@@ -620,6 +626,47 @@ class BusinessAnalytics {
         'name': c['name'], 'phone': c['phone'],
         'days_since': c['daysSince'], 'total_spent': c['totalSpent'],
       }).toList(),
+    };
+  }
+
+  // ─── Monthly Revenue Snapshot (for DB persistence) ───
+
+  /// Build a snapshot map for the given month to persist in DB.
+  /// Call at month boundaries to preserve historical data.
+  Map<String, dynamic> buildMonthlySnapshot({
+    required int year,
+    required int month,
+  }) {
+    final start = DateTime(year, month, 1);
+    final end = DateTime(year, month + 1, 1);
+    final catRev = categoryRevenueInRange(start, end);
+    final rangeSales = _salesInRange(start, end);
+    final totalRevenue = rangeSales.fold(0.0, (s, e) => s + e.total);
+    final totalProfit = rangeSales.fold(0.0, (s, e) => s + e.grossProfit);
+    final totalDiscounts = rangeSales.fold(0.0, (s, e) => s + e.discount);
+    final totalCOGS = rangeSales.fold(0.0, (s, e) => s + e.totalCostPrice);
+    final salesCount = rangeSales.length;
+
+    // Expenses in range
+    double expenses = 0;
+    for (final e in allExpenses) {
+      final t = DateTime.parse(e['created_at'] as String).toLocal();
+      if (!t.isBefore(start) && t.isBefore(end)) {
+        expenses += ((e['amount'] as num?)?.toDouble() ?? 0);
+      }
+    }
+
+    return {
+      'year': year,
+      'month': month,
+      'total_revenue': double.parse(totalRevenue.toStringAsFixed(2)),
+      'total_profit': double.parse(totalProfit.toStringAsFixed(2)),
+      'total_discounts': double.parse(totalDiscounts.toStringAsFixed(2)),
+      'total_cogs': double.parse(totalCOGS.toStringAsFixed(2)),
+      'total_expenses': double.parse(expenses.toStringAsFixed(2)),
+      'net_profit': double.parse((totalProfit - expenses).toStringAsFixed(2)),
+      'sales_count': salesCount,
+      'category_revenue': catRev.map((k, v) => MapEntry(k, double.parse(v.toStringAsFixed(2)))),
     };
   }
 }
