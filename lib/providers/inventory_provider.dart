@@ -149,6 +149,9 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
+  /// Update an item with optimistic locking.
+  /// Increments the version field; fails if another device changed the item
+  /// since this copy was loaded (version mismatch → conflict).
   Future<bool> updateItem(ItemModel item, {String? userRole}) async {
     // Backend RBAC guard
     if (userRole != null && !PermissionHelper(userRole).canEditInventory) {
@@ -158,8 +161,23 @@ class InventoryProvider extends ChangeNotifier {
       return false;
     }
     try {
-      final updated = item.copyWith(updatedAt: DateTime.now());
-      await _db.update('items', updated.toMap(), updated.id);
+      final updated = item.copyWith(
+        version: item.version + 1,
+        updatedAt: DateTime.now(),
+      );
+      final rowsAffected = await _db.updateWithVersion(
+        'items', updated.toMap(), updated.id, item.version,
+      );
+
+      if (rowsAffected == 0) {
+        // Version conflict — another device updated this item
+        _error = 'Conflict: This item was modified on another device. Please refresh and try again.';
+        debugPrint('⚠️ OPTIMISTIC LOCK CONFLICT: item ${item.id} version ${item.version} is stale');
+        // Reload the item from DB to get fresh data
+        await _reloadItem(item.id);
+        notifyListeners();
+        return false;
+      }
 
       final index = _items.indexWhere((i) => i.id == updated.id);
       if (index != -1) {
@@ -178,6 +196,20 @@ class InventoryProvider extends ChangeNotifier {
       _error = 'Failed to update item: $e';
       notifyListeners();
       return false;
+    }
+  }
+
+  /// Reload a single item from DB to get fresh version after a conflict
+  Future<void> _reloadItem(String id) async {
+    try {
+      final map = await _db.getById('items', id);
+      if (map != null) {
+        final fresh = ItemModel.fromMap(map);
+        final index = _items.indexWhere((i) => i.id == id);
+        if (index != -1) _items[index] = fresh;
+      }
+    } catch (e) {
+      debugPrint('Failed to reload item $id: $e');
     }
   }
 
@@ -215,23 +247,55 @@ class InventoryProvider extends ChangeNotifier {
     await updateItem(item.copyWith(quantity: newQuantity));
   }
 
-  /// Deduct stock for sold items
+  /// Deduct stock for sold items — reads fresh version from DB to prevent conflicts
   Future<void> deductStock(String itemId, int quantity) async {
     try {
-      final item = _items.firstWhere((i) => i.id == itemId);
-      final newQty = (item.quantity - quantity).clamp(0, 999999);
-      await updateItem(item.copyWith(quantity: newQty));
+      // Re-read from DB for freshest version (critical for concurrent sales)
+      final map = await _db.getById('items', itemId);
+      if (map == null) {
+        debugPrint('Stock deduction failed: item $itemId not found in DB');
+        return;
+      }
+      final fresh = ItemModel.fromMap(map);
+      final newQty = (fresh.quantity - quantity).clamp(0, 999999);
+      final success = await updateItem(fresh.copyWith(quantity: newQty));
+      if (!success && _error.contains('Conflict')) {
+        // Retry once with re-read
+        debugPrint('🔄 Retrying stock deduction for $itemId after conflict...');
+        final retryMap = await _db.getById('items', itemId);
+        if (retryMap != null) {
+          final retryItem = ItemModel.fromMap(retryMap);
+          final retryQty = (retryItem.quantity - quantity).clamp(0, 999999);
+          await updateItem(retryItem.copyWith(quantity: retryQty));
+        }
+      }
     } catch (e) {
       debugPrint('Stock deduction failed for $itemId: $e');
     }
   }
 
-  /// Restock items for returns
+  /// Restock items for returns — reads fresh version from DB to prevent conflicts
   Future<void> restockItem(String itemId, int quantity) async {
     try {
-      final item = _items.firstWhere((i) => i.id == itemId);
-      final newQty = item.quantity + quantity;
-      await updateItem(item.copyWith(quantity: newQty));
+      // Re-read from DB for freshest version
+      final map = await _db.getById('items', itemId);
+      if (map == null) {
+        debugPrint('Restock failed: item $itemId not found in DB');
+        return;
+      }
+      final fresh = ItemModel.fromMap(map);
+      final newQty = fresh.quantity + quantity;
+      final success = await updateItem(fresh.copyWith(quantity: newQty));
+      if (!success && _error.contains('Conflict')) {
+        // Retry once with re-read
+        debugPrint('🔄 Retrying restock for $itemId after conflict...');
+        final retryMap = await _db.getById('items', itemId);
+        if (retryMap != null) {
+          final retryItem = ItemModel.fromMap(retryMap);
+          final retryQty = retryItem.quantity + quantity;
+          await updateItem(retryItem.copyWith(quantity: retryQty));
+        }
+      }
     } catch (e) {
       debugPrint('Restock failed for $itemId: $e');
     }

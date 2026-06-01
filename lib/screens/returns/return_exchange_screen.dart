@@ -6,8 +6,13 @@ import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/sales_provider.dart';
 import '../../providers/inventory_provider.dart';
+import '../../providers/return_provider.dart';
+import '../../providers/staff_provider.dart';
+import '../../providers/customer_provider.dart';
+import '../../providers/loyalty_settings_provider.dart';
 import '../../data/models/sale_model.dart';
 import '../../data/models/item_model.dart';
+import '../../data/models/return_model.dart';
 
 class ReturnExchangeScreen extends StatefulWidget {
   const ReturnExchangeScreen({super.key});
@@ -141,36 +146,110 @@ class _ReturnExchangeScreenState extends State<ReturnExchangeScreen> {
   Future<void> _processReturn() async {
     if (_foundSale == null || _returnQty.isEmpty) return;
     final inventory = context.read<InventoryProvider>();
-    double refundTotal = 0;
+    final returnProv = context.read<ReturnProvider>();
+    final staffProv = context.read<StaffProvider>();
 
+    // Build return items list with cost data for profit reversal
+    final List<ReturnItem> returnItems = [];
     for (final entry in _returnQty.entries) {
       final item = _foundSale!.items[entry.key];
-      // Use effective paid price (after discount), NOT original price
-      refundTotal += _effectivePerUnit(item) * entry.value;
+      returnItems.add(ReturnItem(
+        itemId: item.itemId,
+        name: item.name,
+        quantity: entry.value,
+        refundPerUnit: _effectivePerUnit(item),
+        costPrice: item.costPrice,
+      ));
+      // Restock inventory
       await inventory.restockItem(item.itemId, entry.value);
     }
 
+    // Create permanent audit record
+    final record = await returnProv.processReturn(
+      originalSale: _foundSale!,
+      returnedItems: returnItems,
+      refundMethod: _refundMethod,
+      reason: _reason,
+      staffId: staffProv.currentStaff?.id ?? '',
+      staffName: staffProv.currentStaff?.name ?? '',
+    );
+
+    // Reverse loyalty points earned from the returned amount
+    if (_foundSale!.customerName.isNotEmpty && _foundSale!.customerName != 'Walk-in Customer') {
+      final loyalty = context.read<LoyaltySettingsProvider>();
+      final customerProv = context.read<CustomerProvider>();
+      await customerProv.reverseReturn(
+        _foundSale!.customerPhone,
+        _foundSale!.customerName,
+        record.refundAmount,
+        earnRate: loyalty.isEnabled ? loyalty.earnRate : 0,
+      );
+    }
+
     if (!mounted) return;
-    _showSuccess('Return processed — ${Formatters.currency(refundTotal)} refunded via $_refundMethod');
+    _showSuccess('Return processed — ${Formatters.currency(record.refundAmount)} refunded via $_refundMethod');
     _reset();
   }
 
   Future<void> _processExchange() async {
     if (_foundSale == null || _returnQty.isEmpty || _exchangeItems.isEmpty) return;
     final inventory = context.read<InventoryProvider>();
+    final returnProv = context.read<ReturnProvider>();
+    final staffProv = context.read<StaffProvider>();
 
-    // Restock returned items
+    // Build return items list
+    final List<ReturnItem> returnItems = [];
     for (final entry in _returnQty.entries) {
       final item = _foundSale!.items[entry.key];
+      returnItems.add(ReturnItem(
+        itemId: item.itemId,
+        name: item.name,
+        quantity: entry.value,
+        refundPerUnit: _effectivePerUnit(item),
+        costPrice: item.costPrice,
+      ));
+      // Restock returned items
       await inventory.restockItem(item.itemId, entry.value);
     }
-    // Deduct new items
+
+    // Build exchange items list
+    final List<ExchangeItem> exchItems = [];
     for (final ex in _exchangeItems) {
+      exchItems.add(ExchangeItem(
+        itemId: ex.id,
+        name: ex.name,
+        quantity: ex.qty,
+        price: ex.price,
+      ));
+      // Deduct new items from stock
       await inventory.deductStock(ex.id, ex.qty);
     }
 
+    // Create permanent audit record
+    final record = await returnProv.processExchange(
+      originalSale: _foundSale!,
+      returnedItems: returnItems,
+      exchangeItems: exchItems,
+      refundMethod: _refundMethod,
+      reason: _reason,
+      staffId: staffProv.currentStaff?.id ?? '',
+      staffName: staffProv.currentStaff?.name ?? '',
+    );
+
+    // Reverse loyalty points on the returned portion
+    if (_foundSale!.customerName.isNotEmpty && _foundSale!.customerName != 'Walk-in Customer') {
+      final loyalty = context.read<LoyaltySettingsProvider>();
+      final customerProv = context.read<CustomerProvider>();
+      await customerProv.reverseReturn(
+        _foundSale!.customerPhone,
+        _foundSale!.customerName,
+        record.refundAmount,
+        earnRate: loyalty.isEnabled ? loyalty.earnRate : 0,
+      );
+    }
+
     if (!mounted) return;
-    final net = _netSettlement;
+    final net = record.netSettlement;
     final msg = net > 0
         ? 'Exchange done — Customer pays ${Formatters.currency(net)}'
         : net < 0

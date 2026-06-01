@@ -19,8 +19,8 @@ class ExpenseModel {
     this.isDeleted = false,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now().toUtc(),
+        updatedAt = updatedAt ?? DateTime.now().toUtc();
 
   Map<String, dynamic> toMap() {
     return {
@@ -36,7 +36,7 @@ class ExpenseModel {
   }
 
   /// Strip timezone markers and parse as LOCAL time.
-  /// DateTime.now() stores local IST, but Supabase adds 'Z' (UTC marker).
+  /// DateTime.now().toUtc() stores local IST, but Supabase adds 'Z' (UTC marker).
   /// We strip it to avoid double-shifting when filtering by date.
   static DateTime _parseAsLocal(String s) {
     final stripped = s
@@ -75,7 +75,7 @@ class ExpenseModel {
       paymentMode: paymentMode ?? this.paymentMode,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt,
-      updatedAt: updatedAt ?? DateTime.now(),
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
     );
   }
 

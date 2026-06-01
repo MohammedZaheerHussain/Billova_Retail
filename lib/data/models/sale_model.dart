@@ -108,10 +108,11 @@ class SaleModel {
   /// Total cost of goods sold (sum of cost_price * quantity for each item)
   double get totalCostPrice => items.fold(0.0, (sum, item) => sum + (item.costPrice * item.quantity));
 
-  /// Gross profit = Net Revenue (total) - Cost of Goods Sold
-  /// NOTE: total already = subtotal - discount, so discount is naturally accounted for.
-  /// Previously this was: items.fold(...profit) - discount — which DOUBLE-DEDUCTED discount.
-  double get grossProfit => total - totalCostPrice;
+  /// Gross profit = Net Revenue (total - GST) - Cost of Goods Sold
+  /// NOTE: total = subtotal - discount + gstAmount. GST is a pass-through
+  /// government tax — NOT business revenue. We subtract it to prevent
+  /// phantom profit inflation when GST is enabled.
+  double get grossProfit => total - gstAmount - totalCostPrice;
 
   Map<String, dynamic> toMap() {
     return {

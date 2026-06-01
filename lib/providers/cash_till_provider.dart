@@ -47,6 +47,7 @@ class CashTillProvider extends ChangeNotifier {
       // ═══════════════════════════════════════════════════════════
       final salesBreakdown = await _computeTodaySalesBreakdown();
       final expenseBreakdown = await _computeTodayExpenseBreakdown();
+      final cashRefunds = await _computeTodayCashRefunds();
 
       if (maps.isNotEmpty) {
         _today = CashTillModel.fromMap(
@@ -58,6 +59,7 @@ class CashTillProvider extends ChangeNotifier {
           digitalExpenses: expenseBreakdown['digital']!,
           cashIn: salesBreakdown['total']!,
           cashOut: expenseBreakdown['total']!,
+          cashRefunds: cashRefunds,
         );
       } else {
         // Auto-create today's record
@@ -72,6 +74,7 @@ class CashTillProvider extends ChangeNotifier {
           digitalExpenses: expenseBreakdown['digital']!,
           cashIn: salesBreakdown['total']!,
           cashOut: expenseBreakdown['total']!,
+          cashRefunds: cashRefunds,
         );
         await _db.insert('cash_till', till.toMap());
         await _supabase.syncRecord('cash_till', till.id, 'insert', till.toMap());
@@ -96,6 +99,7 @@ class CashTillProvider extends ChangeNotifier {
     try {
       final salesBreakdown = await _computeTodaySalesBreakdown();
       final expenseBreakdown = await _computeTodayExpenseBreakdown();
+      final cashRefunds = await _computeTodayCashRefunds();
 
       _today = _today!.copyWith(
         cashSales: salesBreakdown['cash'],
@@ -105,6 +109,7 @@ class CashTillProvider extends ChangeNotifier {
         digitalExpenses: expenseBreakdown['digital'],
         cashIn: salesBreakdown['total'],
         cashOut: expenseBreakdown['total'],
+        cashRefunds: cashRefunds,
       );
       notifyListeners();
     } catch (e) {
@@ -148,7 +153,7 @@ class CashTillProvider extends ChangeNotifier {
     }
   }
 
-  /// Load history for past till records
+  /// Load history for past till records — enriched with computed payment breakdowns
   Future<void> loadHistory() async {
     try {
       final maps = await _db.query(
@@ -157,7 +162,27 @@ class CashTillProvider extends ChangeNotifier {
         orderBy: 'date DESC',
         limit: 30,
       );
-      _history = maps.map((m) => CashTillModel.fromMap(m)).toList();
+
+      // Enrich each record with computed sales/expense/refund breakdowns
+      final enriched = <CashTillModel>[];
+      for (final m in maps) {
+        final base = CashTillModel.fromMap(m);
+        final dateStr = base.date; // 'YYYY-MM-DD' local
+
+        final sales = await _computeSalesBreakdownForDate(dateStr);
+        final expenses = await _computeExpenseBreakdownForDate(dateStr);
+        final refunds = await _computeCashRefundsForDate(dateStr);
+
+        enriched.add(base.copyWith(
+          cashSales: sales['cash'] ?? 0,
+          upiSales: sales['upi'] ?? 0,
+          cardSales: sales['card'] ?? 0,
+          cashExpenses: expenses['cash'] ?? 0,
+          cashRefunds: refunds,
+        ));
+      }
+
+      _history = enriched;
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to load cash till history: $e');
@@ -166,13 +191,20 @@ class CashTillProvider extends ChangeNotifier {
 
   // ═══════════════════════════════════════════════════════════
   // PRIVATE: Compute today's sales broken down by payment method
+  // IMPORTANT: Sales store created_at in UTC. We must convert
+  // local day boundaries → UTC for correct filtering.
   // ═══════════════════════════════════════════════════════════
   Future<Map<String, double>> _computeTodaySalesBreakdown() async {
-    final today = _todayDate;
+    final now = DateTime.now();
+    final localStart = DateTime(now.year, now.month, now.day);
+    final localEnd = localStart.add(const Duration(days: 1));
+    final startUtc = localStart.toUtc().toIso8601String();
+    final endUtc = localEnd.toUtc().toIso8601String();
+
     final salesMaps = await _db.query(
       'sales',
-      where: "is_deleted = 0 AND created_at LIKE ?",
-      whereArgs: ['$today%'],
+      where: "is_deleted = 0 AND created_at >= ? AND created_at < ?",
+      whereArgs: [startUtc, endUtc],
     );
 
     double cashTotal = 0;
@@ -225,6 +257,140 @@ class CashTillProvider extends ChangeNotifier {
       'digital': double.parse(digitalTotal.toStringAsFixed(2)),
       'total': double.parse((cashTotal + digitalTotal).toStringAsFixed(2)),
     };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PRIVATE: Compute today's cash refunds from returns table
+  // Returns are stored with UTC timestamps (same as sales).
+  // ═══════════════════════════════════════════════════════════
+  Future<double> _computeTodayCashRefunds() async {
+    final now = DateTime.now();
+    final localStart = DateTime(now.year, now.month, now.day);
+    final localEnd = localStart.add(const Duration(days: 1));
+    final startUtc = localStart.toUtc().toIso8601String();
+    final endUtc = localEnd.toUtc().toIso8601String();
+
+    try {
+      final returnMaps = await _db.query(
+        'returns',
+        where: "is_deleted = 0 AND created_at >= ? AND created_at < ?",
+        whereArgs: [startUtc, endUtc],
+      );
+
+      double cashRefunds = 0;
+      for (final map in returnMaps) {
+        final method = (map['refund_method'] as String? ?? '').toLowerCase();
+        if (method != 'cash') continue;
+
+        final type = map['type'] as String? ?? 'return';
+        if (type == 'return') {
+          cashRefunds += (map['refund_amount'] as num?)?.toDouble() ?? 0;
+        } else if (type == 'exchange') {
+          // Negative net_settlement means customer gets money back
+          final net = (map['net_settlement'] as num?)?.toDouble() ?? 0;
+          if (net < 0) cashRefunds += net.abs();
+        }
+      }
+
+      return double.parse(cashRefunds.toStringAsFixed(2));
+    } catch (e) {
+      // Table might not exist yet on first run before migration
+      debugPrint('⚠️ Cash refunds query failed (returns table may not exist yet): $e');
+      return 0;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PRIVATE: Compute sales breakdown for a specific date string (YYYY-MM-DD)
+  // ═══════════════════════════════════════════════════════════
+  Future<Map<String, double>> _computeSalesBreakdownForDate(String dateStr) async {
+    final localStart = DateTime.parse(dateStr);
+    final localEnd = localStart.add(const Duration(days: 1));
+    final startUtc = localStart.toUtc().toIso8601String();
+    final endUtc = localEnd.toUtc().toIso8601String();
+
+    final salesMaps = await _db.query(
+      'sales',
+      where: "is_deleted = 0 AND created_at >= ? AND created_at < ?",
+      whereArgs: [startUtc, endUtc],
+    );
+
+    double cashTotal = 0, upiTotal = 0, cardTotal = 0;
+    for (final map in salesMaps) {
+      final sale = SaleModel.fromMap(map);
+      cashTotal += sale.cashAmount;
+      upiTotal += sale.upiAmount;
+      cardTotal += sale.cardAmount;
+    }
+
+    return {
+      'cash': double.parse(cashTotal.toStringAsFixed(2)),
+      'upi': double.parse(upiTotal.toStringAsFixed(2)),
+      'card': double.parse(cardTotal.toStringAsFixed(2)),
+      'total': double.parse((cashTotal + upiTotal + cardTotal).toStringAsFixed(2)),
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PRIVATE: Compute expense breakdown for a specific date string
+  // ═══════════════════════════════════════════════════════════
+  Future<Map<String, double>> _computeExpenseBreakdownForDate(String dateStr) async {
+    final expenseMaps = await _db.query(
+      'expenses',
+      where: "is_deleted = 0 AND created_at LIKE ?",
+      whereArgs: ['$dateStr%'],
+    );
+
+    double cashTotal = 0, digitalTotal = 0;
+    for (final map in expenseMaps) {
+      final expense = ExpenseModel.fromMap(map);
+      final mode = expense.paymentMode.toLowerCase();
+      if (mode == 'cash' || mode.isEmpty) {
+        cashTotal += expense.amount;
+      } else {
+        digitalTotal += expense.amount;
+      }
+    }
+
+    return {
+      'cash': double.parse(cashTotal.toStringAsFixed(2)),
+      'digital': double.parse(digitalTotal.toStringAsFixed(2)),
+      'total': double.parse((cashTotal + digitalTotal).toStringAsFixed(2)),
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PRIVATE: Compute cash refunds for a specific date string
+  // ═══════════════════════════════════════════════════════════
+  Future<double> _computeCashRefundsForDate(String dateStr) async {
+    final localStart = DateTime.parse(dateStr);
+    final localEnd = localStart.add(const Duration(days: 1));
+    final startUtc = localStart.toUtc().toIso8601String();
+    final endUtc = localEnd.toUtc().toIso8601String();
+
+    try {
+      final returnMaps = await _db.query(
+        'returns',
+        where: "is_deleted = 0 AND created_at >= ? AND created_at < ?",
+        whereArgs: [startUtc, endUtc],
+      );
+
+      double cashRefunds = 0;
+      for (final map in returnMaps) {
+        final method = (map['refund_method'] as String? ?? '').toLowerCase();
+        if (method != 'cash') continue;
+        final type = map['type'] as String? ?? 'return';
+        if (type == 'return') {
+          cashRefunds += (map['refund_amount'] as num?)?.toDouble() ?? 0;
+        } else if (type == 'exchange') {
+          final net = (map['net_settlement'] as num?)?.toDouble() ?? 0;
+          if (net < 0) cashRefunds += net.abs();
+        }
+      }
+      return double.parse(cashRefunds.toStringAsFixed(2));
+    } catch (e) {
+      return 0;
+    }
   }
 
   void clearError() {

@@ -69,6 +69,7 @@ class SupabaseService {
       await pullTable('clearance_items');
       await pullTable('loyalty_transactions');
       await pullTable('revenue_snapshots');
+      await pullTable('returns');
       debugPrint('✅ Full data pull complete');
     } catch (e) {
       debugPrint('⚠️ Data pull had errors (non-fatal): $e');
@@ -180,7 +181,7 @@ class SupabaseService {
           // Soft delete — update is_deleted flag in cloud
           await _client.from(table).update({
             'is_deleted': true,
-            'updated_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
           }).eq('id', recordId);
           break;
       }
@@ -246,7 +247,7 @@ class SupabaseService {
         if (action == 'delete') {
           await _client.from(table).update({
             'is_deleted': true,
-            'updated_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
           }).eq('id', item['record_id']);
         } else {
           await _client.from(table).upsert(cloudData);

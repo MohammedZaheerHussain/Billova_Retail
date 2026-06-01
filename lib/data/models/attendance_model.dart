@@ -21,7 +21,7 @@ class AttendanceModel {
     required this.date,
     this.isDeleted = false,
     DateTime? createdAt,
-  }) : createdAt = createdAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now().toUtc();
 
   bool get isOpen => clockOutTime == null;
 
@@ -40,7 +40,7 @@ class AttendanceModel {
   }
 
   /// Strip timezone markers and parse as LOCAL time.
-  /// Reason: DateTime.now() stores local IST, toIso8601String() has no offset,
+  /// Reason: DateTime.now().toUtc() stores local IST, toIso8601String() has no offset,
   /// but Supabase adds 'Z' (UTC marker). We must strip it to avoid double-shift.
   static DateTime _parseAsLocal(String s) {
     // Remove 'Z', '+HH:MM', or '+HHMM' suffixes → Dart parses as local

@@ -231,7 +231,7 @@ class _CashTillScreenState extends State<CashTillScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            'Opening ₹${till.openingCash.toStringAsFixed(0)}  +  Cash Sales ₹${till.cashSales.toStringAsFixed(0)}  −  Cash Expenses ₹${till.cashExpenses.toStringAsFixed(0)}',
+                            'Opening ₹${till.openingCash.toStringAsFixed(0)}  +  Cash Sales ₹${till.cashSales.toStringAsFixed(0)}  −  Cash Expenses ₹${till.cashExpenses.toStringAsFixed(0)}${till.cashRefunds > 0 ? '  −  Refunds ₹${till.cashRefunds.toStringAsFixed(0)}' : ''}',
                             style: AppTypography.labelSmall.copyWith(
                               color: Colors.white.withValues(alpha: 0.8),
                               fontSize: 11,
@@ -453,6 +453,8 @@ class _CashTillScreenState extends State<CashTillScreen> {
           _summaryLine('Opening Cash', till.openingCash, Colors.white),
           _summaryLine('+ Cash Sales', till.cashSales, const Color(0xFF86EFAC)),
           _summaryLine('− Cash Expenses', till.cashExpenses, const Color(0xFFFCA5A5)),
+          if (till.cashRefunds > 0)
+            _summaryLine('− Cash Refunds', till.cashRefunds, const Color(0xFFFCA5A5)),
           const Divider(color: Colors.white24, height: 20),
           _summaryLine('= Expected Closing Cash', till.expectedCash, Colors.white, bold: true),
 

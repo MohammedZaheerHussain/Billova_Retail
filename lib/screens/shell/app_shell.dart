@@ -270,6 +270,13 @@ class _AppShellState extends State<AppShell> {
       debugPrint('⚠️ Customer recovery failed (non-fatal): $e');
     }
 
+    // ─── STEP 4.6: Auto-cleanup old attendance records (60+ days) ───
+    try {
+      await staffProvider.cleanupOldAttendance();
+    } catch (e) {
+      debugPrint('⚠️ Attendance cleanup failed (non-fatal): $e');
+    }
+
     // ─── STEP 5: Signal screens to reload with fresh data ───
     AppShell.dataVersion.value++;
     debugPrint('📢 dataVersion bumped to ${AppShell.dataVersion.value}');

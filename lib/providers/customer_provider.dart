@@ -351,6 +351,57 @@ class CustomerProvider extends ChangeNotifier {
     debugPrint('⭐ Redeemed $pointsUsed pts for "${updated.name}" (remaining: $newPoints)');
   }
 
+  /// Reverse loyalty points and spending when a return is processed.
+  /// Deducts points that were earned from the original sale amount.
+  Future<void> reverseReturn(String customerPhone, String customerName, double refundAmount, {int earnRate = 1}) async {
+    if (refundAmount <= 0) return;
+
+    // Find customer — phone-first, name fallback
+    CustomerModel? customer;
+    if (customerPhone.isNotEmpty) {
+      customer = findByPhone(customerPhone);
+    }
+    if (customer == null && customerName.isNotEmpty) {
+      customer = findByName(customerName);
+    }
+    if (customer == null) {
+      debugPrint('⚠️ reverseReturn: Customer not found — skipping point reversal');
+      return;
+    }
+
+    final idx = _customers.indexWhere((c) => c.id == customer!.id);
+    if (idx == -1) return;
+
+    // Calculate points to reverse (same formula as earning)
+    final pointsToDeduct = (refundAmount / 100 * earnRate).floor();
+    final newPoints = (customer.loyaltyPoints - pointsToDeduct).clamp(0, customer.loyaltyPoints);
+    final newSpent = (customer.totalSpent - refundAmount).clamp(0.0, double.infinity);
+
+    final updated = _customers[idx].copyWith(
+      loyaltyPoints: newPoints,
+      totalSpent: double.parse(newSpent.toStringAsFixed(2)),
+    );
+
+    // Cloud-first on web
+    if (kIsWeb) {
+      try {
+        await _supabase.guaranteedSave('customers', updated.toMap());
+      } catch (e) {
+        debugPrint('⚠️ Return reversal cloud save failed, queuing: $e');
+        _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
+      }
+    }
+
+    await _db.update('customers', updated.toMap(), updated.id);
+    _customers[idx] = updated;
+    notifyListeners();
+
+    if (!kIsWeb) {
+      _supabase.syncRecord('customers', updated.id, 'update', updated.toMap());
+    }
+    debugPrint('🔄 Return reversal for "${updated.name}": -₹$refundAmount, -$pointsToDeduct pts (remaining: $newPoints)');
+  }
+
   /// Find or create customer by phone
   CustomerModel? findByPhone(String phone) {
     if (phone.isEmpty) return null;

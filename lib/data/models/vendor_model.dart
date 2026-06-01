@@ -19,8 +19,8 @@ class VendorModel {
     this.isDeleted = false,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now().toUtc(),
+        updatedAt = updatedAt ?? DateTime.now().toUtc();
 
   Map<String, dynamic> toMap() {
     return {
@@ -64,7 +64,7 @@ class VendorModel {
       balance: balance ?? this.balance,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt,
-      updatedAt: updatedAt ?? DateTime.now(),
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
     );
   }
 

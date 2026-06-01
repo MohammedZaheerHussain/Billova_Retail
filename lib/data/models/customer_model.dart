@@ -27,8 +27,8 @@ class CustomerModel {
     this.isDeleted = false,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now().toUtc(),
+        updatedAt = updatedAt ?? DateTime.now().toUtc();
 
   Map<String, dynamic> toMap() {
     return {
@@ -90,7 +90,7 @@ class CustomerModel {
       lastPurchaseDate: lastPurchaseDate ?? this.lastPurchaseDate,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt,
-      updatedAt: updatedAt ?? DateTime.now(),
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
     );
   }
 

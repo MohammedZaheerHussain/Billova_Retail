@@ -36,6 +36,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double _todaySales = 0;
   double _weekSales = 0;
   double _stockValue = 0;
+  double _stockCost = 0;
   int _lowStockCount = 0;
   double _todayExpenses = 0;
   int _todaySalesCount = 0;
@@ -175,6 +176,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _db.recentSales(limit: 5),   // 4
       _db.salesLast7Days(),        // 5
       _db.lowStockItems(),         // 6
+      _db.totalStockCost(),        // 7 — cost-based investment value
     ]);
 
     // Calculate week total from chart data
@@ -237,6 +239,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _todaySales = results[0] as double;
         _weekSales = weekTotal;
         _stockValue = results[1] as double;
+        _stockCost = results[7] as double;
         _todayExpenses = results[2] as double;
         _todaySalesCount = results[3] as int;
         _recentSales = results[4] as List<Map<String, dynamic>>;
@@ -405,7 +408,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         'Today', Icons.money_off_rounded,
                         AppColors.errorGradient),
                     _statCard('Stock Value', Formatters.currencyCompact(_stockValue),
-                        'Total inventory', Icons.inventory_2_rounded,
+                        'Investment: ${Formatters.currencyCompact(_stockCost)}', Icons.inventory_2_rounded,
                         AppColors.primaryGradient),
                     _statCard('Low Stock', _lowStockCount.toString(),
                         'Need restock', Icons.warning_rounded,

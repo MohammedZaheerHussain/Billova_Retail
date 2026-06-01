@@ -16,6 +16,7 @@ class ItemModel {
   final double gstRate;          // GST percentage (0, 5, 12, 18, 28)
   final int quantity;
   final int lowStockThreshold;
+  final int version;             // Optimistic lock version — incremented on each update
   final bool isDeleted;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -36,11 +37,12 @@ class ItemModel {
     this.gstRate = 0,
     this.quantity = 0,
     this.lowStockThreshold = 5,
+    this.version = 1,
     this.isDeleted = false,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now().toUtc(),
+        updatedAt = updatedAt ?? DateTime.now().toUtc();
 
   bool get isLowStock => quantity > 0 && quantity <= lowStockThreshold;
   bool get isOutOfStock => quantity <= 0;
@@ -65,6 +67,7 @@ class ItemModel {
       'gst_rate': gstRate,
       'quantity': quantity,
       'low_stock_threshold': lowStockThreshold,
+      'version': version,
       'is_deleted': isDeleted ? 1 : 0,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -88,6 +91,7 @@ class ItemModel {
       parentItemId: (map['parent_item_id'] as String?) ?? '',
       quantity: (map['quantity'] as num?)?.toInt() ?? 0,
       lowStockThreshold: (map['low_stock_threshold'] as num?)?.toInt() ?? 5,
+      version: (map['version'] as num?)?.toInt() ?? 1,
       isDeleted: map['is_deleted'] == 1 || map['is_deleted'] == true,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
@@ -109,6 +113,7 @@ class ItemModel {
     double? gstRate,
     int? quantity,
     int? lowStockThreshold,
+    int? version,
     bool? isDeleted,
     DateTime? updatedAt,
   }) {
@@ -128,9 +133,10 @@ class ItemModel {
       parentItemId: parentItemId ?? this.parentItemId,
       quantity: quantity ?? this.quantity,
       lowStockThreshold: lowStockThreshold ?? this.lowStockThreshold,
+      version: version ?? this.version,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt,
-      updatedAt: updatedAt ?? DateTime.now(),
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
     );
   }
 

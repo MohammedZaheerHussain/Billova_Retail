@@ -17,8 +17,8 @@ class CategoryModel {
     this.isDeleted = false,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now().toUtc(),
+        updatedAt = updatedAt ?? DateTime.now().toUtc();
 
   Map<String, dynamic> toMap() {
     return {
@@ -41,10 +41,10 @@ class CategoryModel {
       isDeleted: map['is_deleted'] == 1 || map['is_deleted'] == true,
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
-          : DateTime.now(),
+          : DateTime.now().toUtc(),
       updatedAt: map['updated_at'] != null
           ? DateTime.parse(map['updated_at'] as String)
-          : DateTime.now(),
+          : DateTime.now().toUtc(),
     );
   }
 
@@ -62,7 +62,7 @@ class CategoryModel {
       requiresColor: requiresColor ?? this.requiresColor,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt,
-      updatedAt: updatedAt ?? DateTime.now(),
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
     );
   }
 
