@@ -354,7 +354,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
         'points': points,
         'sale_id': saleId,
         'balance_after': balanceAfter,
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
       });
     } catch (e) {
       debugPrint('⚠️ Failed to log loyalty transaction: $e');

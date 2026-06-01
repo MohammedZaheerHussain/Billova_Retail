@@ -23,8 +23,8 @@ class StaffModel {
     this.monthlySaleTarget = 0,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now().toUtc(),
+        updatedAt = updatedAt ?? DateTime.now().toUtc();
 
   bool get isAdmin => role == 'admin';
 
@@ -78,7 +78,7 @@ class StaffModel {
       isDeleted: isDeleted ?? this.isDeleted,
       monthlySaleTarget: monthlySaleTarget ?? this.monthlySaleTarget,
       createdAt: createdAt,
-      updatedAt: updatedAt ?? DateTime.now(),
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
     );
   }
 

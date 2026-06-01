@@ -7,6 +7,7 @@ import '../data/remote/supabase_service.dart';
 import '../data/models/staff_model.dart';
 import '../data/models/attendance_model.dart';
 import '../core/utils/rate_limiter.dart';
+import '../core/utils/pin_hasher.dart';
 
 class StaffProvider extends ChangeNotifier {
   final DBHelper _db = DBHelper.instance;
@@ -83,7 +84,7 @@ class StaffProvider extends ChangeNotifier {
         id: _uuid.v4(),
         username: username,
         name: name,
-        pin: pin,
+        pin: PinHasher.hash(pin),
         role: role,
         monthlySaleTarget: monthlySaleTarget,
       );
@@ -161,11 +162,21 @@ class StaffProvider extends ChangeNotifier {
     if (_staff.isEmpty) await loadStaff();
 
     final match = _staff.cast<StaffModel?>().firstWhere(
-      (s) => s!.username.toLowerCase() == username.toLowerCase() && s.pin == pin && s.isActive,
+      (s) => s!.username.toLowerCase() == username.toLowerCase() && PinHasher.verify(pin, s.pin) && s.isActive,
       orElse: () => null,
     );
 
     if (match == null) return 'Invalid username or PIN';
+
+    // Auto-upgrade: if PIN was stored as plaintext, hash it now
+    if (match.pin.length <= 6 && RegExp(r'^\d+$').hasMatch(match.pin)) {
+      final upgraded = match.copyWith(pin: PinHasher.hash(pin));
+      await _db.update('staff', upgraded.toMap(), upgraded.id);
+      _supabase.syncRecord('staff', upgraded.id, 'update', upgraded.toMap());
+      final idx = _staff.indexWhere((s) => s.id == upgraded.id);
+      if (idx != -1) _staff[idx] = upgraded;
+      debugPrint('🔐 Auto-upgraded plaintext PIN to hash for ${match.name}');
+    }
 
     // Successful login — reset limiter
     _staffLoginLimiter.reset();

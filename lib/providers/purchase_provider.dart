@@ -194,7 +194,7 @@ class PurchaseProvider extends ChangeNotifier {
         // Update local DB
         final updatedMap = purchase.toMap();
         updatedMap['paid_amount'] = newPaid;
-        updatedMap['updated_at'] = DateTime.now().toIso8601String();
+        updatedMap['updated_at'] = DateTime.now().toUtc().toIso8601String();
         await _db.update('purchases', updatedMap, purchase.id);
 
         // Sync to Supabase

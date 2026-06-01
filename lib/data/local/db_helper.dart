@@ -35,6 +35,7 @@ class _WebDB {
     _tables['clearance_items'] = [];
     _tables['revenue_snapshots'] = [];
     _tables['user_settings'] = [];
+    _tables['returns'] = [];
     _initialized = true;
 
     // ─── CRITICAL: Restore sync queue from localStorage ───
@@ -569,6 +570,33 @@ class DBHelper {
       )
     ''');
     await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_user_settings_key ON user_settings(key)');
+
+    // ─── Returns & Exchange Audit Trail ───
+    await db.execute('''
+      CREATE TABLE returns (
+        id TEXT PRIMARY KEY,
+        original_sale_id TEXT NOT NULL,
+        original_invoice TEXT NOT NULL DEFAULT '',
+        type TEXT NOT NULL DEFAULT 'return',
+        returned_items TEXT NOT NULL DEFAULT '[]',
+        exchange_items TEXT NOT NULL DEFAULT '[]',
+        refund_amount REAL NOT NULL DEFAULT 0,
+        exchange_total REAL NOT NULL DEFAULT 0,
+        net_settlement REAL NOT NULL DEFAULT 0,
+        refund_method TEXT NOT NULL DEFAULT 'Cash',
+        reason TEXT NOT NULL DEFAULT '',
+        customer_name TEXT NOT NULL DEFAULT '',
+        customer_phone TEXT NOT NULL DEFAULT '',
+        staff_id TEXT NOT NULL DEFAULT '',
+        staff_name TEXT NOT NULL DEFAULT '',
+        points_reversed INTEGER NOT NULL DEFAULT 0,
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+    await db.execute('CREATE INDEX idx_returns_sale_id ON returns(original_sale_id)');
+    await db.execute('CREATE INDEX idx_returns_created ON returns(created_at)');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -807,6 +835,40 @@ class DBHelper {
       try {
         await db.execute('CREATE UNIQUE INDEX idx_snapshot_year_month ON revenue_snapshots(year, month)');
       } catch (_) {} // Index may already exist
+
+      // Returns & Exchange audit trail (also v15)
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS returns (
+          id TEXT PRIMARY KEY,
+          original_sale_id TEXT NOT NULL,
+          original_invoice TEXT NOT NULL DEFAULT '',
+          type TEXT NOT NULL DEFAULT 'return',
+          returned_items TEXT NOT NULL DEFAULT '[]',
+          exchange_items TEXT NOT NULL DEFAULT '[]',
+          refund_amount REAL NOT NULL DEFAULT 0,
+          exchange_total REAL NOT NULL DEFAULT 0,
+          net_settlement REAL NOT NULL DEFAULT 0,
+          refund_method TEXT NOT NULL DEFAULT 'Cash',
+          reason TEXT NOT NULL DEFAULT '',
+          customer_name TEXT NOT NULL DEFAULT '',
+          customer_phone TEXT NOT NULL DEFAULT '',
+          staff_id TEXT NOT NULL DEFAULT '',
+          staff_name TEXT NOT NULL DEFAULT '',
+          points_reversed INTEGER NOT NULL DEFAULT 0,
+          is_deleted INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_returns_sale_id ON returns(original_sale_id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_returns_created ON returns(created_at)');
+    }
+
+    // v16: Optimistic locking — add version column to items for concurrent edit protection
+    if (oldVersion < 16) {
+      try {
+        await db.execute("ALTER TABLE items ADD COLUMN version INTEGER DEFAULT 1");
+      } catch (_) {} // Column may already exist
     }
 
     // v16: Add user_settings table for cloud-synced configuration
@@ -837,7 +899,7 @@ class DBHelper {
   }
 
   Future<int> update(String table, Map<String, dynamic> data, String id) async {
-    data['updated_at'] = DateTime.now().toIso8601String();
+    data['updated_at'] = DateTime.now().toUtc().toIso8601String();
     if (kIsWeb) {
       final web = await _web;
       return await web.update(table, data, where: 'id = ?', whereArgs: [id]);
@@ -846,10 +908,33 @@ class DBHelper {
     return await db.update(table, data, where: 'id = ?', whereArgs: [id]);
   }
 
+  /// Optimistic-lock update: only succeeds if the row's version matches [expectedVersion].
+  /// Returns the number of rows updated (0 = version conflict, 1 = success).
+  /// The caller MUST increment the version in [data] before calling this.
+  Future<int> updateWithVersion(String table, Map<String, dynamic> data, String id, int expectedVersion) async {
+    data['updated_at'] = DateTime.now().toUtc().toIso8601String();
+    if (kIsWeb) {
+      // Web uses in-memory maps — simulate version check
+      final web = await _web;
+      final rows = await web.query(table, where: 'id = ?', whereArgs: [id]);
+      if (rows.isEmpty) return 0;
+      final currentVersion = (rows.first['version'] as num?)?.toInt() ?? 1;
+      if (currentVersion != expectedVersion) return 0; // Conflict!
+      return await web.update(table, data, where: 'id = ?', whereArgs: [id]);
+    }
+    final db = await database;
+    return await db.update(
+      table,
+      data,
+      where: 'id = ? AND version = ?',
+      whereArgs: [id, expectedVersion],
+    );
+  }
+
   Future<int> softDelete(String table, String id) async {
     final data = {
       'is_deleted': 1,
-      'updated_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
     if (kIsWeb) {
       final web = await _web;
@@ -1020,7 +1105,7 @@ class DBHelper {
   }
 
   Future<void> updateCategory(Map<String, dynamic> data, String id) async {
-    data['updated_at'] = DateTime.now().toIso8601String();
+    data['updated_at'] = DateTime.now().toUtc().toIso8601String();
     if (kIsWeb) {
       final web = await _web;
       await web.update('categories', data, where: 'id = ?', whereArgs: [id]);
@@ -1034,7 +1119,7 @@ class DBHelper {
     // Soft delete for sync support
     final data = {
       'is_deleted': 1,
-      'updated_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
     if (kIsWeb) {
       final web = await _web;
@@ -1054,7 +1139,7 @@ class DBHelper {
       'record_id': recordId,
       'action': action,
       'payload': payload,
-      'created_at': DateTime.now().toIso8601String(),
+      'created_at': DateTime.now().toUtc().toIso8601String(),
       'retry_count': 0,
     };
     if (kIsWeb) {
@@ -1071,7 +1156,7 @@ class DBHelper {
       'record_id': recordId,
       'action': action,
       'payload': payload,
-      'created_at': DateTime.now().toIso8601String(),
+      'created_at': DateTime.now().toUtc().toIso8601String(),
       'retry_count': 0,
     });
   }
@@ -1152,25 +1237,43 @@ class DBHelper {
   }
 
   // ─── Dashboard Queries ───
+  // SALES use UTC timestamps; EXPENSES use LOCAL timestamps.
+  // Sales queries MUST convert local day boundaries → UTC for correct matching.
+
+  /// Helper: returns UTC ISO strings for [startOfTodayLocal, startOfTomorrowLocal)
+  ({String startUtc, String endUtc}) _todayUtcRange() {
+    final now = DateTime.now();
+    final localStart = DateTime(now.year, now.month, now.day);
+    final localEnd = localStart.add(const Duration(days: 1));
+    return (
+      startUtc: localStart.toUtc().toIso8601String(),
+      endUtc: localEnd.toUtc().toIso8601String(),
+    );
+  }
 
   Future<double> todaySalesTotal() async {
-    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final r = _todayUtcRange();
     return await sum('sales', 'total',
-        where: "is_deleted = 0 AND created_at LIKE ?", whereArgs: ['$today%']);
+        where: "is_deleted = 0 AND created_at >= ? AND created_at < ?",
+        whereArgs: [r.startUtc, r.endUtc]);
   }
 
   Future<int> todaySalesCount() async {
-    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final r = _todayUtcRange();
     return await count('sales',
-        where: "is_deleted = 0 AND created_at LIKE ?", whereArgs: ['$today%']);
+        where: "is_deleted = 0 AND created_at >= ? AND created_at < ?",
+        whereArgs: [r.startUtc, r.endUtc]);
   }
 
   Future<double> todayExpensesTotal() async {
+    // Expenses store LOCAL timestamps — LIKE query is correct here
     final today = DateTime.now().toIso8601String().substring(0, 10);
     return await sum('expenses', 'amount',
         where: "is_deleted = 0 AND created_at LIKE ?", whereArgs: ['$today%']);
   }
 
+  /// Total RETAIL value of inventory (selling price × quantity)
+  /// Used for: Dashboard "Stock Value" card (what inventory could sell for)
   Future<double> totalStockValue() async {
     if (kIsWeb) {
       final web = await _web;
@@ -1184,6 +1287,25 @@ class DBHelper {
     final db = await database;
     final result = await db.rawQuery(
       'SELECT COALESCE(SUM(price * quantity), 0) as total FROM items WHERE is_deleted = 0',
+    );
+    return (result.first['total'] as num?)?.toDouble() ?? 0.0;
+  }
+
+  /// Total COST/INVESTMENT value of inventory (cost_price × quantity)
+  /// Used for: Accounting, true investment tracking, potential margin calculation
+  Future<double> totalStockCost() async {
+    if (kIsWeb) {
+      final web = await _web;
+      final items = await web.query('items', where: 'is_deleted = 0');
+      double total = 0;
+      for (final item in items) {
+        total += ((item['cost_price'] as num?) ?? 0) * ((item['quantity'] as num?) ?? 0);
+      }
+      return total;
+    }
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT COALESCE(SUM(cost_price * quantity), 0) as total FROM items WHERE is_deleted = 0',
     );
     return (result.first['total'] as num?)?.toDouble() ?? 0.0;
   }
@@ -1240,7 +1362,9 @@ class DBHelper {
     final cutoff = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 7));
 
     if (kIsWeb) {
-      // Web: in-memory filtering + grouping (mirrors the SQL GROUP BY)
+      // Web: in-memory filtering + grouping
+      // IMPORTANT: Sales store UTC timestamps. We convert to LOCAL
+      // before grouping so chart days match the user's timezone.
       final web = await _web;
       final allSales = await web.query('sales', where: 'is_deleted = 0');
       final Map<String, double> dailyTotals = {};
@@ -1250,9 +1374,13 @@ class DBHelper {
         final createdAt = sale['created_at'] as String?;
         if (createdAt == null) continue;
         final dt = DateTime.tryParse(createdAt);
-        if (dt == null || dt.isBefore(cutoff)) continue;
+        if (dt == null) continue;
+        // Convert UTC → local for correct day grouping
+        final localDt = dt.toLocal();
+        if (localDt.isBefore(cutoff)) continue;
 
-        final dateKey = createdAt.substring(0, 10); // YYYY-MM-DD
+        // Group by LOCAL date (not UTC substring)
+        final dateKey = '${localDt.year}-${localDt.month.toString().padLeft(2, '0')}-${localDt.day.toString().padLeft(2, '0')}';
         final total = (sale['total'] as num?)?.toDouble() ?? 0;
         dailyTotals[dateKey] = (dailyTotals[dateKey] ?? 0) + total;
         dailyCounts[dateKey] = (dailyCounts[dateKey] ?? 0) + 1;
@@ -1272,13 +1400,16 @@ class DBHelper {
     }
 
     // Native: use SQL date functions
+    // NOTE: SQLite DATE() extracts from the raw string which is UTC.
+    // For IST (UTC+5:30), late-night sales may group on wrong day.
+    // Using datetime with localtime modifier for correct grouping.
     final db = await database;
-    final cutoffStr = cutoff.toIso8601String().substring(0, 10);
+    final cutoffStr = cutoff.toUtc().toIso8601String();
     return await db.rawQuery('''
-      SELECT DATE(created_at) as date, SUM(total) as total, COUNT(*) as count
+      SELECT DATE(created_at, 'localtime') as date, SUM(total) as total, COUNT(*) as count
       FROM sales
-      WHERE is_deleted = 0 AND DATE(created_at) >= ?
-      GROUP BY DATE(created_at)
+      WHERE is_deleted = 0 AND created_at >= ?
+      GROUP BY DATE(created_at, 'localtime')
       ORDER BY date ASC
     ''', [cutoffStr]);
   }
@@ -1298,7 +1429,7 @@ class DBHelper {
     const tables = [
       'items', 'sales', 'expenses', 'cash_till',
       'customers', 'vendors', 'staff', 'attendance', 'purchases',
-      'categories', 'clearance_items', 'loyalty_transactions', 'settings',
+      'categories', 'clearance_items', 'loyalty_transactions', 'returns', 'settings',
       'revenue_snapshots', 'user_settings',
     ];
     if (kIsWeb) {

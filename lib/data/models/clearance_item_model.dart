@@ -23,8 +23,8 @@ class ClearanceItemModel {
     this.status = 'active',
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now().toUtc(),
+        updatedAt = updatedAt ?? DateTime.now().toUtc();
 
   double get discountPercent =>
       originalPrice > 0 ? ((1 - clearancePrice / originalPrice) * 100).clamp(0, 100) : 0;
@@ -74,7 +74,7 @@ class ClearanceItemModel {
       reason: reason ?? this.reason,
       status: status ?? this.status,
       createdAt: createdAt,
-      updatedAt: updatedAt ?? DateTime.now(),
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
     );
   }
 }

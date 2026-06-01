@@ -21,6 +21,7 @@ class CashTillModel {
   final double cardSales;      // Sales paid via Card
   final double cashExpenses;   // Expenses paid from shop cash
   final double digitalExpenses; // Expenses paid via UPI/bank
+  final double cashRefunds;     // Cash refunds given for returns/exchanges
 
   // Legacy compat
   final double cashIn;         // total sales (all methods combined)
@@ -38,17 +39,19 @@ class CashTillModel {
     this.cardSales = 0,
     this.cashExpenses = 0,
     this.digitalExpenses = 0,
+    this.cashRefunds = 0,
     this.cashIn = 0,
     this.cashOut = 0,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now().toUtc(),
+        updatedAt = updatedAt ?? DateTime.now().toUtc();
 
   // ─── Computed Getters ───
 
   /// Expected physical cash in shop drawer
-  double get expectedCash => openingCash + cashSales - cashExpenses;
+  /// Opening + Cash Sales − Cash Expenses − Cash Refunds
+  double get expectedCash => openingCash + cashSales - cashExpenses - cashRefunds;
 
   /// Digital (UPI + Card) collection balance
   double get digitalCollection => upiSales + cardSales - digitalExpenses;
@@ -90,6 +93,7 @@ class CashTillModel {
     double cardSales = 0,
     double cashExpenses = 0,
     double digitalExpenses = 0,
+    double cashRefunds = 0,
     double cashIn = 0,
     double cashOut = 0,
   }) {
@@ -105,6 +109,7 @@ class CashTillModel {
       cardSales: cardSales,
       cashExpenses: cashExpenses,
       digitalExpenses: digitalExpenses,
+      cashRefunds: cashRefunds,
       cashIn: cashIn,
       cashOut: cashOut,
       createdAt: DateTime.parse(map['created_at'] as String),
@@ -121,6 +126,7 @@ class CashTillModel {
     double? cardSales,
     double? cashExpenses,
     double? digitalExpenses,
+    double? cashRefunds,
     double? cashIn,
     double? cashOut,
     bool? isDeleted,
@@ -137,11 +143,12 @@ class CashTillModel {
       cardSales: cardSales ?? this.cardSales,
       cashExpenses: cashExpenses ?? this.cashExpenses,
       digitalExpenses: digitalExpenses ?? this.digitalExpenses,
+      cashRefunds: cashRefunds ?? this.cashRefunds,
       cashIn: cashIn ?? this.cashIn,
       cashOut: cashOut ?? this.cashOut,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt,
-      updatedAt: updatedAt ?? DateTime.now(),
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
     );
   }
 

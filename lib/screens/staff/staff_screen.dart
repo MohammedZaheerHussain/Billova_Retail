@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/pin_hasher.dart';
 import '../../core/utils/date_filter.dart';
 import '../../widgets/date_filter_bar.dart';
 import '../../providers/staff_provider.dart';
@@ -84,7 +85,8 @@ class _StaffScreenState extends State<StaffScreen> {
   void _showStaffDialog({StaffModel? staff}) {
     final nameCtrl = TextEditingController(text: staff?.name ?? '');
     final usernameCtrl = TextEditingController(text: staff?.username ?? '');
-    final pinCtrl = TextEditingController(text: staff?.pin ?? '');
+    // Don't pre-fill hashed PIN — show empty field with hint
+    final pinCtrl = TextEditingController(text: '');
     String role = staff?.role ?? 'staff';
     double monthlySaleTarget = staff?.monthlySaleTarget ?? 0;
     final formKey = GlobalKey<FormState>();
@@ -247,9 +249,11 @@ class _StaffScreenState extends State<StaffScreen> {
                             final provider = context.read<StaffProvider>();
                             bool success;
                             if (isEditing) {
+                              // Only update PIN if user entered a new one
+                              final newPin = pinCtrl.text.trim();
                               success = await provider.updateStaff(staff!.copyWith(
                                 name: nameCtrl.text.trim(),
-                                pin: pinCtrl.text.trim(),
+                                pin: newPin.isNotEmpty ? PinHasher.hash(newPin) : null,
                                 role: role,
                                 monthlySaleTarget: role == 'staff' ? monthlySaleTarget : 0,
                               ));

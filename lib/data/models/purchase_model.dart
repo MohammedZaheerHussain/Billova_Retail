@@ -23,8 +23,8 @@ class PurchaseModel {
     this.isDeleted = false,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now().toUtc(),
+        updatedAt = updatedAt ?? DateTime.now().toUtc();
 
   double get dueAmount => totalAmount - paidAmount;
   bool get isFullyPaid => dueAmount <= 0;
