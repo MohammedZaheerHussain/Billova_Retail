@@ -69,6 +69,8 @@ class SupabaseService {
       await pullTable('clearance_items');
       await pullTable('loyalty_transactions');
       await pullTable('revenue_snapshots');
+      await pullTable('user_settings');
+      await _pullSettings();
       debugPrint('✅ Full data pull complete');
     } catch (e) {
       debugPrint('⚠️ Data pull had errors (non-fatal): $e');
@@ -198,7 +200,6 @@ class SupabaseService {
   /// Without this, upsert fails with PGRST204 and data never syncs.
   static void _stripLocalOnlyColumns(String table, Map<String, dynamic> data) {
     const localOnlyColumns = <String, List<String>>{
-      'expenses': ['payment_mode'],
       'cash_till': ['actual_closing_cash'],
     };
     final cols = localOnlyColumns[table];
@@ -278,5 +279,87 @@ class SupabaseService {
     final cloudUpdated = DateTime.parse(cloud['updated_at'] as String);
 
     return cloudUpdated.isAfter(localUpdated) ? cloud : local;
+  }
+
+  // ─── Settings Cloud Sync ───
+
+  /// Sync a single setting to Supabase user_settings table
+  Future<void> syncSetting(String key, String value) async {
+    if (!isLoggedIn) return;
+    try {
+      final now = DateTime.now().toUtc().toIso8601String();
+      await _client.from('user_settings').upsert({
+        'id': 'setting_$key',
+        'user_id': userId,
+        'key': key,
+        'value': value,
+        'updated_at': now,
+      });
+      debugPrint('☁️ Setting synced: $key');
+    } catch (e) {
+      debugPrint('⚠️ Setting sync failed for $key: $e');
+    }
+  }
+
+  /// Bulk sync multiple settings to Supabase
+  Future<void> syncAllSettings(Map<String, String> settings) async {
+    for (final entry in settings.entries) {
+      await syncSetting(entry.key, entry.value);
+    }
+  }
+
+  /// Pull settings from Supabase and restore to local storage
+  /// Only restores settings that are missing locally (local takes precedence)
+  Future<void> _pullSettings() async {
+    try {
+      final cloudSettings = await _db.getAllCloudSettings();
+      if (cloudSettings.isEmpty) return; // No cloud settings pulled yet
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // Settings that map to SharedPreferences keys
+      const prefsKeys = {
+        'loyalty_enabled': 'loyalty_enabled',
+        'loyalty_earn_rate': 'loyalty_earn_rate',
+        'loyalty_redeem_value': 'loyalty_redeem_value',
+        'loyalty_min_redeem': 'loyalty_min_redeem',
+      };
+
+      // Settings that map to local DB settings table
+      const dbKeys = [
+        'shop_name', 'shop_address', 'shop_phone', 'shop_logo',
+        'receipt_footer', 'gst_enabled', 'gst_number',
+        'gst_business_name', 'gst_state_code', 'auto_print',
+      ];
+
+      for (final entry in cloudSettings.entries) {
+        // Restore SharedPreferences loyalty settings (only if missing)
+        if (prefsKeys.containsKey(entry.key)) {
+          final prefsKey = prefsKeys[entry.key]!;
+          if (!prefs.containsKey(prefsKey)) {
+            // Detect type and restore
+            if (entry.key == 'loyalty_enabled') {
+              prefs.setBool(prefsKey, entry.value == 'true');
+            } else if (entry.key == 'loyalty_earn_rate' || entry.key == 'loyalty_min_redeem') {
+              prefs.setInt(prefsKey, int.tryParse(entry.value) ?? 0);
+            } else if (entry.key == 'loyalty_redeem_value') {
+              prefs.setDouble(prefsKey, double.tryParse(entry.value) ?? 1.0);
+            }
+            debugPrint('🔄 Restored setting from cloud: ${entry.key}');
+          }
+        }
+
+        // Restore DB settings (only if missing)
+        if (dbKeys.contains(entry.key)) {
+          final existing = await _db.getSetting(entry.key);
+          if (existing == null || existing.isEmpty) {
+            await _db.setSetting(entry.key, entry.value);
+            debugPrint('🔄 Restored setting from cloud: ${entry.key}');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Settings pull failed (non-fatal): $e');
+    }
   }
 }

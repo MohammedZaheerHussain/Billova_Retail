@@ -34,6 +34,7 @@ class _WebDB {
     _tables['loyalty_transactions'] = [];
     _tables['clearance_items'] = [];
     _tables['revenue_snapshots'] = [];
+    _tables['user_settings'] = [];
     _initialized = true;
 
     // ─── CRITICAL: Restore sync queue from localStorage ───
@@ -557,6 +558,17 @@ class DBHelper {
       )
     ''');
     await db.execute('CREATE INDEX idx_loyalty_tx_customer ON loyalty_transactions(customer_id)');
+
+    // ─── User Settings Table (cloud-synced key-value) ───
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS user_settings (
+        id TEXT PRIMARY KEY,
+        key TEXT NOT NULL,
+        value TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL
+      )
+    ''');
+    await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_user_settings_key ON user_settings(key)');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -794,6 +806,21 @@ class DBHelper {
       ''');
       try {
         await db.execute('CREATE UNIQUE INDEX idx_snapshot_year_month ON revenue_snapshots(year, month)');
+      } catch (_) {} // Index may already exist
+    }
+
+    // v16: Add user_settings table for cloud-synced configuration
+    if (oldVersion < 16) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS user_settings (
+          id TEXT PRIMARY KEY,
+          key TEXT NOT NULL,
+          value TEXT NOT NULL DEFAULT '',
+          updated_at TEXT NOT NULL
+        )
+      ''');
+      try {
+        await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_user_settings_key ON user_settings(key)');
       } catch (_) {} // Index may already exist
     }
   }
@@ -1272,7 +1299,7 @@ class DBHelper {
       'items', 'sales', 'expenses', 'cash_till',
       'customers', 'vendors', 'staff', 'attendance', 'purchases',
       'categories', 'clearance_items', 'loyalty_transactions', 'settings',
-      'revenue_snapshots',
+      'revenue_snapshots', 'user_settings',
     ];
     if (kIsWeb) {
       final web = await _web;
@@ -1361,5 +1388,42 @@ class DBHelper {
       }
     }
     return results;
+  }
+
+  // ─── Cloud Settings (synced to Supabase) ───
+
+  /// Save a single cloud setting locally
+  Future<void> saveCloudSetting(String key, String value) async {
+    final now = DateTime.now().toUtc().toIso8601String();
+    final data = {
+      'id': 'setting_$key',
+      'key': key,
+      'value': value,
+      'updated_at': now,
+    };
+    await insert('user_settings', data);
+  }
+
+  /// Get a single cloud setting
+  Future<String?> getCloudSetting(String key) async {
+    final result = await getById('user_settings', 'setting_$key');
+    return result?['value'] as String?;
+  }
+
+  /// Get all cloud settings as a key-value map
+  Future<Map<String, String>> getAllCloudSettings() async {
+    final results = await getAll('user_settings');
+    final map = <String, String>{};
+    for (final r in results) {
+      map[r['key'] as String] = r['value'] as String;
+    }
+    return map;
+  }
+
+  /// Bulk save multiple cloud settings
+  Future<void> bulkSaveCloudSettings(Map<String, String> settings) async {
+    for (final entry in settings.entries) {
+      await saveCloudSetting(entry.key, entry.value);
+    }
   }
 }

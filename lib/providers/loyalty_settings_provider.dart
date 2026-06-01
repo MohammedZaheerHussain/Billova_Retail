@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../data/local/db_helper.dart';
+import '../data/remote/supabase_service.dart';
 
 class LoyaltySettingsProvider extends ChangeNotifier {
   static const _kEnabled = 'loyalty_enabled';
@@ -37,24 +39,38 @@ class LoyaltySettingsProvider extends ChangeNotifier {
   Future<void> setEnabled(bool v) async {
     _enabled = v;
     (await SharedPreferences.getInstance()).setBool(_kEnabled, v);
+    _syncToCloud(_kEnabled, v.toString());
     notifyListeners();
   }
 
   Future<void> setEarnRate(int v) async {
     _earnRate = v;
     (await SharedPreferences.getInstance()).setInt(_kEarnRate, v);
+    _syncToCloud(_kEarnRate, v.toString());
     notifyListeners();
   }
 
   Future<void> setRedeemValue(double v) async {
     _redeemValue = v;
     (await SharedPreferences.getInstance()).setDouble(_kRedeemValue, v);
+    _syncToCloud(_kRedeemValue, v.toString());
     notifyListeners();
   }
 
   Future<void> setMinRedeem(int v) async {
     _minRedeem = v;
     (await SharedPreferences.getInstance()).setInt(_kMinRedeem, v);
+    _syncToCloud(_kMinRedeem, v.toString());
     notifyListeners();
+  }
+
+  /// Sync a loyalty setting to local cloud table + Supabase
+  Future<void> _syncToCloud(String key, String value) async {
+    try {
+      await DBHelper.instance.saveCloudSetting(key, value);
+      SupabaseService.instance.syncSetting(key, value);
+    } catch (e) {
+      debugPrint('⚠️ Loyalty setting sync failed for $key: $e');
+    }
   }
 }

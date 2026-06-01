@@ -103,6 +103,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _saveSettings() async {
     final db = DBHelper.instance;
+    final supabase = SupabaseService.instance;
+
+    // Save locally
     await db.setSetting('shop_name', _shopNameCtrl.text.trim());
     await db.setSetting('shop_address', _shopAddressCtrl.text.trim());
     await db.setSetting('shop_phone', _shopPhoneCtrl.text.trim());
@@ -113,13 +116,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await db.setSetting('gst_number', _gstNumberCtrl.text.trim());
     await db.setSetting('gst_business_name', _gstBusinessNameCtrl.text.trim());
     await db.setSetting('gst_state_code', _gstStateCodeCtrl.text.trim());
+
+    // Sync all settings to Supabase (cloud backup)
+    final settingsMap = <String, String>{
+      'shop_name': _shopNameCtrl.text.trim(),
+      'shop_address': _shopAddressCtrl.text.trim(),
+      'shop_phone': _shopPhoneCtrl.text.trim(),
+      'shop_logo': _shopLogoCtrl.text,
+      'receipt_footer': _receiptFooterCtrl.text.trim(),
+      'gst_enabled': _gstEnabled.toString(),
+      'gst_number': _gstNumberCtrl.text.trim(),
+      'gst_business_name': _gstBusinessNameCtrl.text.trim(),
+      'gst_state_code': _gstStateCodeCtrl.text.trim(),
+      'auto_print': _autoPrint.toString(),
+    };
+    // Save to local cloud settings table
+    await db.bulkSaveCloudSettings(settingsMap);
+    // Push to Supabase (fire-and-forget, non-blocking)
+    supabase.syncAllSettings(settingsMap);
+
     // Refresh GST in SalesProvider
     if (mounted) {
       context.read<SalesProvider>().loadGstSetting();
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Settings saved'),
+        content: const Text('Settings saved & synced to cloud ☁️'),
         backgroundColor: AppColors.success,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
