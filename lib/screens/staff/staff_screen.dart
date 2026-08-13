@@ -868,6 +868,25 @@ class _StaffScreenState extends State<StaffScreen> {
             Text('Live Staff Sales Performance',
                 style: AppTypography.h4.copyWith(color: AppColors.textPrimary(context))),
             const Spacer(),
+            InkWell(
+              onTap: () => _showStaffSalesHistoryDialog(),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.history_rounded, size: 14, color: AppColors.primary),
+                  const SizedBox(width: 5),
+                  Text('History', style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 11)),
+                ]),
+              ),
+            ),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
@@ -1061,6 +1080,382 @@ class _StaffScreenState extends State<StaffScreen> {
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return Formatters.date(dt);
+  }
+
+  void _showStaffSalesHistoryDialog() {
+    final now = DateTime.now();
+    // Default to previous completed month
+    DateTime selectedHistoryMonth = now.month == 1
+        ? DateTime(now.year - 1, 12, 1)
+        : DateTime(now.year, now.month - 1, 1);
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final monthLabel = Formatters.monthYear(selectedHistoryMonth);
+
+            return Dialog(
+              backgroundColor: AppColors.card(context),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 820, maxHeight: 650),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ─── Dialog Header ───
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: AppColors.primaryGradient,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.history_rounded, color: Colors.white, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'STAFF SALES HISTORY',
+                                style: AppTypography.h4.copyWith(
+                                  color: AppColors.textPrimary(context),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                'Historical sales performance by month',
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: AppColors.textTertiary(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          // ─── Month Picker Button ───
+                          GestureDetector(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: selectedHistoryMonth,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now(),
+                                helpText: 'Select History Month',
+                                initialEntryMode: DatePickerEntryMode.calendarOnly,
+                              );
+                              if (picked != null) {
+                                setDialogState(() {
+                                  selectedHistoryMonth = DateTime(picked.year, picked.month, 1);
+                                });
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.calendar_month_rounded, size: 15, color: AppColors.primary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    monthLabel,
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Icon(Icons.arrow_drop_down_rounded, size: 18, color: AppColors.primary),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            icon: Icon(Icons.close_rounded, color: AppColors.textTertiary(context)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // ─── Month Summary Info Bar ───
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface(context),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.cardBorder(context)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded, size: 14, color: AppColors.textSecondary(context)),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Showing performance metrics for $monthLabel',
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.textSecondary(context),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // ─── Table Header ───
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface(context),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(flex: 2, child: Text('STAFF', style: _headerStyle)),
+                            Expanded(flex: 1, child: Text('TARGET', style: _headerStyle)),
+                            Expanded(flex: 1, child: Text('TOTAL SALES', style: _headerStyle)),
+                            Expanded(flex: 1, child: Text('BILLS', style: _headerStyle)),
+                            Expanded(flex: 1, child: Text('AVG BILL', style: _headerStyle)),
+                            Expanded(flex: 2, child: Text('TARGET PROGRESS', style: _headerStyle)),
+                            Expanded(flex: 1, child: Text('LAST SALE', style: _headerStyle)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+
+                      // ─── Staff History List ───
+                      Expanded(
+                        child: Consumer2<StaffProvider, SalesProvider>(
+                          builder: (context, staffProvider, salesProvider, _) {
+                            final staffMembers = staffProvider.staff;
+                            if (staffMembers.isEmpty) {
+                              return Center(
+                                child: Text(
+                                  'No staff members found',
+                                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context)),
+                                ),
+                              );
+                            }
+
+                            final historyStats = salesProvider.getStaffSalesStatsForMonth(selectedHistoryMonth);
+
+                            return ListView.separated(
+                              itemCount: staffMembers.length,
+                              separatorBuilder: (_, __) => Divider(color: AppColors.cardBorder(context), height: 1),
+                              itemBuilder: (_, i) {
+                                final staff = staffMembers[i];
+                                final stats = historyStats[staff.id];
+
+                                final monthlySales = (stats?['monthlySales'] as double?) ?? 0.0;
+                                final monthlyBills = (stats?['monthlyBills'] as int?) ?? 0;
+                                final avgBill = monthlyBills > 0 ? monthlySales / monthlyBills : 0.0;
+                                final target = staff.monthlySaleTarget;
+                                final progress = target > 0 ? (monthlySales / target).clamp(0.0, 1.5) : 0.0;
+                                final progressPct = (progress * 100).round();
+                                final lastSale = stats?['lastSaleTime'] as DateTime?;
+
+                                Color progressColor;
+                                if (progressPct >= 100) {
+                                  progressColor = AppColors.success;
+                                } else if (progressPct >= 60) {
+                                  progressColor = AppColors.accent;
+                                } else if (progressPct >= 30) {
+                                  progressColor = AppColors.warning;
+                                } else {
+                                  progressColor = AppColors.error;
+                                }
+
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  child: Row(
+                                    children: [
+                                      // Staff Name + Avatar
+                                      Expanded(
+                                        flex: 2,
+                                        child: Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 16,
+                                              backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                                              child: Text(
+                                                staff.name.isNotEmpty ? staff.name[0].toUpperCase() : '?',
+                                                style: AppTypography.mono.copyWith(
+                                                  color: AppColors.primary,
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Text(
+                                                staff.name,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: AppTypography.bodyMedium.copyWith(
+                                                  color: AppColors.textPrimary(context),
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      // Target
+                                      Expanded(
+                                        flex: 1,
+                                        child: Text(
+                                          Formatters.currency(target),
+                                          style: AppTypography.mono.copyWith(
+                                            color: AppColors.textSecondary(context),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                      // Total Sales
+                                      Expanded(
+                                        flex: 1,
+                                        child: Text(
+                                          Formatters.currency(monthlySales),
+                                          style: AppTypography.mono.copyWith(
+                                            color: monthlySales > 0 ? AppColors.success : AppColors.textPrimary(context),
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                      // Bills
+                                      Expanded(
+                                        flex: 1,
+                                        child: Text(
+                                          '$monthlyBills',
+                                          style: AppTypography.mono.copyWith(
+                                            color: AppColors.textSecondary(context),
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                      // Avg Bill
+                                      Expanded(
+                                        flex: 1,
+                                        child: Text(
+                                          Formatters.currency(avgBill),
+                                          style: AppTypography.mono.copyWith(
+                                            color: AppColors.textSecondary(context),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                      // Target Progress
+                                      Expanded(
+                                        flex: 2,
+                                        child: target > 0
+                                            ? Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        ClipRRect(
+                                                          borderRadius: BorderRadius.circular(4),
+                                                          child: LinearProgressIndicator(
+                                                            value: progress.clamp(0.0, 1.0).toDouble(),
+                                                            minHeight: 8,
+                                                            backgroundColor: AppColors.surface(context),
+                                                            valueColor: AlwaysStoppedAnimation(progressColor),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(height: 3),
+                                                        Text(
+                                                          '${Formatters.currency(monthlySales)} / ${Formatters.currency(target)}',
+                                                          style: AppTypography.labelSmall.copyWith(
+                                                            color: AppColors.textTertiary(context),
+                                                            fontSize: 9,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: progressColor.withValues(alpha: 0.15),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: Text(
+                                                      '$progressPct%',
+                                                      style: AppTypography.mono.copyWith(
+                                                        color: progressColor,
+                                                        fontWeight: FontWeight.w700,
+                                                        fontSize: 11,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              )
+                                            : Text(
+                                                'No target',
+                                                style: AppTypography.labelSmall.copyWith(
+                                                  color: AppColors.textTertiary(context),
+                                                ),
+                                              ),
+                                      ),
+                                      // Last Sale
+                                      Expanded(
+                                        flex: 1,
+                                        child: Text(
+                                          lastSale != null ? Formatters.dateShort(lastSale) : '—',
+                                          style: AppTypography.mono.copyWith(
+                                            color: AppColors.textSecondary(context),
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text('Close', style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }
 

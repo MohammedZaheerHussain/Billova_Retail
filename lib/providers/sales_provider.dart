@@ -146,6 +146,36 @@ class SalesProvider extends ChangeNotifier {
     return stats;
   }
 
+  /// Per-staff sales analytics for a specific historical month.
+  /// Filters sales where sale.createdAt >= startOfMonth and < startOfNextMonth.
+  Map<String, Map<String, dynamic>> getStaffSalesStatsForMonth(DateTime selectedMonth) {
+    final startOfMonth = DateTime(selectedMonth.year, selectedMonth.month, 1);
+    final startOfNextMonth = DateTime(selectedMonth.year, selectedMonth.month + 1, 1);
+
+    final Map<String, Map<String, dynamic>> stats = {};
+    for (final sale in _allSales) {
+      if (sale.staffId.isEmpty) continue;
+      final saleDate = sale.createdAt.toLocal();
+      if (saleDate.isBefore(startOfMonth) || !saleDate.isBefore(startOfNextMonth)) continue;
+
+      stats.putIfAbsent(sale.staffId, () => {
+        'staffName': sale.staffName,
+        'monthlySales': 0.0,
+        'monthlyBills': 0,
+        'lastSaleTime': saleDate,
+      });
+      final s = stats[sale.staffId]!;
+      if (sale.staffName.isNotEmpty) s['staffName'] = sale.staffName;
+
+      s['monthlySales'] = (s['monthlySales'] as double) + sale.total;
+      s['monthlyBills'] = (s['monthlyBills'] as int) + 1;
+      if (saleDate.isAfter(s['lastSaleTime'] as DateTime)) {
+        s['lastSaleTime'] = saleDate;
+      }
+    }
+    return stats;
+  }
+
   // Getters — Cart
   List<SaleItem> get cart => _cart;
   String get customerName => _customerName;
