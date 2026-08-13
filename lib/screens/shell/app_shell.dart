@@ -233,13 +233,16 @@ class _AppShellState extends State<AppShell> {
       final categoryProvider = context.read<CategoryProvider>();
       final clearanceProvider = context.read<ClearanceProvider>();
 
+      final now = DateTime.now();
+      final monthStart = DateTime(now.year, now.month, 1);
+
       await Future.wait([
         inventory.loadItems(),
         sales.loadSales(),
         expenses.loadExpenses(),
         cashTill.loadToday(),
         staffProvider.loadStaff(),
-        staffProvider.loadTodayAttendance(),
+        staffProvider.loadAttendanceHistory(from: monthStart, to: now),
         customerProvider.loadCustomers(),
         vendorProvider.loadVendors(),
         purchaseProvider.loadPurchases(),

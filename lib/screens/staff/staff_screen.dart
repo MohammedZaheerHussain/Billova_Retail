@@ -19,7 +19,7 @@ class StaffScreen extends StatefulWidget {
 }
 
 class _StaffScreenState extends State<StaffScreen> {
-  DateFilterType _dateFilter = DateFilterType.today;
+  DateFilterType _dateFilter = DateFilterType.thisMonth;
   DateTime? _customStart;
   DateTime? _customEnd;
   String? _selectedStaffId; // null = All Staff
@@ -40,12 +40,7 @@ class _StaffScreenState extends State<StaffScreen> {
       customStart: _customStart,
       customEnd: _customEnd,
     );
-    // For "today" use the dedicated loader (faster, uses _todayDate)
-    if (_dateFilter == DateFilterType.today) {
-      provider.loadTodayAttendance();
-    } else {
-      provider.loadAttendanceHistory(from: range.start, to: range.end);
-    }
+    provider.loadAttendanceHistory(from: range.start, to: range.end);
   }
 
   Future<void> _pickCustomRange(StaffProvider provider) async {
