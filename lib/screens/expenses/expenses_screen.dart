@@ -53,13 +53,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   Future<void> _pickCustomRange(ExpenseProvider provider) async {
     final now = DateTime.now();
+    final defaultStart = DateTime(now.year, now.month - 1, 1);
+    final defaultEnd = DateTime(now.year, now.month, 0);
+
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2024),
       lastDate: now,
       initialDateRange: DateTimeRange(
-        start: provider.customStart ?? now.subtract(Duration(days: 7)),
-        end: provider.customEnd ?? now,
+        start: provider.customStart ?? defaultStart,
+        end: provider.customEnd ?? defaultEnd,
       ),
       builder: (context, child) {
         return Theme(
@@ -131,6 +134,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   selected: provider.filterType,
                   onChanged: (type) => provider.setFilter(type),
                   onCustomTap: () => _pickCustomRange(provider),
+                  customStart: provider.customStart,
+                  customEnd: provider.customEnd,
                 ),
                 SizedBox(height: 16),
 
@@ -302,7 +307,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${DateFilterHelper.filterLabel(provider.filterType)} Expenses',
+                            '${DateFilterHelper.filterLabel(provider.filterType, customStart: provider.customStart, customEnd: provider.customEnd)} Expenses',
                             style: AppTypography.labelMedium.copyWith(color: AppColors.error),
                           ),
                           SizedBox(height: 2),

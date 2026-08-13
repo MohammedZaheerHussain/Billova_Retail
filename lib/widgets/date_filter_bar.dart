@@ -8,12 +8,16 @@ class DateFilterBar extends StatelessWidget {
   final DateFilterType selected;
   final ValueChanged<DateFilterType> onChanged;
   final VoidCallback? onCustomTap;
+  final DateTime? customStart;
+  final DateTime? customEnd;
 
   const DateFilterBar({
     super.key,
     required this.selected,
     required this.onChanged,
     this.onCustomTap,
+    this.customStart,
+    this.customEnd,
   });
 
   @override
@@ -26,7 +30,7 @@ class DateFilterBar extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: _FilterChip(
-              label: DateFilterHelper.filterLabel(type),
+              label: DateFilterHelper.filterLabel(type, customStart: customStart, customEnd: customEnd),
               icon: _iconFor(type),
               isActive: isActive,
               onTap: () {
@@ -49,6 +53,7 @@ class DateFilterBar extends StatelessWidget {
       case DateFilterType.yesterday: return Icons.history_rounded;
       case DateFilterType.thisWeek: return Icons.date_range_rounded;
       case DateFilterType.thisMonth: return Icons.calendar_month_rounded;
+      case DateFilterType.lastMonth: return Icons.history_toggle_off_rounded;
       case DateFilterType.custom: return Icons.tune_rounded;
     }
   }

@@ -1,9 +1,12 @@
+import 'formatters.dart';
+
 /// Date filter types for smart date-based reporting
 enum DateFilterType {
   today,
   yesterday,
   thisWeek,
   thisMonth,
+  lastMonth,
   custom,
 }
 
@@ -35,6 +38,12 @@ class DateFilterHelper {
       case DateFilterType.thisMonth:
         final monthStart = DateTime(now.year, now.month, 1);
         return (start: monthStart, end: todayEnd);
+      case DateFilterType.lastMonth:
+        final lastMonthStart = now.month == 1
+            ? DateTime(now.year - 1, 12, 1)
+            : DateTime(now.year, now.month - 1, 1);
+        final lastMonthEnd = DateTime(now.year, now.month, 1);
+        return (start: lastMonthStart, end: lastMonthEnd);
       case DateFilterType.custom:
         return (
           start: customStart ?? todayStart,
@@ -66,13 +75,18 @@ class DateFilterHelper {
   }
 
   /// Filter type display label
-  static String filterLabel(DateFilterType type) {
+  static String filterLabel(DateFilterType type, {DateTime? customStart, DateTime? customEnd}) {
     switch (type) {
       case DateFilterType.today: return 'Today';
       case DateFilterType.yesterday: return 'Yesterday';
       case DateFilterType.thisWeek: return 'This Week';
       case DateFilterType.thisMonth: return 'This Month';
-      case DateFilterType.custom: return 'Custom';
+      case DateFilterType.lastMonth: return 'Last Month';
+      case DateFilterType.custom:
+        if (customStart != null && customEnd != null) {
+          return '${Formatters.dateShort(customStart)} – ${Formatters.dateShort(customEnd)}';
+        }
+        return 'Custom';
     }
   }
 
