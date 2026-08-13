@@ -175,9 +175,9 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       _customerPhoneCtrl.text.trim(),
     );
 
-    // Set discount (already applied via percentage)
-    final discountPct = double.tryParse(_discountCtrl.text) ?? 0;
-    sales.setDiscount(discountPct);
+    // Note: Discount is already set in SalesProvider when the user types in % Off or ₹ Off fields.
+    // Do NOT call sales.setDiscount(_discountCtrl.text) here — parsing the 1-decimal UI display string
+    // causes precision loss (e.g. 31.25% truncated to 31.3% causes a ₹1 discrepancy).
 
     // ─── Calculate loyalty discount ───
     final loyalty = context.read<LoyaltySettingsProvider>();
@@ -1074,7 +1074,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
                             sales.setDiscountAmount(amt);
                             // Auto-sync % field
                             final pct = sales.discountPercent;
-                            _discountCtrl.text = pct > 0 ? pct.toStringAsFixed(1) : '';
+                            _discountCtrl.text = pct > 0 ? (pct % 1 == 0 ? pct.toStringAsFixed(0) : pct.toStringAsFixed(2)) : '';
                             _isEditingDiscount = false;
                           }),
                     ),

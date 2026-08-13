@@ -56,6 +56,7 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
   bool _sidebarExpanded = true;
+  bool _isInitializing = true;
   final FocusNode _focusNode = FocusNode();
 
   void _onNavigateTo() {
@@ -65,7 +66,6 @@ class _AppShellState extends State<AppShell> {
     if (idx >= 0 && mounted) setState(() => _selectedIndex = idx);
     AppShell.navigateTo.value = ''; // reset
   }
-
 
   // F-key → absolute nav index mapping
   static final Map<LogicalKeyboardKey, int> _shortcutMap = {
@@ -196,90 +196,95 @@ class _AppShellState extends State<AppShell> {
 
   Future<void> _loadAllData() async {
     if (!mounted) return;
+    setState(() => _isInitializing = true);
 
-    // ─── STEP 1: Pull from Supabase FIRST (cloud → local) ───
-    // On web, _WebDB is in-memory — starts empty every restart.
-    // We MUST pull cloud data before providers try to read local DB.
-    // EXCEPTION: If staff login already pulled everything, skip re-pull.
-    if (AppShell.dataPreloaded) {
-      debugPrint('⚡ Data already preloaded by staff login — skipping pull');
-      AppShell.dataPreloaded = false; // Reset for next session
-    } else {
+    try {
+      // ─── STEP 1: Pull from Supabase FIRST (cloud → local) ───
+      if (AppShell.dataPreloaded) {
+        debugPrint('⚡ Data already preloaded by staff login — skipping pull');
+        AppShell.dataPreloaded = false; // Reset for next session
+      } else {
+        try {
+          final supabase = SupabaseService.instance;
+          if (supabase.isLoggedIn) {
+            debugPrint('🧹 Clearing local DB before pull (data isolation)...');
+            final db = DBHelper.instance;
+            await db.clearAllData();
+            debugPrint('📥 Pulling data from Supabase for user: ${supabase.userId}...');
+            await supabase.pullAllData();
+            debugPrint('📥 Pull complete — now loading providers');
+          }
+        } catch (e) {
+          debugPrint('⚠️ Supabase pull failed (will use local data): $e');
+        }
+      }
+
+      if (!mounted) return;
+
+      // ─── STEP 2: Load providers from local DB (now populated) ───
+      final inventory = context.read<InventoryProvider>();
+      final sales = context.read<SalesProvider>();
+      final expenses = context.read<ExpenseProvider>();
+      final cashTill = context.read<CashTillProvider>();
+      final staffProvider = context.read<StaffProvider>();
+      final customerProvider = context.read<CustomerProvider>();
+      final vendorProvider = context.read<VendorProvider>();
+      final purchaseProvider = context.read<PurchaseProvider>();
+      final categoryProvider = context.read<CategoryProvider>();
+      final clearanceProvider = context.read<ClearanceProvider>();
+
+      await Future.wait([
+        inventory.loadItems(),
+        sales.loadSales(),
+        expenses.loadExpenses(),
+        cashTill.loadToday(),
+        staffProvider.loadStaff(),
+        staffProvider.loadTodayAttendance(),
+        customerProvider.loadCustomers(),
+        vendorProvider.loadVendors(),
+        purchaseProvider.loadPurchases(),
+        categoryProvider.loadCategories(),
+        clearanceProvider.loadClearanceRecords(),
+      ]);
+
+      // ─── STEP 3: Restore staff session if applicable ───
+      await staffProvider.restoreSession();
+
+      // ─── STEP 4: Process any pending sync queue ───
       try {
         final supabase = SupabaseService.instance;
         if (supabase.isLoggedIn) {
-          debugPrint('🧹 Clearing local DB before pull (data isolation)...');
-          final db = DBHelper.instance;
-          await db.clearAllData();
-          debugPrint('📥 Pulling data from Supabase for user: ${supabase.userId}...');
-          await supabase.pullAllData();
-          debugPrint('📥 Pull complete — now loading providers');
+          await supabase.processSyncQueue();
+        }
+      } catch (_) {}
+
+      // ─── STEP 4.5: Recover any missing customers from sales history ───
+      try {
+        final recovered = await customerProvider.recoverMissingCustomers(sales.allSales);
+        if (recovered > 0) {
+          debugPrint('🔄 Recovered $recovered missing customers from sales history');
         }
       } catch (e) {
-        debugPrint('⚠️ Supabase pull failed (will use local data): $e');
+        debugPrint('⚠️ Customer recovery failed (non-fatal): $e');
       }
-    }
 
-    if (!mounted) return;
-
-    // ─── STEP 2: Load providers from local DB (now populated) ───
-    final inventory = context.read<InventoryProvider>();
-    final sales = context.read<SalesProvider>();
-    final expenses = context.read<ExpenseProvider>();
-    final cashTill = context.read<CashTillProvider>();
-    final staffProvider = context.read<StaffProvider>();
-    final customerProvider = context.read<CustomerProvider>();
-    final vendorProvider = context.read<VendorProvider>();
-    final purchaseProvider = context.read<PurchaseProvider>();
-    final categoryProvider = context.read<CategoryProvider>();
-    final clearanceProvider = context.read<ClearanceProvider>();
-
-    await Future.wait([
-      inventory.loadItems(),
-      sales.loadSales(),
-      expenses.loadExpenses(),
-      cashTill.loadToday(),
-      staffProvider.loadStaff(),
-      staffProvider.loadTodayAttendance(),
-      customerProvider.loadCustomers(),
-      vendorProvider.loadVendors(),
-      purchaseProvider.loadPurchases(),
-      categoryProvider.loadCategories(),
-      clearanceProvider.loadClearanceRecords(),
-    ]);
-
-    // ─── STEP 3: Restore staff session if applicable ───
-    await staffProvider.restoreSession();
-
-    // ─── STEP 4: Process any pending sync queue ───
-    try {
-      final supabase = SupabaseService.instance;
-      if (supabase.isLoggedIn) {
-        await supabase.processSyncQueue();
+      // ─── STEP 4.6: Auto-cleanup old attendance records (60+ days) ───
+      try {
+        await staffProvider.cleanupOldAttendance();
+      } catch (e) {
+        debugPrint('⚠️ Attendance cleanup failed (non-fatal): $e');
       }
-    } catch (_) {}
 
-    // ─── STEP 4.5: Recover any missing customers from sales history ───
-    // This fixes customers lost due to the gst_number column bug.
-    try {
-      final recovered = await customerProvider.recoverMissingCustomers(sales.allSales);
-      if (recovered > 0) {
-        debugPrint('🔄 Recovered $recovered missing customers from sales history');
-      }
+      // ─── STEP 5: Signal screens to reload with fresh data ───
+      AppShell.dataVersion.value++;
+      debugPrint('📢 dataVersion bumped to ${AppShell.dataVersion.value}');
     } catch (e) {
-      debugPrint('⚠️ Customer recovery failed (non-fatal): $e');
+      debugPrint('⚠️ Error during _loadAllData: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isInitializing = false);
+      }
     }
-
-    // ─── STEP 4.6: Auto-cleanup old attendance records (60+ days) ───
-    try {
-      await staffProvider.cleanupOldAttendance();
-    } catch (e) {
-      debugPrint('⚠️ Attendance cleanup failed (non-fatal): $e');
-    }
-
-    // ─── STEP 5: Signal screens to reload with fresh data ───
-    AppShell.dataVersion.value++;
-    debugPrint('📢 dataVersion bumped to ${AppShell.dataVersion.value}');
   }
 
   /// Get filtered nav items based on staff role
@@ -311,6 +316,48 @@ class _AppShellState extends State<AppShell> {
     final isSmall = width < 800;
     if (isSmall && _sidebarExpanded) _sidebarExpanded = false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (_isInitializing) {
+      return Scaffold(
+        backgroundColor: isDark ? AppColors.scaffoldDark : AppColors.scaffoldLight,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.receipt_long_rounded,
+                  size: 32,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Initializing Skywalk Workspace...',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Focus(
       focusNode: _focusNode,

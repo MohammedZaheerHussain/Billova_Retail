@@ -39,20 +39,32 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _checkSession() async {
-    // Wait for animation to play
-    await Future.delayed(const Duration(milliseconds: 2000));
+    try {
+      // Wait for animation to play
+      await Future.delayed(const Duration(milliseconds: 2000));
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    final auth = context.read<AuthProvider>();
-    await auth.checkSession();
+      final auth = context.read<AuthProvider>();
+      await auth.checkSession().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('⚠️ Splash session check timed out — falling back to login');
+        },
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (auth.isAuthenticated) {
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      Navigator.pushReplacementNamed(context, '/login');
+      if (auth.isAuthenticated) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Session check error in SplashScreen: $e');
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
     }
   }
 

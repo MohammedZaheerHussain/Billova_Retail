@@ -23,14 +23,41 @@ class InventoryScreen extends StatefulWidget {
 class _InventoryScreenState extends State<InventoryScreen> {
   final Set<String> _collapsedCategories = {};
   String? _selectedCategory; // null = show all
+  // Month selector state — defaults to current month
+  late DateTime _selectedMonth;
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _selectedMonth = DateTime(now.year, now.month);
     Future.microtask(() {
       final catProvider = context.read<CategoryProvider>();
       if (catProvider.categories.isEmpty) catProvider.loadCategories();
     });
+  }
+
+  String get _monthLabel {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return '${months[_selectedMonth.month - 1]} ${_selectedMonth.year}';
+  }
+
+  Future<void> _pickMonth(BuildContext context) async {
+    // Show date picker — user picks any day; we only use year+month
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedMonth,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      helpText: 'Select Month',
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
+    );
+    if (picked != null) {
+      setState(() => _selectedMonth = DateTime(picked.year, picked.month));
+    }
   }
 
   /// Group items by category name. Uncategorized items go to "Uncategorized".
@@ -71,10 +98,32 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       style: AppTypography.h1.copyWith(color: AppColors.textPrimary(context)))),
                     _statChip('${provider.totalItems}', 'Items', AppColors.primary),
                     const SizedBox(width: 8),
-                    if (provider.lowStockCount > 0)
+                    if (provider.lowStockCount > 0) ...[
                       _statChip('${provider.lowStockCount}', 'Low', AppColors.warning),
+                      const SizedBox(width: 8),
+                    ],
+                    // ─── Month Selector ───
+                    GestureDetector(
+                      onTap: () => _pickMonth(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.calendar_month_rounded, size: 15, color: AppColors.primary),
+                          const SizedBox(width: 6),
+                          Text(_monthLabel,
+                            style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13)),
+                          const SizedBox(width: 2),
+                          Icon(Icons.arrow_drop_down_rounded, size: 18, color: AppColors.primary),
+                        ]),
+                      ),
+                    ),
                     if (perms.canAddInventory) ...[
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       ElevatedButton.icon(
                         onPressed: () => _showItemForm(context),
                         icon: Icon(Icons.add_rounded, size: 20),
@@ -386,14 +435,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final userRole = context.read<AuthProvider>().userType;
     final perms = PermissionHelper(userRole);
 
-    // Calculate total sold & revenue from all sales history
+    // ── Month-filtered sales stats ──
+    // Only count sales whose createdAt falls within the selected month.
     // Revenue and profit use ACTUAL paid amounts (after bill discount),
     // not MRP. Discount is proportionally distributed across items.
     final allSales = context.read<SalesProvider>().allSales;
+    final monthSales = allSales.where((sale) {
+      final d = sale.createdAt.toLocal();
+      return d.year == _selectedMonth.year && d.month == _selectedMonth.month;
+    }).toList();
+
     int totalSold = 0;
     double totalRevenue = 0;
     double totalProfit = 0;
-    for (final sale in allSales) {
+    for (final sale in monthSales) {
       for (final si in sale.items) {
         if (si.itemId == item.id) {
           totalSold += si.quantity;
@@ -489,7 +544,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     item.profitMargin > 0 ? AppColors.success : AppColors.error)),
                 ]),
                 const SizedBox(height: 8),
-                // ─── Sales Performance Row ───
+                // ─── Month-Wise Sales Performance ───
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+                  ),
+                  child: Row(children: [
+                    Icon(Icons.calendar_month_rounded, size: 13, color: AppColors.primary),
+                    const SizedBox(width: 5),
+                    Text('Performance for $_monthLabel',
+                      style: TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+                const SizedBox(height: 6),
                 Row(children: [
                   Expanded(child: _detailCard(context, 'Total Sold', '$totalSold units',
                     totalSold > 0 ? AppColors.accent : AppColors.primary)),
