@@ -58,17 +58,22 @@
     }
   </script>
   <script>
+    // Force purge all service workers and caches so users always see the latest release immediately
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
         for (var i = 0; i < registrations.length; i++) {
-          registrations[i].update();
+          registrations[i].unregister();
         }
       });
-      navigator.serviceWorker.addEventListener('controllerchange', function() {
-        window.location.reload();
+    }
+    if ('caches' in window) {
+      caches.keys().then(function(keys) {
+        for (var i = 0; i < keys.length; i++) {
+          caches.delete(keys[i]);
+        }
       });
     }
   </script>
-  <script src="flutter_bootstrap.js?v=3" async></script>
+  <script src="flutter_bootstrap.js?v=4" async></script>
 </body>
 </html>
