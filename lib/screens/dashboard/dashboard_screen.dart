@@ -34,6 +34,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double _stockValue = 0;
   double _stockCost = 0;
   int _lowStockCount = 0;
+  int _outOfStockCount = 0;
   double _todayExpenses = 0;
   int _todaySalesCount = 0;
   double _todayProfit = 0;
@@ -169,8 +170,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _todaySalesCount = results[3] as int;
         _recentSales = results[4] as List<Map<String, dynamic>>;
         _chartData = chartData;
-        _lowStockItems = results[6] as List<Map<String, dynamic>>;
-        _lowStockCount = _lowStockItems.length;
+        final lowStockRaw = results[6] as List<Map<String, dynamic>>;
+        _lowStockItems = lowStockRaw;
+        _outOfStockCount = lowStockRaw.where((i) => ((i['quantity'] as num?)?.toInt() ?? 0) == 0).length;
+        _lowStockCount = lowStockRaw.where((i) => ((i['quantity'] as num?)?.toInt() ?? 0) > 0).length;
         _todayProfit = analytics.todayNetProfit;
         _topProducts = topProducts;
         _paymentDistribution = paymentDist;
@@ -287,7 +290,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 18),
             ],
 
-            // ─── SECTION 2: Executive KPI Summary (6 Equal Cards) ───
+            // ─── SECTION 2: Executive KPI Summary (7 Equal Cards) ───
             _buildExecutiveKpiSection(),
             const SizedBox(height: 28),
 
@@ -515,12 +518,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ─── Section 2: Executive KPI Summary (6 Enterprise Cards) ───
+  // ─── Section 2: Executive KPI Summary (7 Enterprise Cards) ───
   Widget _buildExecutiveKpiSection() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 1150 ? 6
-            : constraints.maxWidth > 720 ? 3 : 2;
+        final crossAxisCount = constraints.maxWidth > 1250 ? 7
+            : constraints.maxWidth > 800 ? 4
+            : constraints.maxWidth > 550 ? 3 : 2;
         final cardWidth = (constraints.maxWidth - (12.0 * (crossAxisCount - 1))) / crossAxisCount;
         const cardHeight = 118.0;
 
@@ -549,9 +553,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 'Cost: ${Formatters.currencyCompact(_stockCost)}', Icons.inventory_2_rounded,
                 AppColors.primaryGradient, badgeColor: AppColors.accent),
             _kpiCard('Low Stock', _lowStockCount.toString(),
-                _lowStockCount > 0 ? 'Need restock' : 'Optimal level', Icons.warning_rounded,
+                _lowStockCount > 0 ? 'Need restock' : 'Optimal level', Icons.warning_amber_rounded,
                 AppColors.warningGradient, badgeColor: AppColors.warning,
                 onTap: () => _openStockDrawer('low')),
+            _kpiCard('Out of Stock', _outOfStockCount.toString(),
+                _outOfStockCount > 0 ? 'Zero inventory' : 'None', Icons.block_rounded,
+                AppColors.errorGradient, badgeColor: AppColors.error,
+                onTap: () => _openStockDrawer('out')),
           ],
         );
       },
@@ -568,7 +576,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           color: AppColors.card(context),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: onTap != null
-              ? AppColors.warning.withValues(alpha: 0.35)
+              ? badgeColor.withValues(alpha: 0.35)
               : AppColors.cardBorder(context)),
           boxShadow: [
             BoxShadow(
