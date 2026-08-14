@@ -297,15 +297,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _buildSalesOverviewSection(),
             const SizedBox(height: 28),
 
-            // ─── SECTION 4: Business Health (Full-Width Intelligence) ───
-            if (_insights.isNotEmpty) ...[
-              _buildSectionHeading('Business Health & Intelligence', 'Automated anomaly detection, growth signals, and inventory alerts', Icons.insights_rounded),
-              const SizedBox(height: 14),
-              _buildBusinessHealthSection(),
-              const SizedBox(height: 28),
-            ],
-
-            // ─── SECTION 5: Performance Analytics ("What Makes Money?") ───
+            // ─── SECTION 4: Performance Analytics ("What Makes Money?") ───
             if (_analytics != null) ...[
               _buildSectionHeading('Performance Analytics', 'Revenue drivers, product rankings, and profitability breakdown', Icons.trending_up_rounded),
               const SizedBox(height: 14),
@@ -313,11 +305,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 28),
             ],
 
-            // ─── SECTION 6: Financial Monitoring (Compact Enterprise Cards) ───
+            // ─── SECTION 5: Financial Monitoring (Compact Enterprise Cards) ───
             _buildSectionHeading('Financial Monitoring & Alerts', 'Real-time receivables, payables, and low stock thresholds', Icons.account_balance_wallet_outlined),
             const SizedBox(height: 14),
             _buildFinancialMonitoringSection(),
             const SizedBox(height: 28),
+
+            // ─── SECTION 6: Business Health (Operational Health Signals) ───
+            if (_insights.isNotEmpty) ...[
+              _buildSectionHeading('Business Health & Intelligence', 'Automated anomaly detection, growth signals, and inventory alerts', Icons.insights_rounded),
+              const SizedBox(height: 14),
+              _buildBusinessHealthSection(),
+              const SizedBox(height: 28),
+            ],
 
             // ─── SECTION 7: AI Business Advisor (Bottom Placement) ───
             _buildSectionHeading('AI Business Advisor', 'Generative retail analytics, strategic insights, and demand forecasting', Icons.auto_awesome_rounded),
@@ -961,7 +961,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   crossAxisCount: crossAxisCount,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
-                  childAspectRatio: crossAxisCount == 1 ? 3.5 : 2.5,
+                  childAspectRatio: crossAxisCount == 1 ? 4.0 : crossAxisCount == 2 ? 3.2 : 3.0,
                 ),
                 itemBuilder: (context, index) {
                   return _insightCard(_insights[index]);
@@ -1028,32 +1028,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // ─── Section 5: Performance Analytics ("What Makes Money?") ───
+  // ─── Section 4: Performance Analytics ("What Makes Money?") ───
   Widget _buildPerformanceAnalyticsSection() {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth > 1150) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: _buildTopProducts()),
-              const SizedBox(width: 14),
-              Expanded(child: _buildCategoryRevenueChart()),
-              const SizedBox(width: 14),
-              Expanded(child: _buildProfitBreakdown()),
-            ],
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: _buildTopProducts()),
+                const SizedBox(width: 14),
+                Expanded(child: _buildCategoryRevenueChart()),
+                const SizedBox(width: 14),
+                Expanded(child: _buildProfitBreakdown()),
+              ],
+            ),
           );
         }
         if (constraints.maxWidth > 750) {
           return Column(
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _buildTopProducts()),
-                  const SizedBox(width: 14),
-                  Expanded(child: _buildCategoryRevenueChart()),
-                ],
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: _buildTopProducts()),
+                    const SizedBox(width: 14),
+                    Expanded(child: _buildCategoryRevenueChart()),
+                  ],
+                ),
               ),
               const SizedBox(height: 14),
               _buildProfitBreakdown(),
@@ -1095,13 +1099,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ]),
           const SizedBox(height: 14),
           if (_topProducts.isEmpty)
-            Center(child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Text('No product data yet',
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))),
-            ))
+            Expanded(
+              child: Center(
+                child: Text('No product data yet',
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))),
+              ),
+            )
           else
-            ..._topProducts.asMap().entries.map((e) {
+            ..._topProducts.asMap().entries.take(5).map((e) {
               final p = e.value;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -1116,7 +1121,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(width: 10),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(p['name'] as String, style: AppTypography.bodyMedium.copyWith(
+                    Text(p['name'] as String, style: AppTypography.bodySmall.copyWith(
                         color: AppColors.textPrimary(context), fontWeight: FontWeight.w500, fontSize: 12.5),
                         overflow: TextOverflow.ellipsis),
                     Text('${p['count']} units sold', style: AppTypography.labelSmall.copyWith(
@@ -1227,8 +1232,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 12),
           if (topCats.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
+            Expanded(
               child: Center(
                 child: Text('No revenue data for $filterLabel',
                     style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context))),
@@ -1372,32 +1376,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ─── Section 6: Financial Monitoring (Compact Side-by-Side Enterprise Cards) ───
+  // ─── Section 5: Financial Monitoring (Compact Side-by-Side Enterprise Cards) ───
   Widget _buildFinancialMonitoringSection() {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth > 1050) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: _buildCustomerDuesCompact()),
-              const SizedBox(width: 14),
-              Expanded(child: _buildVendorDuesCompact()),
-              const SizedBox(width: 14),
-              Expanded(child: _buildLowStockCompact()),
-            ],
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: _buildCustomerDuesCompact()),
+                const SizedBox(width: 14),
+                Expanded(child: _buildVendorDuesCompact()),
+                const SizedBox(width: 14),
+                Expanded(child: _buildLowStockCompact()),
+              ],
+            ),
           );
         }
         if (constraints.maxWidth > 700) {
           return Column(
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _buildCustomerDuesCompact()),
-                  const SizedBox(width: 14),
-                  Expanded(child: _buildVendorDuesCompact()),
-                ],
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: _buildCustomerDuesCompact()),
+                    const SizedBox(width: 14),
+                    Expanded(child: _buildVendorDuesCompact()),
+                  ],
+                ),
               ),
               const SizedBox(height: 14),
               _buildLowStockCompact(),
@@ -1454,8 +1462,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ]),
           const SizedBox(height: 12),
           if (_customersWithDues.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 18),
+            Expanded(
               child: Center(child: Text('No pending customer dues',
                   style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context), fontSize: 12))),
             )
@@ -1492,6 +1499,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ]),
               ),
             )),
+            const Spacer(),
             if (_customersWithDues.length > 5)
               Align(
                 alignment: Alignment.centerRight,
@@ -1547,8 +1555,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ]),
           const SizedBox(height: 12),
           if (_vendorsWithDues.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 18),
+            Expanded(
               child: Center(child: Text('No pending vendor dues',
                   style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context), fontSize: 12))),
             )
@@ -1585,6 +1592,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ]),
               ),
             )),
+            const Spacer(),
             if (_vendorsWithDues.length > 5)
               Align(
                 alignment: Alignment.centerRight,
@@ -1640,14 +1648,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ]),
           const SizedBox(height: 12),
           if (_lowStockItems.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 18),
+            Expanded(
               child: Center(child: Text('All stock levels optimal',
                   style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context), fontSize: 12))),
             )
-          else
+          else ...[
             ..._lowStockItems.take(5).map((item) {
               final isZero = (item['quantity'] as int) == 0;
+              final name = item['name'] as String? ?? 'Item';
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Container(
@@ -1658,14 +1666,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     border: Border.all(color: AppColors.cardBorder(context)),
                   ),
                   child: Row(children: [
-                    Expanded(child: Text(item['name'] as String, style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textPrimary(context), fontWeight: FontWeight.w500, fontSize: 11.5),
-                        overflow: TextOverflow.ellipsis)),
+                    Container(
+                      width: 22, height: 22,
+                      decoration: BoxDecoration(
+                        color: (isZero ? AppColors.error : AppColors.warning).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(5)),
+                      child: Center(
+                        child: Icon(
+                          isZero ? Icons.remove_circle_outline_rounded : Icons.inventory_2_outlined,
+                          size: 12,
+                          color: isZero ? AppColors.error : AppColors.warning,
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 8),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(name, style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.textPrimary(context), fontWeight: FontWeight.w500, fontSize: 11.5),
+                          overflow: TextOverflow.ellipsis),
+                      Text(isZero ? 'Immediate reorder needed' : 'Below safety threshold',
+                          style: AppTypography.labelSmall.copyWith(
+                              color: isZero ? AppColors.error : AppColors.textTertiary(context), fontSize: 9.5)),
+                    ])),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: isZero ? AppColors.errorBg : AppColors.warningBg,
+                        color: (isZero ? AppColors.error : AppColors.warning).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(4)),
                       child: Text(isZero ? '0 Out' : '${item['quantity']} left', style: AppTypography.monoSmall.copyWith(
                           color: isZero ? AppColors.error : AppColors.warning,
@@ -1675,6 +1701,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               );
             }),
+            const Spacer(),
+            if (_lowStockItems.length > 5)
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: () => _openStockDrawer('low'),
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text('+ ${_lowStockItems.length - 5} more items...',
+                        style: TextStyle(color: AppColors.accent, fontSize: 10.5, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ),
+          ],
         ],
       ),
     );
