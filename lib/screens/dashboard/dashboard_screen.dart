@@ -548,7 +548,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 badgeColor: _todayProfit >= 0 ? AppColors.success : AppColors.error),
             _kpiCard('Expenses', Formatters.currency(_todayExpenses),
                 'Today outflow', Icons.money_off_rounded,
-                AppColors.errorGradient, badgeColor: AppColors.error),
+                AppColors.errorGradient, badgeColor: AppColors.error,
+                onTap: () => AppShell.navigateTo.value = 'Expenses'),
             _kpiCard('Stock Value', Formatters.currencyCompact(_stockValue),
                 'Cost: ${Formatters.currencyCompact(_stockCost)}', Icons.inventory_2_rounded,
                 AppColors.primaryGradient, badgeColor: AppColors.accent),
@@ -634,7 +635,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 if (onTap != null)
                   Icon(Icons.arrow_forward_ios_rounded, size: 9,
-                      color: AppColors.warning.withValues(alpha: 0.8)),
+                      color: badgeColor.withValues(alpha: 0.8)),
               ],
             ),
           ],
