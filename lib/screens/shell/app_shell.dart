@@ -35,6 +35,7 @@ import '../returns/return_exchange_screen.dart';
 import '../clearance/clearance_stock_screen.dart';
 import '../loans/loans_chits_screen.dart';
 import '../reports/crm_reports_screen.dart';
+import '../../providers/app_update_provider.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -139,6 +140,12 @@ class _AppShellState extends State<AppShell> {
       _loadAllData();
       _focusNode.requestFocus();
       _startAutoSync();
+      // Check for updates non-blockingly after app initialization
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          context.read<AppUpdateProvider>().checkForUpdate(context: context);
+        }
+      });
     });
   }
 

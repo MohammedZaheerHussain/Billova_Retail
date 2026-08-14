@@ -18,6 +18,7 @@ class SupabaseService {
   SupabaseService._();
 
   SupabaseClient get _client => Supabase.instance.client;
+  SupabaseClient get client => _client;
   DBHelper get _db => DBHelper.instance;
 
   // ─── Auth ───

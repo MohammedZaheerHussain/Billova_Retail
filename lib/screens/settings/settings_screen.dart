@@ -22,6 +22,8 @@ import '../../data/remote/supabase_service.dart';
 import 'dart:html' as html;
 import '../../core/utils/data_export_service.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/config/app_version.dart';
+import '../../providers/app_update_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -1679,33 +1681,104 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]),
         ),
 
-        // App Info
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-            leading: Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(10),
+        // App Info & Version Updates
+        Consumer<AppUpdateProvider>(
+          builder: (context, updateProv, _) {
+            final hasUpdate = updateProv.hasUpdate;
+            final isChecking = updateProv.isChecking;
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surface(context),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: hasUpdate
+                        ? AppColors.accent.withValues(alpha: 0.5)
+                        : AppColors.cardBorder(context),
+                  ),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  leading: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.primaryGradient,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.rocket_launch_rounded, size: 20, color: Colors.white),
+                  ),
+                  title: Row(
+                    children: [
+                      Text(
+                        'SKYWALK Billing',
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.textPrimary(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'v${AppVersion.currentVersion}',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  subtitle: Text(
+                    hasUpdate
+                        ? '🚀 Version ${updateProv.latestVersion?.version} is available!'
+                        : 'Built for commercial retail • Auto-sync enabled',
+                    style: AppTypography.labelSmall.copyWith(
+                      color: hasUpdate ? AppColors.accent : AppColors.textTertiary(context),
+                      fontWeight: hasUpdate ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                  trailing: isChecking
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : ElevatedButton.icon(
+                          onPressed: () {
+                            updateProv.checkForUpdate(isManual: true, context: context);
+                          },
+                          icon: Icon(
+                            hasUpdate ? Icons.system_update_rounded : Icons.refresh_rounded,
+                            size: 14,
+                          ),
+                          label: Text(
+                            hasUpdate ? 'Update' : 'Check Updates',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: hasUpdate ? AppColors.accent : AppColors.card(context),
+                            foregroundColor: hasUpdate ? Colors.white : AppColors.textPrimary(context),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            elevation: 0,
+                            side: BorderSide(
+                              color: hasUpdate ? AppColors.accent : AppColors.cardBorder(context),
+                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                ),
               ),
-              child: const Icon(Icons.storefront_rounded, size: 20, color: Colors.white),
-            ),
-            title: Text('SKYWALK Billing', style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textPrimary(context), fontWeight: FontWeight.w600)),
-            subtitle: Text('Version 2.0.0 — Built for commercial retail',
-              style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context))),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text('v2.0', style: TextStyle(
-                color: AppColors.success, fontSize: 10, fontWeight: FontWeight.w700)),
-            ),
-          ),
+            );
+          },
         ),
 
         // Branding Card
