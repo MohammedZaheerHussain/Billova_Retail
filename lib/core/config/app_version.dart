@@ -3,10 +3,10 @@ class AppVersion {
   AppVersion._();
 
   /// Current compiled application version
-  static const String currentVersion = '1.0.0';
+  static const String currentVersion = '1.0.1';
 
   /// Current internal build number
-  static const int currentBuildNumber = 1;
+  static const int currentBuildNumber = 2;
 
   /// App name
   static const String appName = 'SKYWALK Billing';

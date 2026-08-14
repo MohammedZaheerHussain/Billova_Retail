@@ -110754,8 +110754,8 @@ if(h.b===200){a1=h
 g=B.ag.j3(0,A.k1(A.jZ(a1.e)).cw(0,a1.w),null)
 if(t.a.b(g))m=A.bac(g)}case 15:if(m==null){q=B.kA
 s=1
-break}f=A.bmb(m.a,"1.0.0")>0
-e=m.b>1&&m.a==="1.0.0"
+break}f=A.bmb(m.a,"1.0.1")>0
+e=m.b>2&&m.a==="1.0.1"
 d=f||e
 if(!d){q=B.kA
 s=1
@@ -113216,7 +113216,7 @@ Date.now()
 j=m.c
 i=m.d
 i=i==null?null:i.a
-A.ai().$1("\ud83d\ude80 AppUpdateProvider: checked -> hasUpdate="+j+", latest="+A.n(i)+", current=1.0.0")
+A.ai().$1("\ud83d\ude80 AppUpdateProvider: checked -> hasUpdate="+j+", latest="+A.n(i)+", current=1.0.1")
 j=!1
 if(m.c)if(m.d!=null)j=a.e!=null
 if(j){j=m.d
@@ -125555,7 +125555,7 @@ q=$.c4()
 q=A.e("SKYWALK Billing",j,j,j,q.ba(A.c(a).ax.a===B.b?B.t:B.q,B.H),j,j,j)
 p=B.x.B(0.15)
 o=A.l(6)
-o=A.B(A.a([q,B.K,A.F(j,A.e("v1.0.0",j,j,j,A.a4(j,j,B.x,j,j,j,j,j,j,j,j,11,j,j,B.C,j,j,!0,j,j,j,j,j,j,j,j),j,j,j),B.l,j,j,new A.C(p,j,j,o,j,j,B.m),j,j,j,j,B.em,j,j,j)],t.p),B.j,B.h,B.i,0)
+o=A.B(A.a([q,B.K,A.F(j,A.e("v1.0.1",j,j,j,A.a4(j,j,B.x,j,j,j,j,j,j,j,j,11,j,j,B.C,j,j,!0,j,j,j,j,j,j,j,j),j,j,j),B.l,j,j,new A.C(p,j,j,o,j,j,B.m),j,j,j,j,B.em,j,j,j)],t.p),B.j,B.h,B.i,0)
 if(i){q=b.d
 q="\ud83d\ude80 Version "+A.n(q==null?j:q.a)+" is available!"}else q="Built for commercial retail \u2022 Auto-sync enabled"
 p=$.ak()
@@ -128271,7 +128271,7 @@ q=B.r.B(0.2)
 p=A.l(20)
 o=A.aB(B.r.B(0.5),1)
 n=t.p
-p=A.a([A.F(m,A.B(A.a([A.e("v1.0.0",m,m,m,B.ao6,m,m,m),B.agM,A.e("v"+l.a,m,m,m,B.anV,m,m,m)],n),B.j,B.h,B.T,0),B.l,m,m,new A.C(q,m,o,p,m,m,B.m),m,m,m,m,B.dr,m,m,m)],n)
+p=A.a([A.F(m,A.B(A.a([A.e("v1.0.1",m,m,m,B.ao6,m,m,m),B.agM,A.e("v"+l.a,m,m,m,B.anV,m,m,m)],n),B.j,B.h,B.T,0),B.l,m,m,new A.C(q,m,o,p,m,m,B.m),m,m,m,m,B.dr,m,m,m)],n)
 l=l.c
 if(l.length!==0){q=A.l(20)
 o=A.aB(B.iO,1)
