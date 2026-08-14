@@ -694,6 +694,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildChart() {
+    final maxY = _chartData.isEmpty ? 100.0
+        : (_chartData.map((e) => (e['total'] as num).toDouble()).reduce((a, b) => a > b ? a : b) * 1.25);
+    final avgDaily = _chartData.isNotEmpty ? _weekSales / _chartData.length : 0.0;
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -708,22 +712,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(children: [
-                Icon(Icons.bar_chart_rounded, size: 18, color: AppColors.primary),
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6)),
+                  child: const Icon(Icons.bar_chart_rounded, size: 15, color: AppColors.accent),
+                ),
                 const SizedBox(width: 8),
-                Text('Sales Trend (Last 7 Days)', style: AppTypography.h4.copyWith(
-                  color: AppColors.textPrimary(context),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                )),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Sales Trend (Last 7 Days)', style: AppTypography.h4.copyWith(
+                      color: AppColors.textPrimary(context),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5,
+                    )),
+                    Text('Daily revenue activity', style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.textTertiary(context), fontSize: 10)),
+                  ],
+                ),
               ]),
-              Text(Formatters.currency(_weekSales), style: AppTypography.mono.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              )),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(Formatters.currency(_weekSales), style: AppTypography.mono.copyWith(
+                    color: AppColors.accent,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  )),
+                  Text('Avg ${Formatters.currency(avgDaily)}/day', style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.textTertiary(context), fontSize: 9.5)),
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           SizedBox(
             height: 200,
             child: _chartData.isEmpty
@@ -732,13 +756,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 : BarChart(
                     BarChartData(
                       alignment: BarChartAlignment.spaceAround,
-                      maxY: _chartData.isEmpty ? 100
-                          : (_chartData.map((e) => (e['total'] as num).toDouble()).reduce((a, b) => a > b ? a : b) * 1.2),
+                      maxY: maxY <= 0 ? 100 : maxY,
                       borderData: FlBorderData(show: false),
                       gridData: FlGridData(
-                        show: true, drawVerticalLine: false,
+                        show: true,
+                        drawVerticalLine: false,
                         getDrawingHorizontalLine: (value) => FlLine(
-                          color: AppColors.cardBorder(context).withValues(alpha: 0.5), strokeWidth: 1),
+                          color: AppColors.cardBorder(context).withValues(alpha: 0.6),
+                          strokeWidth: 1,
+                          dashArray: [4, 4],
+                        ),
+                      ),
+                      barTouchData: BarTouchData(
+                        enabled: true,
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipColor: (group) => const Color(0xFF0F172A),
+                          tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          tooltipMargin: 8,
+                          tooltipRoundedRadius: 8,
+                          tooltipBorder: const BorderSide(color: Color(0xFF334155), width: 1),
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final item = groupIndex >= 0 && groupIndex < _chartData.length
+                                ? _chartData[groupIndex]
+                                : null;
+                            final dateStr = item != null ? (item['date'] as String) : '';
+                            final count = item != null ? (item['count'] ?? 1) : 1;
+                            final day = dateStr.length >= 10 ? dateStr.substring(8, 10) : dateStr;
+                            
+                            return BarTooltipItem(
+                              '${Formatters.currency(rod.toY)}\n',
+                              const TextStyle(
+                                color: Color(0xFF00E5FF),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                                letterSpacing: 0.3,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: '$day Aug • $count ${count == 1 ? "bill" : "bills"}',
+                                  style: const TextStyle(
+                                    color: Color(0xFFE2E8F0),
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 10.5,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
                       ),
                       titlesData: FlTitlesData(
                         leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -747,18 +812,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
+                            reservedSize: 26,
                             getTitlesWidget: (value, meta) {
                               final index = value.toInt();
                               if (index >= 0 && index < _chartData.length) {
                                 final date = _chartData[index]['date'] as String;
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 8),
-                                  child: Text(date.substring(8, 10),
-                                      style: AppTypography.labelSmall.copyWith(
-                                        color: AppColors.textTertiary(context),
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                      )),
+                                  child: Text(
+                                    date.length >= 10 ? date.substring(8, 10) : date,
+                                    style: AppTypography.labelSmall.copyWith(
+                                      color: AppColors.textSecondary(context),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 );
                               }
                               return const SizedBox();
@@ -767,14 +835,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       barGroups: _chartData.asMap().entries.map((entry) {
-                        return BarChartGroupData(x: entry.key, barRods: [
-                          BarChartRodData(
-                            toY: (entry.value['total'] as num).toDouble(),
-                            width: 18,
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
-                            gradient: AppColors.primaryGradient,
-                          ),
-                        ]);
+                        final val = (entry.value['total'] as num).toDouble();
+                        return BarChartGroupData(
+                          x: entry.key,
+                          barRods: [
+                            BarChartRodData(
+                              toY: val,
+                              width: 18,
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+                              gradient: const LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                colors: [
+                                  Color(0xFF6C5CE7),
+                                  Color(0xFF00D2FF),
+                                ],
+                              ),
+                              backDrawRodData: BackgroundBarChartRodData(
+                                show: true,
+                                toY: maxY <= 0 ? 100 : maxY,
+                                color: AppColors.primary.withValues(alpha: 0.04),
+                              ),
+                            ),
+                          ],
+                        );
                       }).toList(),
                     ),
                   ),
