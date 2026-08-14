@@ -640,15 +640,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth > 1150) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(flex: 3, child: _buildChart()),
-              const SizedBox(width: 14),
-              Expanded(flex: 2, child: _buildPaymentPieChart()),
-              const SizedBox(width: 14),
-              Expanded(flex: 2, child: _buildRecentSales()),
-            ],
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(flex: 3, child: _buildChart()),
+                const SizedBox(width: 14),
+                Expanded(flex: 2, child: _buildPaymentPieChart()),
+                const SizedBox(width: 14),
+                Expanded(flex: 2, child: _buildRecentSales()),
+              ],
+            ),
           );
         }
         if (constraints.maxWidth > 750) {
@@ -656,13 +658,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               _buildChart(),
               const SizedBox(height: 14),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _buildPaymentPieChart()),
-                  const SizedBox(width: 14),
-                  Expanded(child: _buildRecentSales()),
-                ],
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: _buildPaymentPieChart()),
+                    const SizedBox(width: 14),
+                    Expanded(child: _buildRecentSales()),
+                  ],
+                ),
               ),
             ],
           );
@@ -796,8 +800,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ]),
           const SizedBox(height: 16),
           if (_paymentDistribution.isEmpty || total == 0)
-            SizedBox(
-              height: 180,
+            Expanded(
               child: Center(child: Text('No sales data yet',
                   style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context)))),
             )
@@ -855,53 +858,92 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Recent Transactions', style: AppTypography.h4.copyWith(
-                color: AppColors.textPrimary(context),
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-              )),
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6)),
+                child: const Icon(Icons.receipt_long_rounded, color: AppColors.accent, size: 14),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Recent Transactions', style: AppTypography.h4.copyWith(
+                      color: AppColors.textPrimary(context),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    )),
+                    Text('${_recentSales.length} latest sales', style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.textTertiary(context), fontSize: 10)),
+                  ],
+                ),
+              ),
               GestureDetector(
                 onTap: () => AppShell.navigateTo.value = 'Bill History',
-                child: Text('View All', style: TextStyle(
-                  color: AppColors.accent,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                )),
+                child: Row(children: [
+                  Text('View All', style: TextStyle(
+                    color: AppColors.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  )),
+                  const SizedBox(width: 3),
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: AppColors.accent),
+                ]),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           if (_recentSales.isEmpty)
-            Padding(padding: const EdgeInsets.symmetric(vertical: 24),
+            Expanded(
               child: Center(child: Text('No sales yet today',
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context)))))
-          else
-            ...List.generate(_recentSales.length, (index) {
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary(context), fontSize: 12))),
+            )
+          else ...[
+            ...List.generate(_recentSales.length.clamp(0, 5), (index) {
               final sale = _recentSales[index];
               return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(children: [
-                  Container(
-                    width: 32, height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(8)),
-                    child: const Icon(Icons.receipt_rounded, size: 16, color: AppColors.accent),
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface(context),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.cardBorder(context)),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(sale['invoice_number'] as String? ?? 'INV-0000',
-                        style: AppTypography.mono.copyWith(color: AppColors.textPrimary(context), fontSize: 12, fontWeight: FontWeight.w600)),
-                    Text(sale['customer_name'] as String? ?? 'Walk-in',
-                        style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context), fontSize: 10)),
-                  ])),
-                  Text(Formatters.currency((sale['total'] as num).toDouble()),
-                      style: AppTypography.mono.copyWith(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w700)),
-                ]),
+                  child: Row(children: [
+                    Container(
+                      width: 22, height: 22,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(5)),
+                      child: const Center(
+                        child: Icon(Icons.receipt_outlined, size: 12, color: AppColors.accent),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(sale['invoice_number'] as String? ?? 'INV-0000',
+                          style: AppTypography.mono.copyWith(color: AppColors.textPrimary(context), fontSize: 11.5, fontWeight: FontWeight.w600)),
+                      Text(sale['customer_name'] as String? ?? 'Walk-in',
+                          style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary(context), fontSize: 9.5)),
+                    ])),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4)),
+                      child: Text(Formatters.currency((sale['total'] as num).toDouble()),
+                          style: AppTypography.mono.copyWith(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w700)),
+                    ),
+                  ]),
+                ),
               );
             }),
+            const Spacer(),
+          ],
         ],
       ),
     );
