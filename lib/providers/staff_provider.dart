@@ -27,11 +27,14 @@ class StaffProvider extends ChangeNotifier {
     lockoutDuration: const Duration(seconds: 60),
   );
 
+  List<AttendanceModel> _allAttendance = [];
+
   // ─── Getters ───
   List<StaffModel> get staff => _staff;
   List<StaffModel> get activeStaff => _staff.where((s) => s.isActive).toList();
+  List<AttendanceModel> get allAttendance => _allAttendance;
   List<AttendanceModel> get todayAttendance => _todayAttendance;
-  List<AttendanceModel> get attendanceHistory => _attendanceHistory;
+  List<AttendanceModel> get attendanceHistory => _attendanceHistory.isNotEmpty ? _attendanceHistory : _allAttendance;
   StaffModel? get currentStaff => _currentStaff;
   bool get isLoading => _isLoading;
   bool get isStaffLoggedIn => _currentStaff != null;
@@ -275,41 +278,56 @@ class StaffProvider extends ChangeNotifier {
 
   // ─── Attendance ───
 
-  Future<void> loadTodayAttendance() async {
+  /// Load all attendance records from local database
+  Future<void> loadAttendance() async {
     try {
       final maps = await _db.query(
         'attendance',
-        where: 'date = ? AND is_deleted = 0',
-        whereArgs: [_todayDate],
-        orderBy: 'clock_in_time DESC',
+        where: 'is_deleted = 0',
+        orderBy: 'date DESC, clock_in_time DESC',
       );
-      _todayAttendance = maps.map((m) => AttendanceModel.fromMap(m)).toList();
-      debugPrint('⏱️ loadTodayAttendance: ${_todayAttendance.length} records '
-          'for $_todayDate (staff: ${_todayAttendance.map((a) => a.staffName).join(", ")})');
+      _allAttendance = maps.map((m) => AttendanceModel.fromMap(m)).toList();
+      _todayAttendance = _allAttendance.where((a) => a.date == _todayDate).toList();
+      _attendanceHistory = List.from(_allAttendance);
+      debugPrint('⏱️ loadAttendance: ${_allAttendance.length} records loaded (${_todayAttendance.length} today)');
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to load attendance: $e');
     }
   }
 
+  Future<void> loadTodayAttendance() async {
+    await loadAttendance();
+  }
+
   /// Load attendance history for a date range
   Future<void> loadAttendanceHistory({required DateTime from, required DateTime to}) async {
-    try {
-      final fromStr = '${from.year}-${from.month.toString().padLeft(2, '0')}-${from.day.toString().padLeft(2, '0')}';
-      final toStr = '${to.year}-${to.month.toString().padLeft(2, '0')}-${to.day.toString().padLeft(2, '0')}';
-      final maps = await _db.query(
-        'attendance',
-        where: 'date >= ? AND date <= ? AND is_deleted = 0',
-        whereArgs: [fromStr, toStr],
-        orderBy: 'date DESC, clock_in_time DESC',
-      );
-      _attendanceHistory = maps.map((m) => AttendanceModel.fromMap(m)).toList();
+    await loadAttendance();
+  }
 
-      // Also refresh today's data to keep it in sync
-      await loadTodayAttendance();
-    } catch (e) {
-      debugPrint('Failed to load attendance history: $e');
+  /// Get attendance records for a specific date range and optional staff filter
+  List<AttendanceModel> getAttendanceForRange({
+    required DateTime from,
+    required DateTime to,
+    String? staffId,
+  }) {
+    final fromStr = '${from.year}-${from.month.toString().padLeft(2, '0')}-${from.day.toString().padLeft(2, '0')}';
+    final toStr = '${to.year}-${to.month.toString().padLeft(2, '0')}-${to.day.toString().padLeft(2, '0')}';
+
+    var list = _allAttendance.where((a) {
+      return a.date.compareTo(fromStr) >= 0 && a.date.compareTo(toStr) <= 0;
+    }).toList();
+
+    if (staffId != null) {
+      list = list.where((a) => a.staffId == staffId).toList();
     }
+
+    list.sort((a, b) {
+      final d = b.date.compareTo(a.date);
+      return d != 0 ? d : b.clockInTime.compareTo(a.clockInTime);
+    });
+
+    return list;
   }
 
   /// Cleanup attendance older than 60 days (best-effort)
@@ -329,6 +347,7 @@ class StaffProvider extends ChangeNotifier {
       }
       if (oldRecords.isNotEmpty) {
         debugPrint('🧹 Cleaned up ${oldRecords.length} attendance records older than 60 days');
+        await loadAttendance();
       }
     } catch (e) {
       debugPrint('Failed to cleanup attendance: $e');
@@ -342,7 +361,13 @@ class StaffProvider extends ChangeNotifier {
         (a) => a.staffId == staffId && a.isOpen,
       );
     } catch (_) {
-      return null;
+      try {
+        return _allAttendance.firstWhere(
+          (a) => a.staffId == staffId && a.isOpen,
+        );
+      } catch (_) {
+        return null;
+      }
     }
   }
 
@@ -355,7 +380,7 @@ class StaffProvider extends ChangeNotifier {
 
     try {
       // Load attendance first to check for existing shifts
-      await loadTodayAttendance();
+      await loadAttendance();
       debugPrint('   ⏱️ _autoClockIn: ${_todayAttendance.length} attendance records for today');
 
       // Check for existing open shift — prevent duplicate clock-in
@@ -413,6 +438,7 @@ class StaffProvider extends ChangeNotifier {
       }
 
       _todayAttendance.insert(0, attendance);
+      _allAttendance.insert(0, attendance);
       debugPrint('   ⏱️ clockIn: SUCCESS — ${_todayAttendance.length} total today records');
       notifyListeners();
       return true;
@@ -449,6 +475,10 @@ class StaffProvider extends ChangeNotifier {
 
       final idx = _todayAttendance.indexWhere((a) => a.id == updated.id);
       if (idx != -1) _todayAttendance[idx] = updated;
+
+      final allIdx = _allAttendance.indexWhere((a) => a.id == updated.id);
+      if (allIdx != -1) _allAttendance[allIdx] = updated;
+
       notifyListeners();
       return true;
     } catch (e) {

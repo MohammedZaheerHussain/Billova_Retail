@@ -242,7 +242,7 @@ class _AppShellState extends State<AppShell> {
         expenses.loadExpenses(),
         cashTill.loadToday(),
         staffProvider.loadStaff(),
-        staffProvider.loadAttendanceHistory(from: monthStart, to: now),
+        staffProvider.loadAttendance(),
         customerProvider.loadCustomers(),
         vendorProvider.loadVendors(),
         purchaseProvider.loadPurchases(),

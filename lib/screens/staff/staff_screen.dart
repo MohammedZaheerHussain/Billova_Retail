@@ -10,6 +10,7 @@ import '../../providers/staff_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../data/models/staff_model.dart';
 import '../../data/models/attendance_model.dart';
+import '../shell/app_shell.dart';
 
 class StaffScreen extends StatefulWidget {
   const StaffScreen({super.key});
@@ -19,7 +20,7 @@ class StaffScreen extends StatefulWidget {
 }
 
 class _StaffScreenState extends State<StaffScreen> {
-  DateFilterType _dateFilter = DateFilterType.thisMonth;
+  DateFilterType _dateFilter = DateFilterType.today;
   DateTime? _customStart;
   DateTime? _customEnd;
   String? _selectedStaffId; // null = All Staff
@@ -27,20 +28,30 @@ class _StaffScreenState extends State<StaffScreen> {
   @override
   void initState() {
     super.initState();
+    AppShell.dataVersion.addListener(_onDataVersionChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<StaffProvider>();
       provider.loadStaff();
-      _loadAttendance(provider);
+      provider.loadAttendance();
     });
   }
 
+  void _onDataVersionChanged() {
+    if (mounted) {
+      final provider = context.read<StaffProvider>();
+      provider.loadStaff();
+      provider.loadAttendance();
+    }
+  }
+
+  @override
+  void dispose() {
+    AppShell.dataVersion.removeListener(_onDataVersionChanged);
+    super.dispose();
+  }
+
   void _loadAttendance(StaffProvider provider) {
-    final range = DateFilterHelper.getRange(
-      _dateFilter,
-      customStart: _customStart,
-      customEnd: _customEnd,
-    );
-    provider.loadAttendanceHistory(from: range.start, to: range.end);
+    provider.loadAttendance();
   }
 
   Future<void> _pickCustomRange(StaffProvider provider) async {
@@ -531,21 +542,20 @@ class _StaffScreenState extends State<StaffScreen> {
   }
 
   Widget _buildAttendanceLog(StaffProvider provider) {
-    // Merge today + history, deduplicate by id
-    final historyIds = provider.attendanceHistory.map((r) => r.id).toSet();
-    var all = [
-      ...provider.attendanceHistory,
-      ...provider.todayAttendance.where((r) => !historyIds.contains(r.id)),
-    ];
-    all.sort((a, b) {
-      final d = b.date.compareTo(a.date);
-      return d != 0 ? d : b.clockInTime.compareTo(a.clockInTime);
-    });
+    final range = DateFilterHelper.getRange(
+      _dateFilter,
+      customStart: _customStart,
+      customEnd: _customEnd,
+    );
+    final endDate = _dateFilter == DateFilterType.custom
+        ? (_customEnd ?? range.end)
+        : range.end.subtract(const Duration(milliseconds: 1));
 
-    // Staff filter
-    if (_selectedStaffId != null) {
-      all = all.where((r) => r.staffId == _selectedStaffId).toList();
-    }
+    final all = provider.getAttendanceForRange(
+      from: range.start,
+      to: endDate,
+      staffId: _selectedStaffId,
+    );
 
     // Summary stats
     final totalShifts = all.length;

@@ -52,8 +52,10 @@ class AttendanceModel {
   }
 
   factory AttendanceModel.fromMap(Map<String, dynamic> map) {
-    final clockOutStr = map['clock_out_time'] as String? ?? '';
-    final clockIn = _parseAsLocal(map['clock_in_time'] as String);
+    final clockInStr = map['clock_in_time']?.toString() ?? '';
+    final clockIn = clockInStr.isNotEmpty ? _parseAsLocal(clockInStr) : DateTime.now();
+
+    final clockOutStr = map['clock_out_time']?.toString() ?? '';
     DateTime? clockOut;
     if (clockOutStr.isNotEmpty) {
       clockOut = DateTime.tryParse(
@@ -76,18 +78,18 @@ class AttendanceModel {
       hours = diff.isNegative ? 0 : double.parse((diff.inMinutes / 60.0).toStringAsFixed(2));
     }
 
-    final createdAtStr = map['created_at'] as String;
+    final createdAtStr = map['created_at']?.toString() ?? '';
 
     return AttendanceModel(
-      id: map['id'] as String,
-      staffId: map['staff_id'] as String,
-      staffName: map['staff_name'] as String? ?? '',
+      id: map['id']?.toString() ?? '',
+      staffId: map['staff_id']?.toString() ?? '',
+      staffName: map['staff_name']?.toString() ?? '',
       clockInTime: clockIn,
       clockOutTime: clockOut,
       totalHours: hours,
-      date: map['date'] as String? ?? '',
+      date: (map['date']?.toString()) ?? clockIn.toIso8601String().substring(0, 10),
       isDeleted: map['is_deleted'] == 1 || map['is_deleted'] == true,
-      createdAt: _parseAsLocal(createdAtStr),
+      createdAt: createdAtStr.isNotEmpty ? _parseAsLocal(createdAtStr) : clockIn,
     );
   }
 
