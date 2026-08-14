@@ -72,7 +72,6 @@ class SupabaseService {
       await pullTable('revenue_snapshots');
       await pullTable('user_settings');
       await _pullSettings();
-      await pullTable('returns');
       debugPrint('✅ Full data pull complete');
     } catch (e) {
       debugPrint('⚠️ Data pull had errors (non-fatal): $e');
