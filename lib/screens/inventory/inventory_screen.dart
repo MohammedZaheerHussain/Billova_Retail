@@ -620,7 +620,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
   void _printBarcode(BuildContext context, ItemModel item) {
     int count = item.quantity > 0 ? item.quantity : 10;
     String selectedFormat = 'zebra2up'; // 'zebra2up' | 'zebra1up' | 'zebra4x2' | 'a4'
-    bool highDensity = true;
 
     final qtyCtrl = TextEditingController(text: '$count');
 
@@ -746,37 +745,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
-
-                  // ─── High Density 203 DPI Toggle ───
-                  InkWell(
-                    onTap: () => setDialogState(() => highDensity = !highDensity),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          Checkbox(
-                            value: highDensity,
-                            onChanged: (v) => setDialogState(() => highDensity = v ?? true),
-                            activeColor: AppColors.accent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                          ),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('High Density 203 DPI (Crisp Dark Lines)',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                                Text('Pure solid vector lines for sharp thermal barcode scans',
-                                    style: TextStyle(fontSize: 10, color: Colors.grey)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -790,7 +758,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               onPressed: () {
                 Navigator.pop(dialogCtx);
                 final finalQty = (int.tryParse(qtyCtrl.text) ?? count).clamp(1, 500);
-                _doPrintLabels(item, finalQty, format: selectedFormat, highDensity: highDensity);
+                _doPrintLabels(item, finalQty, format: selectedFormat, highDensity: true);
               },
               icon: const Icon(Icons.print_rounded, size: 16),
               label: const Text('Print Labels'),
