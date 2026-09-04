@@ -3,11 +3,12 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/receipt_printer.dart';
 import '../../data/models/sale_model.dart';
 
 class BillDetailDialog extends StatelessWidget {
   final SaleModel sale;
-  BillDetailDialog({super.key, required this.sale});
+  const BillDetailDialog({super.key, required this.sale});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +16,7 @@ class BillDetailDialog extends StatelessWidget {
       backgroundColor: AppColors.card(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480, maxHeight: 600),
+        constraints: const BoxConstraints(maxWidth: 480, maxHeight: 640),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -209,7 +210,7 @@ class BillDetailDialog extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => _shareViaWhatsApp(context),
-                      icon: Icon(Icons.share_rounded, size: 18),
+                      icon: const Icon(Icons.share_rounded, size: 18),
                       label: const Text('WhatsApp'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.success,
@@ -223,7 +224,7 @@ class BillDetailDialog extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => Navigator.pop(context),
-                      icon: Icon(Icons.check_rounded, size: 18),
+                      icon: const Icon(Icons.check_rounded, size: 18),
                       label: const Text('Close'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
@@ -234,6 +235,18 @@ class BillDetailDialog extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () => _printBill(context),
+                icon: const Icon(Icons.print_rounded, size: 18, color: AppColors.accent),
+                label: const Text('Print Bill'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.accent,
+                  side: BorderSide(color: AppColors.accent.withValues(alpha: 0.6)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
               ),
             ],
           ),
@@ -303,5 +316,19 @@ Thank you for your purchase! 🙏
         );
       }
     }
+  }
+
+  void _printBill(BuildContext context) {
+    double cashPaid = sale.cashAmount;
+    double upiPaid = sale.upiAmount;
+    if (cashPaid == 0 && upiPaid == 0) {
+      final mode = sale.paymentMode.toLowerCase();
+      if (mode == 'cash') {
+        cashPaid = sale.total;
+      } else if (mode == 'upi' || mode == 'card' || mode == 'upi/card') {
+        upiPaid = sale.total;
+      }
+    }
+    ReceiptPrinter.manualPrint(sale, cashPaid: cashPaid, upiPaid: upiPaid);
   }
 }
