@@ -131,6 +131,7 @@ class _AppShellState extends State<AppShell> {
   ];
 
   Timer? _syncTimer;
+  Timer? _updateTimer;
 
   @override
   void initState() {
@@ -140,21 +141,34 @@ class _AppShellState extends State<AppShell> {
       _loadAllData();
       _focusNode.requestFocus();
       _startAutoSync();
-      // Check for updates non-blockingly after app initialization
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted) {
-          context.read<AppUpdateProvider>().checkForUpdate(context: context);
-        }
-      });
+      _startUpdateMonitoring();
     });
   }
 
   @override
   void dispose() {
     _syncTimer?.cancel();
+    _updateTimer?.cancel();
     AppShell.navigateTo.removeListener(_onNavigateTo);
     _focusNode.dispose();
     super.dispose();
+  }
+
+  /// Monitor for new version updates: initially after 3s, then every 2 minutes live
+  void _startUpdateMonitoring() {
+    // Initial check
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        context.read<AppUpdateProvider>().checkForUpdate(context: context);
+      }
+    });
+
+    // Periodic live background check
+    _updateTimer = Timer.periodic(const Duration(minutes: 2), (_) {
+      if (mounted) {
+        context.read<AppUpdateProvider>().checkForUpdate(context: context);
+      }
+    });
   }
 
   /// Auto-sync every 60 seconds — processes pending sync queue
@@ -806,6 +820,62 @@ class _AppShellState extends State<AppShell> {
               },
             ),
 
+          // ─── Live Update Banner (Shown when update is ready) ───
+          Consumer<AppUpdateProvider>(
+            builder: (context, updateProv, _) {
+              if (!updateProv.hasUpdate) return const SizedBox.shrink();
+              return Container(
+                margin: EdgeInsets.symmetric(
+                  horizontal: _sidebarExpanded ? 12 : 6,
+                  vertical: 4,
+                ),
+                child: InkWell(
+                  onTap: () => updateProv.checkForUpdate(isManual: true, context: context),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: _sidebarExpanded ? 10 : 6,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.accent.withValues(alpha: 0.25),
+                          const Color(0xFF6C5CE7).withValues(alpha: 0.25),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.accent.withValues(alpha: 0.6)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: _sidebarExpanded
+                          ? MainAxisAlignment.start
+                          : MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.rocket_launch_rounded, size: 14, color: Color(0xFF00F5D4)),
+                        if (_sidebarExpanded) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Update Ready (v${updateProv.latestVersion?.version})',
+                              style: const TextStyle(
+                                color: Color(0xFF00F5D4),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: Color(0xFF00F5D4)),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
           // ─── Session Info + Logout ───
           Consumer2<AuthProvider, StaffProvider>(
             builder: (context, auth, staffProv, _) {
@@ -842,8 +912,9 @@ class _AppShellState extends State<AppShell> {
                     ),
                   );
                   if (confirm == true && mounted) {
-                    // Cancel sync timer before navigating away
+                    // Cancel timers before navigating away
                     _syncTimer?.cancel();
+                    _updateTimer?.cancel();
 
                     // Capture navigator before any async work that may unmount us
                     final navigator = Navigator.of(context);

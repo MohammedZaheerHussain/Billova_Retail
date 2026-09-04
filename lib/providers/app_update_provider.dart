@@ -10,6 +10,7 @@ class AppUpdateProvider extends ChangeNotifier {
 
   bool _isChecking = false;
   bool _hasUpdate = false;
+  bool _isDialogShowing = false;
   AppVersionModel? _latestVersion;
   String? _error;
   DateTime? _lastChecked;
@@ -17,6 +18,7 @@ class AppUpdateProvider extends ChangeNotifier {
   // ─── Getters ───
   bool get isChecking => _isChecking;
   bool get hasUpdate => _hasUpdate;
+  bool get isDialogShowing => _isDialogShowing;
   AppVersionModel? get latestVersion => _latestVersion;
   String? get error => _error;
   DateTime? get lastChecked => _lastChecked;
@@ -43,7 +45,7 @@ class AppUpdateProvider extends ChangeNotifier {
       debugPrint('🚀 AppUpdateProvider: checked -> hasUpdate=$_hasUpdate, '
           'latest=${_latestVersion?.version}, current=$currentVersion');
 
-      if (_hasUpdate && _latestVersion != null && context != null && context.mounted) {
+      if (_hasUpdate && _latestVersion != null && context != null && context.mounted && !_isDialogShowing) {
         _showUpdateDialog(context, _latestVersion!);
       }
     } catch (e) {
@@ -55,24 +57,31 @@ class AppUpdateProvider extends ChangeNotifier {
     }
   }
 
-  /// Display the enterprise update dialog
+  /// Display the enterprise update dialog safely
   void _showUpdateDialog(BuildContext context, AppVersionModel versionInfo) {
+    if (_isDialogShowing) return;
+    _isDialogShowing = true;
+
     showDialog(
       context: context,
       barrierDismissible: !versionInfo.forceUpdate,
       builder: (ctx) => UpdateNotificationDialog(
         versionInfo: versionInfo,
         onUpdate: () async {
+          _isDialogShowing = false;
           await _service.performUpdate(versionInfo);
         },
         onDismiss: () async {
+          _isDialogShowing = false;
           Navigator.of(ctx).pop();
           await _service.dismissUpdate(versionInfo.version);
           _hasUpdate = false;
           notifyListeners();
         },
       ),
-    );
+    ).then((_) {
+      _isDialogShowing = false;
+    });
   }
 
   /// Manually trigger update

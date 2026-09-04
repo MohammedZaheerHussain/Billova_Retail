@@ -39,34 +39,21 @@ class AppUpdateService {
     try {
       AppVersionModel? remoteVersion;
 
-      // 1. Try fetching from Supabase app_versions if available
+      // 1. Fetch from hosted version.json (Vercel static endpoint)
       try {
-        final supabase = SupabaseService.instance;
-        if (supabase.isLoggedIn) {
-          final res = await supabase.client
-              .from('app_versions')
-              .select()
-              .order('created_at', ascending: false)
-              .limit(1);
-
-          if (res.isNotEmpty) {
-            remoteVersion = AppVersionModel.fromJson(Map<String, dynamic>.from(res.first));
-          }
-        }
-      } catch (_) {
-        // Fall back to hosted version.json
-      }
-
-      // 2. Fetch from hosted version.json (Vercel static endpoint)
-      if (remoteVersion == null) {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final url = kIsWeb
-            ? '/version.json?t=$timestamp'
-            : '${AppVersion.productionUrl}/version.json?t=$timestamp';
+        final uri = kIsWeb
+            ? Uri.base.resolve('version.json?t=$timestamp')
+            : Uri.parse('${AppVersion.productionUrl}/version.json?t=$timestamp');
 
-        final response = await http
-            .get(Uri.parse(url), headers: {'Cache-Control': 'no-cache'})
-            .timeout(const Duration(seconds: 4));
+        final response = await http.get(
+          uri,
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+        ).timeout(const Duration(seconds: 5));
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
@@ -74,18 +61,38 @@ class AppUpdateService {
             remoteVersion = AppVersionModel.fromJson(data);
           }
         }
+      } catch (e) {
+        debugPrint('⚠️ Hosted version.json check error: $e');
+      }
+
+      // 2. Fall back to Supabase app_versions if hosted check failed
+      if (remoteVersion == null) {
+        try {
+          final supabase = SupabaseService.instance;
+          if (supabase.isLoggedIn) {
+            final res = await supabase.client
+                .from('app_versions')
+                .select()
+                .order('created_at', ascending: false)
+                .limit(1);
+
+            if (res.isNotEmpty) {
+              remoteVersion = AppVersionModel.fromJson(Map<String, dynamic>.from(res.first));
+            }
+          }
+        } catch (_) {}
       }
 
       if (remoteVersion == null) {
         return const AppUpdateResult(hasUpdate: false);
       }
 
-      // Check if remote version is strictly newer
-      final isNewer = AppVersion.isNewerVersion(remoteVersion.version, AppVersion.currentVersion);
-      final isNewerBuild = remoteVersion.buildNumber > AppVersion.currentBuildNumber &&
-          remoteVersion.version == AppVersion.currentVersion;
+      // Check if remote version is strictly newer by SemVer or higher build number
+      final semVerCmp = AppVersion.compareSemVer(remoteVersion.version, AppVersion.currentVersion);
+      final isNewerVersion = semVerCmp > 0;
+      final isNewerBuild = semVerCmp == 0 && remoteVersion.buildNumber > AppVersion.currentBuildNumber;
 
-      final hasUpdate = isNewer || isNewerBuild;
+      final hasUpdate = isNewerVersion || isNewerBuild;
       if (!hasUpdate) {
         return const AppUpdateResult(hasUpdate: false);
       }
@@ -137,10 +144,21 @@ class AppUpdateService {
     return false;
   }
 
-  /// Trigger the update process
+  /// Trigger the update process with cache clearing
   Future<void> performUpdate(AppVersionModel versionInfo) async {
     if (kIsWeb) {
-      // On web: hard-reload with cache bypass
+      try {
+        // Purge CacheStorage on web
+        if (html.window.caches != null) {
+          final keys = await html.window.caches!.keys();
+          for (final key in keys) {
+            await html.window.caches!.delete(key);
+          }
+        }
+      } catch (e) {
+        debugPrint('⚠️ Cache purge notice: $e');
+      }
+
       try {
         html.window.location.reload();
       } catch (_) {
