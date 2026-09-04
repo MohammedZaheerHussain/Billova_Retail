@@ -89,7 +89,16 @@ class SupabaseService {
       // All tables now have user_id — filter by current user for data isolation
       var query = _client.from(table).select();
       query = query.eq('user_id', userId!);
-      final data = await query.order(orderCol);
+      List<dynamic> data;
+      try {
+        data = await query.order(orderCol);
+      } catch (_) {
+        try {
+          data = await query.order('clock_in_time');
+        } catch (_) {
+          data = await query;
+        }
+      }
 
       if (data.isNotEmpty) {
         // Convert Supabase records to local SQLite format
@@ -168,6 +177,12 @@ class SupabaseService {
         try {
           cloudData['items'] = jsonDecode(cloudData['items'] as String);
         } catch (_) {}
+      }
+      // Prevent PostgreSQL invalid timestamp syntax on empty clock_out_time
+      if (table == 'attendance') {
+        if (cloudData['clock_out_time'] == '' || cloudData['clock_out_time'] == 'null') {
+          cloudData['clock_out_time'] = null;
+        }
       }
       // Strip local-only columns that don't exist in Supabase schema.
       // These cause PGRST204 errors and block sync entirely.

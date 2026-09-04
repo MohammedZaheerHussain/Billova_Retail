@@ -31,9 +31,9 @@ class AttendanceModel {
       'staff_id': staffId,
       'staff_name': staffName,
       'clock_in_time': clockInTime.toIso8601String(),
-      'clock_out_time': clockOutTime?.toIso8601String() ?? '',
+      'clock_out_time': clockOutTime?.toIso8601String(),
       'total_hours': totalHours,
-      'date': date,
+      'date': date.length >= 10 ? date.substring(0, 10) : date,
       'is_deleted': isDeleted ? 1 : 0,
       'created_at': createdAt.toIso8601String(),
     };
@@ -43,27 +43,28 @@ class AttendanceModel {
   /// Reason: DateTime.now().toUtc() stores local IST, toIso8601String() has no offset,
   /// but Supabase adds 'Z' (UTC marker). We must strip it to avoid double-shift.
   static DateTime _parseAsLocal(String s) {
-    // Remove 'Z', '+HH:MM', or '+HHMM' suffixes → Dart parses as local
-    final stripped = s
-        .replaceAll('Z', '')
-        .replaceFirst(RegExp(r'[+-]\d{2}:\d{2}$'), '')
-        .replaceFirst(RegExp(r'[+-]\d{4}$'), '');
-    return DateTime.parse(stripped);
+    if (s.isEmpty) return DateTime.now();
+    try {
+      final stripped = s
+          .replaceAll('Z', '')
+          .replaceFirst(RegExp(r'[+-]\d{2}:\d{2}$'), '')
+          .replaceFirst(RegExp(r'[+-]\d{4}$'), '');
+      return DateTime.parse(stripped);
+    } catch (_) {
+      return DateTime.tryParse(s) ?? DateTime.now();
+    }
   }
 
   factory AttendanceModel.fromMap(Map<String, dynamic> map) {
     final clockInStr = map['clock_in_time']?.toString() ?? '';
-    final clockIn = clockInStr.isNotEmpty ? _parseAsLocal(clockInStr) : DateTime.now();
+    final clockIn = clockInStr.isNotEmpty && clockInStr != 'null'
+        ? _parseAsLocal(clockInStr)
+        : DateTime.now();
 
     final clockOutStr = map['clock_out_time']?.toString() ?? '';
     DateTime? clockOut;
-    if (clockOutStr.isNotEmpty) {
-      clockOut = DateTime.tryParse(
-        clockOutStr
-            .replaceAll('Z', '')
-            .replaceFirst(RegExp(r'[+-]\d{2}:\d{2}$'), '')
-            .replaceFirst(RegExp(r'[+-]\d{4}$'), ''),
-      );
+    if (clockOutStr.isNotEmpty && clockOutStr != 'null') {
+      clockOut = _parseAsLocal(clockOutStr);
     }
 
     // Calculate hours safely — supports overnight shifts
@@ -80,6 +81,13 @@ class AttendanceModel {
 
     final createdAtStr = map['created_at']?.toString() ?? '';
 
+    String dateVal = map['date']?.toString() ?? '';
+    if (dateVal.length >= 10) {
+      dateVal = dateVal.substring(0, 10);
+    } else {
+      dateVal = '${clockIn.year}-${clockIn.month.toString().padLeft(2, '0')}-${clockIn.day.toString().padLeft(2, '0')}';
+    }
+
     return AttendanceModel(
       id: map['id']?.toString() ?? '',
       staffId: map['staff_id']?.toString() ?? '',
@@ -87,9 +95,11 @@ class AttendanceModel {
       clockInTime: clockIn,
       clockOutTime: clockOut,
       totalHours: hours,
-      date: (map['date']?.toString()) ?? clockIn.toIso8601String().substring(0, 10),
+      date: dateVal,
       isDeleted: map['is_deleted'] == 1 || map['is_deleted'] == true,
-      createdAt: createdAtStr.isNotEmpty ? _parseAsLocal(createdAtStr) : clockIn,
+      createdAt: createdAtStr.isNotEmpty && createdAtStr != 'null'
+          ? _parseAsLocal(createdAtStr)
+          : clockIn,
     );
   }
 

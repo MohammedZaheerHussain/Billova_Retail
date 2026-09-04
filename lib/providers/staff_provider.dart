@@ -278,16 +278,26 @@ class StaffProvider extends ChangeNotifier {
 
   // ─── Attendance ───
 
-  /// Load all attendance records from local database
-  Future<void> loadAttendance() async {
+  /// Load all attendance records from local database (and cloud if available)
+  Future<void> loadAttendance({bool pullFromCloud = true}) async {
     try {
+      if (pullFromCloud && _supabase.isLoggedIn) {
+        try {
+          await _supabase.pullTable('attendance');
+        } catch (e) {
+          debugPrint('⚠️ pullTable attendance failed: $e');
+        }
+      }
       final maps = await _db.query(
         'attendance',
         where: 'is_deleted = 0',
         orderBy: 'date DESC, clock_in_time DESC',
       );
       _allAttendance = maps.map((m) => AttendanceModel.fromMap(m)).toList();
-      _todayAttendance = _allAttendance.where((a) => a.date == _todayDate).toList();
+      _todayAttendance = _allAttendance.where((a) {
+        final aDate = a.date.length >= 10 ? a.date.substring(0, 10) : a.date;
+        return aDate == _todayDate;
+      }).toList();
       _attendanceHistory = List.from(_allAttendance);
       debugPrint('⏱️ loadAttendance: ${_allAttendance.length} records loaded (${_todayAttendance.length} today)');
       notifyListeners();
@@ -297,12 +307,12 @@ class StaffProvider extends ChangeNotifier {
   }
 
   Future<void> loadTodayAttendance() async {
-    await loadAttendance();
+    await loadAttendance(pullFromCloud: true);
   }
 
   /// Load attendance history for a date range
   Future<void> loadAttendanceHistory({required DateTime from, required DateTime to}) async {
-    await loadAttendance();
+    await loadAttendance(pullFromCloud: true);
   }
 
   /// Get attendance records for a specific date range and optional staff filter
@@ -315,10 +325,11 @@ class StaffProvider extends ChangeNotifier {
     final toStr = '${to.year}-${to.month.toString().padLeft(2, '0')}-${to.day.toString().padLeft(2, '0')}';
 
     var list = _allAttendance.where((a) {
-      return a.date.compareTo(fromStr) >= 0 && a.date.compareTo(toStr) <= 0;
+      final aDate = a.date.length >= 10 ? a.date.substring(0, 10) : a.date;
+      return aDate.compareTo(fromStr) >= 0 && aDate.compareTo(toStr) <= 0;
     }).toList();
 
-    if (staffId != null) {
+    if (staffId != null && staffId.isNotEmpty) {
       list = list.where((a) => a.staffId == staffId).toList();
     }
 
