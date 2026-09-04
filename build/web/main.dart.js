@@ -32482,25 +32482,25 @@ m=A.cG(m,"\n","\\n")
 h.rt("eval",["      var w = window.open('', '_blank', 'width=320,height=600');\n      if (w) {\n        w.document.write("+("'"+A.cG(m,"\r","")+"'")+");\n        w.document.close();\n        setTimeout(function() { w.print(); }, 600);\n        setTimeout(function() { w.close(); }, 2000);\n      }\n    "])
 return A.t(null,r)}})
 return A.u($async$ml,r)},
-bs1(a3,a4,a5,a6,a7,a8,a9,b0,b1,b2,b3){var s,r,q,p,o,n,m,l,k,j='<div class="divider"></div><table>',i=a8.ch,h=B.e.bS(B.n.j(A.bK(i)),2,"0"),g=B.e.bS(B.n.j(A.av(i)),2,"0"),f=B.e.bS(B.n.j(A.mj(i)),2,"0"),e=B.e.bS(B.n.j(A.Xk(i)),2,"0"),d=B.f.dK(a3+b3),c=a8.w,b=B.f.dK(B.f.bw(B.f.dK(c)-d,0,1/0)),a=a8.r,a0=B.f.dK(a),a1=a8.f,a2=a1>0?a/a1*100:0
+bs1(a3,a4,a5,a6,a7,a8,a9,b0,b1,b2,b3){var s,r,q,p,o,n,m,l,k,j='<div class="divider"></div><table class="payment-table">',i=a8.ch,h=B.e.bS(B.n.j(A.bK(i)),2,"0"),g=B.e.bS(B.n.j(A.av(i)),2,"0"),f=B.e.bS(B.n.j(A.mj(i)),2,"0"),e=B.e.bS(B.n.j(A.Xk(i)),2,"0"),d=B.f.dK(a3+b3),c=a8.w,b=B.f.dK(B.f.bw(B.f.dK(c)-d,0,1/0)),a=a8.r,a0=B.f.dK(a),a1=a8.f,a2=a1>0?a/a1*100:0
 a=a8.e
 s=new A.a1(a,new A.avp(),A.U(a).h("a1<1,m>")).bx(0,"")
-r=b0.length!==0?'<img src="'+b0+'" style="max-width:60px;max-height:60px;margin-bottom:4px;" />':""
+r=b0.length!==0?'<img src="'+b0+'" style="max-width:60px;max-height:60px;margin-bottom:4px;filter:contrast(150%);" />':""
 if(a0>0)q="<tr><td>Discount ("+B.f.T(a2,(a2<0?Math.ceil(a2):Math.floor(a2))===a2?0:1)+'%)</td><td style="text-align:right;">-'+A.ak(a0)+"</td></tr>"
 else q=""
 a=a5&&a8.x>0?'<tr><td>CGST</td><td style="text-align:right;">+'+A.ak(a8.y)+"</td></tr>"+('<tr><td>SGST</td><td style="text-align:right;">+'+A.ak(a8.z)+"</td></tr>"):""
 if(a5&&a6.length!==0){p=a7.length!==0?" | State: "+a7:""
-o='<div style="font-size:10px;">GSTIN: '+a6+p+"</div>"}else o=""
+o='<div class="header-info">GSTIN: '+a6+p+"</div>"}else o=""
 if(d>0){p=a3>0?j+('<tr><td>Cash Paid</td><td style="text-align:right;">'+A.ak(a3)+"</td></tr>"):j
 if(b3>0)p+='<tr><td>UPI/Card</td><td style="text-align:right;">'+A.ak(b3)+"</td></tr>"
-p=(b>0?p+('<tr style="font-weight:bold;"><td>Pending Due</td><td style="text-align:right;">'+A.ak(b)+"</td></tr>"):p)+"</table>"}else p=""
-n=a9.length!==0?"<div>"+a9+"</div>":""
-m=b2.length!==0?"<div>Ph: "+b2+"</div>":""
+p=(b>0?p+('<tr style="font-weight:900;"><td>Pending Due</td><td style="text-align:right;">'+A.ak(b)+"</td></tr>"):p)+"</table>"}else p=""
+n=a9.length!==0?'<div class="header-info">'+a9+"</div>":""
+m=b2.length!==0?'<div class="header-info">Ph: '+b2+"</div>":""
 l=a8.c
-l=l.length!==0?"<div>Customer: "+l+"</div>":""
+l=l.length!==0?'<div class="invoice-info">Customer: '+l+"</div>":""
 k=a8.d
-k=k.length!==0?"<div>Phone: "+k+"</div>":""
-return'<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt</title><style>@page{size:80mm auto;margin:0;}@media print{body{margin:0;}}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:"Courier New",monospace;font-size:12px;width:80mm;padding:8px;color:#000;}.center{text-align:center;}.bold{font-weight:bold;}.divider{border-top:1px dashed #000;margin:6px 0;}table{width:100%;border-collapse:collapse;}.shop-name{font-size:16px;font-weight:bold;}.total-row{font-size:14px;font-weight:bold;}.footer{font-size:10px;margin-top:8px;}</style></head><body><div class="center">'+r+'<div class="shop-name">'+b1+"</div>"+n+m+o+'</div><div class="divider"></div><div><div class="bold">'+a8.b+"</div><div>Date: "+(h+"/"+g+"/"+A.as(i))+" "+(f+":"+e)+"</div>"+l+k+'</div><div class="divider"></div><table><tr style="font-weight:bold;"><td>Item</td><td style="text-align:center;">Qty</td><td style="text-align:right;">Amt</td></tr>'+s+'</table><div class="divider"></div><table><tr><td>Subtotal</td><td style="text-align:right;">'+A.ak(B.f.dK(a1))+"</td></tr>"+q+(a.charCodeAt(0)==0?a:a)+'<tr class="total-row"><td>TOTAL</td><td style="text-align:right;">'+A.ak(B.f.dK(c))+"</td></tr></table>"+(p.charCodeAt(0)==0?p:p)+'<div class="divider"></div><div class="center footer"><div>'+a4+"</div><div>Returns within 7 days with invoice</div></div></body></html>"},
+k=k.length!==0?'<div class="invoice-info">Phone: '+k+"</div>":""
+return'<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt</title><style>@page{size:80mm auto;margin:0;}@media print{  body{margin:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}}*{margin:0;padding:0;box-sizing:border-box;}body{  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;  font-size:13px;  font-weight:700;  line-height:1.35;  width:80mm;  padding:5mm 4mm;  color:#000000!important;  background:#ffffff;  -webkit-text-stroke:0.35px #000000;  text-rendering:geometricPrecision;  -webkit-font-smoothing:antialiased;}.center{text-align:center;}.bold{font-weight:900;-webkit-text-stroke:0.45px #000000;}.divider{border-top:1.5px dashed #000000;margin:6px 0;}table{width:100%;border-collapse:collapse;}td{color:#000000!important;font-weight:700;}.shop-name{font-size:18px;font-weight:900;letter-spacing:0.5px;text-transform:uppercase;-webkit-text-stroke:0.5px #000000;line-height:1.2;margin-bottom:2px;}.header-info{font-size:11.5px;font-weight:700;line-height:1.3;}.invoice-info{font-size:12px;font-weight:700;line-height:1.35;}.table-header{font-weight:900;font-size:12.5px;-webkit-text-stroke:0.45px #000000;}.item-row td{font-size:12.5px;font-weight:700;padding:2.5px 0;}.summary-table td{font-size:12.5px;font-weight:700;padding:2px 0;}.total-row td{font-size:16px;font-weight:900;-webkit-text-stroke:0.55px #000000;padding:4px 0 2px 0;}.payment-table td{font-size:12.5px;font-weight:700;padding:2px 0;}.footer{font-size:10.5px;font-weight:700;line-height:1.35;margin-top:6px;-webkit-text-stroke:0.25px #000000;}</style></head><body><div class="center">'+r+'<div class="shop-name">'+b1+"</div>"+n+m+o+'</div><div class="divider"></div><div><div class="bold">'+a8.b+'</div><div class="invoice-info">Date: '+(h+"/"+g+"/"+A.as(i))+" "+(f+":"+e)+"</div>"+l+k+'</div><div class="divider"></div><table><tr class="table-header"><td>Item</td><td style="text-align:center;">Qty</td><td style="text-align:right;">Amt</td></tr>'+s+'</table><div class="divider"></div><table class="summary-table"><tr><td>Subtotal</td><td style="text-align:right;">'+A.ak(B.f.dK(a1))+"</td></tr>"+q+(a.charCodeAt(0)==0?a:a)+'<tr class="total-row"><td>TOTAL</td><td style="text-align:right;">'+A.ak(B.f.dK(c))+"</td></tr></table>"+(p.charCodeAt(0)==0?p:p)+'<div class="divider"></div><div class="center footer"><div>'+a4+"</div><div>Returns within 7 days with invoice</div></div></body></html>"},
 avp:function avp(){},
 bvC(a){var s,r
 try{s=A.bg0(a,null,null)
@@ -112148,7 +112148,7 @@ r=this.b
 r.toString
 return new A.a_(s,0,!1).dR(r).a>=this.a.a}}
 A.avp.prototype={
-$1(a){return'<tr><td style="text-align:left;padding:2px 0;">'+a.b+'</td><td style="text-align:center;padding:2px 0;">'+a.e+'</td><td style="text-align:right;padding:2px 0;">'+A.ak(B.f.dK(a.f))+"</td></tr>"},
+$1(a){return'<tr class="item-row"><td style="text-align:left;padding:2.5px 0;">'+a.b+'</td><td style="text-align:center;padding:2.5px 0;">'+a.e+'</td><td style="text-align:right;padding:2.5px 0;">'+A.ak(B.f.dK(a.f))+"</td></tr>"},
 $S:190}
 A.aaH.prototype={
 J7(){var s=0,r=A.v(t.H),q,p=this,o,n

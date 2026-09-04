@@ -1,5 +1,4 @@
 // ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
 import 'dart:js' as js;
 import '../../data/models/sale_model.dart';
 import '../../data/local/db_helper.dart';
@@ -83,13 +82,13 @@ class ReceiptPrinter {
     // CRITICAL: Use stored item.total — do NOT recalculate price*qty (floating-point drift)
     // Round to whole rupees for clean thermal receipt
     final itemRows = sale.items.map((item) =>
-      '<tr><td style="text-align:left;padding:2px 0;">${item.name}</td>'
-      '<td style="text-align:center;padding:2px 0;">${item.quantity}</td>'
-      '<td style="text-align:right;padding:2px 0;">${Formatters.currency(item.total.roundToDouble())}</td></tr>'
+      '<tr class="item-row"><td style="text-align:left;padding:2.5px 0;">${item.name}</td>'
+      '<td style="text-align:center;padding:2.5px 0;">${item.quantity}</td>'
+      '<td style="text-align:right;padding:2.5px 0;">${Formatters.currency(item.total.roundToDouble())}</td></tr>'
     ).join('');
 
     final logoHtml = shopLogo.isNotEmpty
-        ? '<img src="$shopLogo" style="max-width:60px;max-height:60px;margin-bottom:4px;" />'
+        ? '<img src="$shopLogo" style="max-width:60px;max-height:60px;margin-bottom:4px;filter:contrast(150%);" />'
         : '';
 
     final discountRow = discountAmt > 0
@@ -105,42 +104,66 @@ class ReceiptPrinter {
 
     // GSTIN line in header
     final gstinHtml = (gstEnabled && gstNumber.isNotEmpty)
-        ? '<div style="font-size:10px;">GSTIN: $gstNumber${gstStateCode.isNotEmpty ? ' | State: $gstStateCode' : ''}</div>'
+        ? '<div class="header-info">GSTIN: $gstNumber${gstStateCode.isNotEmpty ? ' | State: $gstStateCode' : ''}</div>'
         : '';
 
     final paymentRows = StringBuffer();
     if (totalPaid > 0) {
-      paymentRows.write('<div class="divider"></div><table>');
+      paymentRows.write('<div class="divider"></div><table class="payment-table">');
       if (cashPaid > 0) paymentRows.write('<tr><td>Cash Paid</td><td style="text-align:right;">${Formatters.currency(cashPaid)}</td></tr>');
       if (upiPaid > 0) paymentRows.write('<tr><td>UPI/Card</td><td style="text-align:right;">${Formatters.currency(upiPaid)}</td></tr>');
-      if (pendingDue > 0) paymentRows.write('<tr style="font-weight:bold;"><td>Pending Due</td><td style="text-align:right;">${Formatters.currency(pendingDue)}</td></tr>');
+      if (pendingDue > 0) paymentRows.write('<tr style="font-weight:900;"><td>Pending Due</td><td style="text-align:right;">${Formatters.currency(pendingDue)}</td></tr>');
       paymentRows.write('</table>');
     }
 
     return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt</title>'
-        '<style>@page{size:80mm auto;margin:0;}@media print{body{margin:0;}}'
+        '<style>'
+        '@page{size:80mm auto;margin:0;}'
+        '@media print{'
+        '  body{margin:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}'
+        '}'
         '*{margin:0;padding:0;box-sizing:border-box;}'
-        'body{font-family:"Courier New",monospace;font-size:12px;width:80mm;padding:8px;color:#000;}'
-        '.center{text-align:center;}.bold{font-weight:bold;}'
-        '.divider{border-top:1px dashed #000;margin:6px 0;}'
+        'body{'
+        '  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;'
+        '  font-size:13px;'
+        '  font-weight:700;'
+        '  line-height:1.35;'
+        '  width:80mm;'
+        '  padding:5mm 4mm;'
+        '  color:#000000!important;'
+        '  background:#ffffff;'
+        '  -webkit-text-stroke:0.35px #000000;'
+        '  text-rendering:geometricPrecision;'
+        '  -webkit-font-smoothing:antialiased;'
+        '}'
+        '.center{text-align:center;}'
+        '.bold{font-weight:900;-webkit-text-stroke:0.45px #000000;}'
+        '.divider{border-top:1.5px dashed #000000;margin:6px 0;}'
         'table{width:100%;border-collapse:collapse;}'
-        '.shop-name{font-size:16px;font-weight:bold;}'
-        '.total-row{font-size:14px;font-weight:bold;}'
-        '.footer{font-size:10px;margin-top:8px;}'
+        'td{color:#000000!important;font-weight:700;}'
+        '.shop-name{font-size:18px;font-weight:900;letter-spacing:0.5px;text-transform:uppercase;-webkit-text-stroke:0.5px #000000;line-height:1.2;margin-bottom:2px;}'
+        '.header-info{font-size:11.5px;font-weight:700;line-height:1.3;}'
+        '.invoice-info{font-size:12px;font-weight:700;line-height:1.35;}'
+        '.table-header{font-weight:900;font-size:12.5px;-webkit-text-stroke:0.45px #000000;}'
+        '.item-row td{font-size:12.5px;font-weight:700;padding:2.5px 0;}'
+        '.summary-table td{font-size:12.5px;font-weight:700;padding:2px 0;}'
+        '.total-row td{font-size:16px;font-weight:900;-webkit-text-stroke:0.55px #000000;padding:4px 0 2px 0;}'
+        '.payment-table td{font-size:12.5px;font-weight:700;padding:2px 0;}'
+        '.footer{font-size:10.5px;font-weight:700;line-height:1.35;margin-top:6px;-webkit-text-stroke:0.25px #000000;}'
         '</style></head><body>'
         '<div class="center">$logoHtml<div class="shop-name">$shopName</div>'
-        '${shopAddress.isNotEmpty ? "<div>$shopAddress</div>" : ""}'
-        '${shopPhone.isNotEmpty ? "<div>Ph: $shopPhone</div>" : ""}'
+        '${shopAddress.isNotEmpty ? "<div class=\"header-info\">$shopAddress</div>" : ""}'
+        '${shopPhone.isNotEmpty ? "<div class=\"header-info\">Ph: $shopPhone</div>" : ""}'
         '$gstinHtml</div>'
         '<div class="divider"></div>'
         '<div><div class="bold">${sale.invoiceNumber}</div>'
-        '<div>Date: $dateStr $timeStr</div>'
-        '${sale.customerName.isNotEmpty ? "<div>Customer: ${sale.customerName}</div>" : ""}'
-        '${sale.customerPhone.isNotEmpty ? "<div>Phone: ${sale.customerPhone}</div>" : ""}</div>'
+        '<div class="invoice-info">Date: $dateStr $timeStr</div>'
+        '${sale.customerName.isNotEmpty ? "<div class=\"invoice-info\">Customer: ${sale.customerName}</div>" : ""}'
+        '${sale.customerPhone.isNotEmpty ? "<div class=\"invoice-info\">Phone: ${sale.customerPhone}</div>" : ""}</div>'
         '<div class="divider"></div>'
-        '<table><tr style="font-weight:bold;"><td>Item</td><td style="text-align:center;">Qty</td><td style="text-align:right;">Amt</td></tr>$itemRows</table>'
+        '<table><tr class="table-header"><td>Item</td><td style="text-align:center;">Qty</td><td style="text-align:right;">Amt</td></tr>$itemRows</table>'
         '<div class="divider"></div>'
-        '<table><tr><td>Subtotal</td><td style="text-align:right;">${Formatters.currency(sale.subtotal.roundToDouble())}</td></tr>'
+        '<table class="summary-table"><tr><td>Subtotal</td><td style="text-align:right;">${Formatters.currency(sale.subtotal.roundToDouble())}</td></tr>'
         '$discountRow'
         '${gstRows.toString()}'
         '<tr class="total-row"><td>TOTAL</td><td style="text-align:right;">${Formatters.currency(sale.total.roundToDouble())}</td></tr></table>'
