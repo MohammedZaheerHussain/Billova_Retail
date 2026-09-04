@@ -410,23 +410,23 @@ class _StaffScreenState extends State<StaffScreen> {
           SizedBox(height: 16),
           // Header row
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: AppColors.surface(context),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
-                Expanded(flex: 2, child: Text('NAME', style: _headerStyle)),
-                Expanded(flex: 2, child: Text('USERNAME', style: _headerStyle)),
-                Expanded(flex: 1, child: Text('ROLE', style: _headerStyle)),
-                Expanded(flex: 1, child: Text('TARGET', style: _headerStyle)),
-                Expanded(flex: 1, child: Text('STATUS', style: _headerStyle)),
-                SizedBox(width: 48, child: Text('', style: TextStyle())),
+                Expanded(flex: 3, child: Text('NAME', style: _headerStyle)),
+                Expanded(flex: 3, child: Text('USERNAME', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('ROLE', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('TARGET', style: _headerStyle)),
+                Expanded(flex: 2, child: Text('STATUS', style: _headerStyle)),
+                const SizedBox(width: 48),
               ],
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Expanded(
             child: provider.staff.isEmpty
                 ? Center(child: Text('No staff members yet',
@@ -447,42 +447,49 @@ class _StaffScreenState extends State<StaffScreen> {
 
   Widget _staffRow(StaffModel staff, StaffProvider provider) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           Expanded(
-            flex: 2,
+            flex: 3,
             child: Text(staff.name,
                 style: AppTypography.bodyMedium.copyWith(
                     color: AppColors.textPrimary(context), fontWeight: FontWeight.w500)),
           ),
           Expanded(
-            flex: 2,
+            flex: 3,
             child: Text(staff.username,
                 style: AppTypography.mono.copyWith(color: AppColors.textSecondary(context), fontSize: 13)),
           ),
           Expanded(
-            flex: 1,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: staff.isAdmin
-                    ? AppColors.accent.withValues(alpha: 0.1)
-                    : AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                staff.role.toUpperCase(),
-                style: AppTypography.labelSmall.copyWith(
-                  color: staff.isAdmin ? AppColors.accent : AppColors.primary,
-                  fontWeight: FontWeight.w600,
+            flex: 2,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: staff.isAdmin
+                      ? AppColors.accent.withValues(alpha: 0.12)
+                      : AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: (staff.isAdmin ? AppColors.accent : AppColors.primary).withValues(alpha: 0.25),
+                  ),
                 ),
-                textAlign: TextAlign.center,
+                child: Text(
+                  staff.role.toUpperCase(),
+                  style: AppTypography.labelSmall.copyWith(
+                    color: staff.isAdmin ? AppColors.accent : AppColors.primaryLight,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 10,
+                    letterSpacing: 0.5,
+                  ),
+                ),
               ),
             ),
           ),
           Expanded(
-            flex: 1,
+            flex: 2,
             child: Text(
               staff.monthlySaleTarget > 0
                   ? Formatters.currency(staff.monthlySaleTarget)
@@ -495,13 +502,26 @@ class _StaffScreenState extends State<StaffScreen> {
             ),
           ),
           Expanded(
-            flex: 1,
-            child: Text(
-              staff.isActive ? 'Active' : 'Inactive',
-              style: AppTypography.labelSmall.copyWith(
-                color: staff.isActive ? AppColors.success : AppColors.error,
-                fontWeight: FontWeight.w600,
-              ),
+            flex: 2,
+            child: Row(
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: staff.isActive ? AppColors.success : AppColors.error,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  staff.isActive ? 'Active' : 'Inactive',
+                  style: AppTypography.labelSmall.copyWith(
+                    color: staff.isActive ? AppColors.success : AppColors.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
           SizedBox(
