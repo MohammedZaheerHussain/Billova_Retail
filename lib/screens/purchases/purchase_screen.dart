@@ -144,6 +144,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   }
 
   void _printInwardLabelsForPurchase(PurchaseModel purchase) {
+    if (!mounted) return;
     final inventory = context.read<InventoryProvider>().items;
     final Map<String, ItemModel> itemMap = {for (var item in inventory) item.id: item};
     
@@ -154,12 +155,18 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       final qty = (raw['quantity'] as num?)?.toInt() ?? 1;
       final matched = itemMap[itemId];
       
+      final barcode = (matched != null && matched.barcode.isNotEmpty)
+          ? matched.barcode
+          : (itemId.isNotEmpty ? itemId : '');
+      
+      if (barcode.isEmpty) continue;
+
       printItems.add(BarcodePrintItem(
         name: matched?.name ?? name,
-        barcode: (matched != null && matched.barcode.isNotEmpty)
-            ? matched.barcode
-            : (itemId.isNotEmpty ? itemId : 'SKY-${Random().nextInt(99999)}'),
-        price: matched?.price ?? 0.0,
+        barcode: barcode,
+        price: (matched != null && matched.price > 0)
+            ? matched.price
+            : ((raw['cost_price'] as num?)?.toDouble() ?? 0.0),
         size: matched?.size ?? '',
         color: matched?.color ?? '',
         quantity: qty > 0 ? qty : 1,
@@ -167,32 +174,39 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
     }
 
     if (printItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No items in this purchase to print.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('⚠️ No items with valid barcodes to print.')),
+        );
+      }
       return;
     }
 
     BarcodePrintHelper.printBatchItems(
       context,
-      title: 'Inward Labels - ${purchase.vendorName}',
+      title: 'Purchase - ${purchase.vendorName}',
       items: printItems,
     );
   }
 
   void _printInwardLabelsForEntries(List<_PurchaseEntry> entries, String vendorName) {
+    if (!mounted) return;
     final inventory = context.read<InventoryProvider>().items;
     final Map<String, ItemModel> itemMap = {for (var item in inventory) item.id: item};
 
     final printItems = <BarcodePrintItem>[];
     for (final e in entries) {
       final matched = itemMap[e.itemId];
+      final barcode = (matched != null && matched.barcode.isNotEmpty)
+          ? matched.barcode
+          : (e.itemId.isNotEmpty ? e.itemId : '');
+
+      if (barcode.isEmpty) continue;
+
       printItems.add(BarcodePrintItem(
         name: matched?.name ?? e.name,
-        barcode: (matched != null && matched.barcode.isNotEmpty)
-            ? matched.barcode
-            : (e.itemId.isNotEmpty ? e.itemId : 'SKY-${Random().nextInt(99999)}'),
-        price: matched?.price ?? e.costPrice,
+        barcode: barcode,
+        price: (matched != null && matched.price > 0) ? matched.price : e.costPrice,
         size: matched?.size ?? '',
         color: matched?.color ?? '',
         quantity: e.quantity > 0 ? e.quantity : 1,
@@ -203,7 +217,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
 
     BarcodePrintHelper.printBatchItems(
       context,
-      title: 'Inward Labels - $vendorName',
+      title: 'Inward - $vendorName',
       items: printItems,
     );
   }
@@ -509,7 +523,11 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(ctx);
-                      _printInwardLabelsForPurchase(purchase);
+                      Future.microtask(() {
+                        if (mounted) {
+                          _printInwardLabelsForPurchase(purchase);
+                        }
+                      });
                     },
                     icon: const Icon(Icons.qr_code_2_rounded, size: 18),
                     label: const Text('Print Inward Labels', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),

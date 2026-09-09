@@ -50,6 +50,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
   // Global hardware scanner listener buffer (zero-focus scan capture)
   final StringBuffer _scannerBuffer = StringBuffer();
   DateTime? _lastScannerKeyTime;
+  int _scannerRapidCount = 0;
 
   @override
   void initState() {
@@ -79,13 +80,15 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
 
   /// Global keyboard stream interceptor to catch hardware barcode gun scans without focusing search
   bool _handleGlobalScannerKey(KeyEvent event) {
+    if (!mounted) return false;
     if (event is! KeyDownEvent) return false;
 
     // Check for Enter key terminating a scanner sequence
     if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter) {
-      if (_scannerBuffer.length >= 4) {
+      if (_scannerBuffer.length >= 4 && _scannerRapidCount >= 3) {
         final code = _scannerBuffer.toString().trim();
         _scannerBuffer.clear();
+        _scannerRapidCount = 0;
 
         final inventory = context.read<InventoryProvider>();
         final exactMatch = inventory.items.firstWhere(
@@ -115,23 +118,10 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
             setState(() => _searchQuery = '');
           }
           return true; // Consume enter
-        } else {
-          // Unrecognized barcode scan
-          SoundEffects.playError();
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('⚠️ Barcode "$code" not found'),
-                backgroundColor: AppColors.error,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
-          return true;
         }
       }
       _scannerBuffer.clear();
+      _scannerRapidCount = 0;
       return false;
     }
 
@@ -141,10 +131,12 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
       final now = DateTime.now();
       if (_lastScannerKeyTime != null && now.difference(_lastScannerKeyTime!).inMilliseconds < 60) {
         _scannerBuffer.write(char);
+        _scannerRapidCount++;
       } else {
         // Reset and start new buffer if keystroke delay > 60ms (human typing)
         _scannerBuffer.clear();
         _scannerBuffer.write(char);
+        _scannerRapidCount = 1;
       }
       _lastScannerKeyTime = now;
     }

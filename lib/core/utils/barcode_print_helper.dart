@@ -392,28 +392,18 @@ class BarcodePrintHelper {
     final labelsHtml = StringBuffer();
     final barcodeJs = StringBuffer();
 
-    final barWidth = format == 'zebra4x2' ? 2.5 : 2.0;
+    final barWidth = format == 'zebra4x2' ? 2.5 : 1.6;
     final barHeight = format == 'zebra4x2' ? 52 : 36;
-    final fontSize = format == 'zebra4x2' ? 14 : 11;
+    final fontSize = format == 'zebra4x2' ? 14 : 10;
 
     if (format == 'zebra2up') {
       // 2 labels per row on 104mm roll (50x25mm each)
       for (int i = 0; i < totalCount; i += 2) {
         final left = labelQueue[i];
-        final leftName = left.name.replaceAll("'", "\\'").replaceAll('"', '\\"');
-        final leftBarcode = left.barcode.replaceAll("'", "\\'").replaceAll('"', '\\"');
+        final leftName = left.name.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('"', '&quot;').replaceAll('\n', ' ');
+        final leftBarcode = left.barcode.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('"', '\\"');
         final leftPrice = Formatters.currency(left.price).replaceAll("'", "\\'").replaceAll('"', '\\"');
-        final leftSize = left.size.replaceAll("'", "\\'").replaceAll('"', '\\"');
-        final leftColor = left.color.replaceAll("'", "\\'").replaceAll('"', '\\"');
-
-        String leftTag = '';
-        if (leftSize.isNotEmpty && leftColor.isNotEmpty) {
-          leftTag = 'SZ: $leftSize • $leftColor';
-        } else if (leftSize.isNotEmpty) {
-          leftTag = 'SZ: $leftSize';
-        } else if (leftColor.isNotEmpty) {
-          leftTag = leftColor;
-        }
+        final leftSize = (left.size.toLowerCase() == 'multi') ? '' : left.size.replaceAll("'", "\\'").replaceAll('"', '\\"');
 
         labelsHtml.write('<div class="row-2up">');
         // Left label
@@ -423,7 +413,7 @@ class BarcodePrintHelper {
           '<div class="item-name">$leftName</div>'
           '<div class="bc-wrap"><svg id="bc$i" class="barcode-svg"></svg></div>'
           '<div class="footer-row">'
-          '${leftTag.isNotEmpty ? '<span class="size-badge">$leftTag</span>' : '<span></span>'}'
+          '${leftSize.isNotEmpty ? '<span class="size">$leftSize</span>' : '<span></span>'}'
           '<span class="price">MRP: $leftPrice</span>'
           '</div></div>'
         );
@@ -433,20 +423,10 @@ class BarcodePrintHelper {
         if (i + 1 < totalCount) {
           final nextIdx = i + 1;
           final right = labelQueue[nextIdx];
-          final rightName = right.name.replaceAll("'", "\\'").replaceAll('"', '\\"');
-          final rightBarcode = right.barcode.replaceAll("'", "\\'").replaceAll('"', '\\"');
+          final rightName = right.name.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('"', '&quot;').replaceAll('\n', ' ');
+          final rightBarcode = right.barcode.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('"', '\\"');
           final rightPrice = Formatters.currency(right.price).replaceAll("'", "\\'").replaceAll('"', '\\"');
-          final rightSize = right.size.replaceAll("'", "\\'").replaceAll('"', '\\"');
-          final rightColor = right.color.replaceAll("'", "\\'").replaceAll('"', '\\"');
-
-          String rightTag = '';
-          if (rightSize.isNotEmpty && rightColor.isNotEmpty) {
-            rightTag = 'SZ: $rightSize • $rightColor';
-          } else if (rightSize.isNotEmpty) {
-            rightTag = 'SZ: $rightSize';
-          } else if (rightColor.isNotEmpty) {
-            rightTag = rightColor;
-          }
+          final rightSize = (right.size.toLowerCase() == 'multi') ? '' : right.size.replaceAll("'", "\\'").replaceAll('"', '\\"');
 
           labelsHtml.write(
             '<div class="label-2up">'
@@ -454,7 +434,7 @@ class BarcodePrintHelper {
             '<div class="item-name">$rightName</div>'
             '<div class="bc-wrap"><svg id="bc$nextIdx" class="barcode-svg"></svg></div>'
             '<div class="footer-row">'
-            '${rightTag.isNotEmpty ? '<span class="size-badge">$rightTag</span>' : '<span></span>'}'
+            '${rightSize.isNotEmpty ? '<span class="size">$rightSize</span>' : '<span></span>'}'
             '<span class="price">MRP: $rightPrice</span>'
             '</div></div>'
           );
@@ -469,20 +449,10 @@ class BarcodePrintHelper {
       // Single continuous roll or A4
       for (int i = 0; i < totalCount; i++) {
         final item = labelQueue[i];
-        final itemName = item.name.replaceAll("'", "\\'").replaceAll('"', '\\"');
-        final itemBarcode = item.barcode.replaceAll("'", "\\'").replaceAll('"', '\\"');
+        final itemName = item.name.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('"', '&quot;').replaceAll('\n', ' ');
+        final itemBarcode = item.barcode.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('"', '\\"');
         final itemPrice = Formatters.currency(item.price).replaceAll("'", "\\'").replaceAll('"', '\\"');
-        final itemSize = item.size.replaceAll("'", "\\'").replaceAll('"', '\\"');
-        final itemColor = item.color.replaceAll("'", "\\'").replaceAll('"', '\\"');
-
-        String itemTag = '';
-        if (itemSize.isNotEmpty && itemColor.isNotEmpty) {
-          itemTag = 'SZ: $itemSize • $itemColor';
-        } else if (itemSize.isNotEmpty) {
-          itemTag = 'SZ: $itemSize';
-        } else if (itemColor.isNotEmpty) {
-          itemTag = itemColor;
-        }
+        final itemSize = (item.size.toLowerCase() == 'multi') ? '' : item.size.replaceAll("'", "\\'").replaceAll('"', '\\"');
 
         if (format == 'zebra1up') {
           labelsHtml.write(
@@ -491,7 +461,7 @@ class BarcodePrintHelper {
             '<div class="item-name">$itemName</div>'
             '<div class="bc-wrap"><svg id="bc$i" class="barcode-svg"></svg></div>'
             '<div class="footer-row">'
-            '${itemTag.isNotEmpty ? '<span class="size-badge">$itemTag</span>' : '<span></span>'}'
+            '${itemSize.isNotEmpty ? '<span class="size">$itemSize</span>' : '<span></span>'}'
             '<span class="price">MRP: $itemPrice</span>'
             '</div></div>'
           );
@@ -503,7 +473,7 @@ class BarcodePrintHelper {
             '<div class="item-name-lg">$itemName</div>'
             '<div class="bc-wrap-lg"><svg id="bc$i" class="barcode-svg-lg"></svg></div>'
             '<div class="footer-row-lg">'
-            '${itemTag.isNotEmpty ? '<span class="size-badge-lg">$itemTag</span>' : '<span></span>'}'
+            '${itemSize.isNotEmpty ? '<span class="size-lg">Size: $itemSize</span>' : '<span></span>'}'
             '<span class="price-lg">MRP: $itemPrice</span>'
             '</div></div>'
           );
@@ -516,7 +486,7 @@ class BarcodePrintHelper {
             '<div class="item-name">$itemName</div>'
             '<div class="bc-wrap"><svg id="bc$i" class="barcode-svg"></svg></div>'
             '<div class="footer-row">'
-            '${itemTag.isNotEmpty ? '<span class="size-badge">$itemTag</span>' : '<span></span>'}'
+            '${itemSize.isNotEmpty ? '<span class="size">$itemSize</span>' : '<span></span>'}'
             '<span class="price">MRP: $itemPrice</span>'
             '</div></div>'
           );
@@ -533,16 +503,16 @@ class BarcodePrintHelper {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; color: #000; }
         .sheet { width: 104mm; margin: 0 auto; background: #fff; }
-        .row-2up { width: 104mm; height: 25mm; display: flex; justify-content: space-between; align-items: center; page-break-after: always; break-after: page; padding: 0.8mm 2mm; overflow: hidden; }
-        .label-2up { width: 48mm; height: 23.4mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; padding: 0.5mm 1mm; overflow: hidden; }
-        .label-2up.empty-slot { visibility: hidden; }
+        .row-2up { width: 104mm; height: 25mm; display: flex; flex-direction: row; justify-content: space-between; align-items: stretch; page-break-after: always; break-after: page; padding: 0.5mm 1.5mm; overflow: hidden; }
+        .label-2up { width: 49.5mm; height: 24mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; padding: 0.8mm 1mm; overflow: hidden; }
+        .empty-slot { visibility: hidden; }
         .shop { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
         .item-name { font-size: 7.5px; font-weight: 700; max-width: 96%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
         .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; }
-        svg.barcode-svg { width: 96%; max-height: 14mm; shape-rendering: crispEdges; }
+        svg.barcode-svg { max-width: 100%; height: 13.5mm; display: block; margin: 0 auto; shape-rendering: crispEdges; }
         .footer-row { width: 96%; display: flex; justify-content: space-between; align-items: center; font-size: 8px; line-height: 1; }
-        .size-badge { font-size: 7.5px; font-weight: 800; background: #000; color: #fff; padding: 1px 3px; border-radius: 2px; }
-        .price { font-size: 9px; font-weight: 900; }
+        .size { font-size: 7.5px; font-weight: 700; line-height: 1; }
+        .price { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
       ''';
     } else if (format == 'zebra1up') {
       cssRules = '''
@@ -555,10 +525,10 @@ class BarcodePrintHelper {
         .shop { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
         .item-name { font-size: 7.5px; font-weight: 700; max-width: 96%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
         .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; }
-        svg.barcode-svg { width: 96%; max-height: 14mm; shape-rendering: crispEdges; }
+        svg.barcode-svg { max-width: 100%; height: 13.5mm; display: block; margin: 0 auto; shape-rendering: crispEdges; }
         .footer-row { width: 96%; display: flex; justify-content: space-between; align-items: center; font-size: 8px; line-height: 1; }
-        .size-badge { font-size: 7.5px; font-weight: 800; background: #000; color: #fff; padding: 1px 3px; border-radius: 2px; }
-        .price { font-size: 9px; font-weight: 900; }
+        .size { font-size: 7.5px; font-weight: 700; line-height: 1; }
+        .price { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
       ''';
     } else if (format == 'zebra4x2') {
       cssRules = '''
@@ -571,10 +541,10 @@ class BarcodePrintHelper {
         .shop-lg { font-size: 14px; font-weight: 900; letter-spacing: 1px; line-height: 1.1; text-transform: uppercase; }
         .item-name-lg { font-size: 12px; font-weight: 700; max-width: 96%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
         .bc-wrap-lg { width: 100%; display: flex; justify-content: center; align-items: center; }
-        svg.barcode-svg-lg { width: 96%; max-height: 28mm; shape-rendering: crispEdges; }
+        svg.barcode-svg-lg { max-width: 100%; height: 28mm; display: block; margin: 0 auto; shape-rendering: crispEdges; }
         .footer-row-lg { width: 96%; display: flex; justify-content: space-between; align-items: center; font-size: 13px; line-height: 1.1; }
-        .size-badge-lg { font-size: 11px; font-weight: 800; background: #000; color: #fff; padding: 2px 5px; border-radius: 3px; }
-        .price-lg { font-size: 14px; font-weight: 900; }
+        .size-lg { font-size: 12px; font-weight: 700; }
+        .price-lg { font-size: 14px; font-weight: 900; letter-spacing: 1px; line-height: 1.1; text-transform: uppercase; }
       ''';
     } else {
       cssRules = '''
@@ -588,20 +558,21 @@ class BarcodePrintHelper {
         .shop { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
         .item-name { font-size: 7.5px; font-weight: 700; max-width: 96%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
         .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; }
-        svg.barcode-svg { width: 96%; max-height: 14mm; shape-rendering: crispEdges; }
+        svg.barcode-svg { max-width: 100%; height: 13.5mm; display: block; margin: 0 auto; shape-rendering: crispEdges; }
         .footer-row { width: 96%; display: flex; justify-content: space-between; align-items: center; font-size: 8px; line-height: 1; }
-        .size-badge { font-size: 7.5px; font-weight: 800; background: #000; color: #fff; padding: 1px 3px; border-radius: 2px; }
-        .price { font-size: 9px; font-weight: 900; }
+        .size { font-size: 7.5px; font-weight: 700; line-height: 1; }
+        .price { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
       ''';
     }
 
     final containerClass = format == 'a4' ? 'grid-a4' : 'sheet';
+    final safeTitle = title.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('"', '\\"').replaceAll('\n', ' ');
 
     js.context.callMethod('eval', [
       '''
       var w = window.open('', '_blank', 'width=840,height=900');
       if (w) {
-        var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>$totalCount Labels - $title</title>';
+        var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>$totalCount Labels - $safeTitle</title>';
         html += '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>';
         html += '<style>';
         html += '${cssRules.replaceAll('\n', ' ').replaceAll("'", "\\'")}';
