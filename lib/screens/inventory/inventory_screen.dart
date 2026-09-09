@@ -836,9 +836,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final price = Formatters.currency(item.price).replaceAll("'", "\\'").replaceAll('"', '\\"');
     final size = item.size.replaceAll("'", "\\'").replaceAll('"', '\\"');
 
-    final barWidth = 2.0;
+    final barWidth = format == 'zebra4x2' ? 2.5 : 1.6;
     final barHeight = format == 'zebra4x2' ? 52 : 36;
-    final fontSize = format == 'zebra4x2' ? 14 : 11;
+    final fontSize = format == 'zebra4x2' ? 14 : 10;
 
     final labelsHtml = StringBuffer();
     final barcodeJs = StringBuffer();
@@ -942,10 +942,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
         .shop { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
         .item-name { font-size: 7.5px; font-weight: 700; max-width: 96%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
         .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; }
-        svg.barcode-svg { width: 96%; max-height: 14mm; shape-rendering: crispEdges; }
+        svg.barcode-svg { max-width: 100%; height: 13.5mm; display: block; margin: 0 auto; shape-rendering: crispEdges; }
         .footer-row { width: 96%; display: flex; justify-content: space-between; align-items: center; font-size: 8px; line-height: 1; }
-        .size { font-size: 7.5px; font-weight: 600; }
-        .price { font-size: 9px; font-weight: 900; }
+        .size { font-size: 7.5px; font-weight: 700; line-height: 1; }
+        .price { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
       ''';
     } else if (format == 'zebra1up') {
       cssRules = '''
@@ -958,10 +958,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
         .shop { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
         .item-name { font-size: 7.5px; font-weight: 700; max-width: 96%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
         .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; }
-        svg.barcode-svg { width: 96%; max-height: 14mm; shape-rendering: crispEdges; }
+        svg.barcode-svg { max-width: 100%; height: 13.5mm; display: block; margin: 0 auto; shape-rendering: crispEdges; }
         .footer-row { width: 96%; display: flex; justify-content: space-between; align-items: center; font-size: 8px; line-height: 1; }
-        .size { font-size: 7.5px; font-weight: 600; }
-        .price { font-size: 9px; font-weight: 900; }
+        .size { font-size: 7.5px; font-weight: 700; line-height: 1; }
+        .price { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
       ''';
     } else if (format == 'zebra4x2') {
       cssRules = '''
@@ -974,10 +974,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
         .shop-lg { font-size: 14px; font-weight: 900; letter-spacing: 1px; line-height: 1.1; text-transform: uppercase; }
         .item-name-lg { font-size: 12px; font-weight: 700; max-width: 96%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
         .bc-wrap-lg { width: 100%; display: flex; justify-content: center; align-items: center; }
-        svg.barcode-svg-lg { width: 96%; max-height: 28mm; shape-rendering: crispEdges; }
+        svg.barcode-svg-lg { max-width: 100%; height: 28mm; display: block; margin: 0 auto; shape-rendering: crispEdges; }
         .footer-row-lg { width: 96%; display: flex; justify-content: space-between; align-items: center; font-size: 13px; line-height: 1.1; }
-        .size-lg { font-size: 12px; font-weight: 600; }
-        .price-lg { font-size: 14px; font-weight: 900; }
+        .size-lg { font-size: 12px; font-weight: 700; }
+        .price-lg { font-size: 14px; font-weight: 900; letter-spacing: 1px; line-height: 1.1; text-transform: uppercase; }
       ''';
     } else {
       cssRules = '''
@@ -991,10 +991,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
         .shop { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
         .item-name { font-size: 7.5px; font-weight: 700; max-width: 96%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
         .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; }
-        svg.barcode-svg { width: 96%; max-height: 14mm; shape-rendering: crispEdges; }
+        svg.barcode-svg { max-width: 100%; height: 13.5mm; display: block; margin: 0 auto; shape-rendering: crispEdges; }
         .footer-row { width: 96%; display: flex; justify-content: space-between; align-items: center; font-size: 8px; line-height: 1; }
-        .size { font-size: 7.5px; font-weight: 600; }
-        .price { font-size: 9px; font-weight: 900; }
+        .size { font-size: 7.5px; font-weight: 700; line-height: 1; }
+        .price { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
       ''';
     }
 
