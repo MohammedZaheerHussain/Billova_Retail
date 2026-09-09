@@ -1,12 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/whatsapp_helper.dart';
 import '../../core/utils/receipt_printer.dart';
-import '../../core/constants.dart';
+import '../../core/utils/sound_effects.dart';
 import '../../data/models/item_model.dart';
 import '../../data/models/sale_model.dart';
 import '../../data/models/customer_model.dart';
@@ -46,9 +47,14 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
   DateTime? _lastKeyTime;
   int _rapidKeyCount = 0;
 
+  // Global hardware scanner listener buffer (zero-focus scan capture)
+  final StringBuffer _scannerBuffer = StringBuffer();
+  DateTime? _lastScannerKeyTime;
+
   @override
   void initState() {
     super.initState();
+    HardwareKeyboard.instance.addHandler(_handleGlobalScannerKey);
     // Auto-focus the barcode field when terminal opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _searchFocus.requestFocus();
@@ -59,6 +65,7 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleGlobalScannerKey);
     _searchCtrl.dispose();
     _searchFocus.dispose();
     _customerNameCtrl.dispose();
@@ -68,6 +75,81 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
     _cashPaidCtrl.dispose();
     _upiPaidCtrl.dispose();
     super.dispose();
+  }
+
+  /// Global keyboard stream interceptor to catch hardware barcode gun scans without focusing search
+  bool _handleGlobalScannerKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+
+    // Check for Enter key terminating a scanner sequence
+    if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+      if (_scannerBuffer.length >= 4) {
+        final code = _scannerBuffer.toString().trim();
+        _scannerBuffer.clear();
+
+        final inventory = context.read<InventoryProvider>();
+        final exactMatch = inventory.items.firstWhere(
+          (i) => i.barcode.toLowerCase() == code.toLowerCase() &&
+            (_isClearanceMode
+              ? i.storageLocation.startsWith('CLEARANCE:')
+              : !i.storageLocation.startsWith('CLEARANCE:')),
+          orElse: () => ItemModel(id: '', name: '', price: 0),
+        );
+
+        if (exactMatch.id.isNotEmpty) {
+          if (exactMatch.isOutOfStock) {
+            SoundEffects.playError();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('⚠️ ${exactMatch.name} is Out of Stock'),
+                  backgroundColor: AppColors.error,
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          } else {
+            _addToCart(exactMatch);
+            _searchCtrl.clear();
+            setState(() => _searchQuery = '');
+          }
+          return true; // Consume enter
+        } else {
+          // Unrecognized barcode scan
+          SoundEffects.playError();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('⚠️ Barcode "$code" not found'),
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+          return true;
+        }
+      }
+      _scannerBuffer.clear();
+      return false;
+    }
+
+    // Accumulate printable characters from rapid scanner streams (<60ms interval)
+    final char = event.character;
+    if (char != null && char.isNotEmpty && char != '\n' && char != '\r') {
+      final now = DateTime.now();
+      if (_lastScannerKeyTime != null && now.difference(_lastScannerKeyTime!).inMilliseconds < 60) {
+        _scannerBuffer.write(char);
+      } else {
+        // Reset and start new buffer if keystroke delay > 60ms (human typing)
+        _scannerBuffer.clear();
+        _scannerBuffer.write(char);
+      }
+      _lastScannerKeyTime = now;
+    }
+
+    return false;
   }
 
   List<ItemModel> _getFilteredItems(InventoryProvider inventory) {
@@ -113,8 +195,6 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
     setState(() => _searchQuery = query);
 
     // ─── Barcode Scanner Detection ───
-    // Physical scanners type all chars in rapid succession (<50ms each)
-    // then typically send an Enter or the text appears all at once.
     final now = DateTime.now();
     if (_lastKeyTime != null && now.difference(_lastKeyTime!).inMilliseconds < 80) {
       _rapidKeyCount++;
@@ -123,14 +203,13 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
     }
     _lastKeyTime = now;
 
-    // Detect scan: rapid input of 4+ characters (covers SKY-XXX-NNN and standard barcodes)
+    // Detect scan: rapid input of 4+ characters
     if (query.length >= 4 && _rapidKeyCount >= 3) {
       _tryBarcodeMatch(query);
     }
 
-    // Also try exact match for any input >= 4 chars (handles paste & slower scanners)
+    // Also try exact match for any input >= 4 chars
     if (query.length >= 4) {
-      // Debounce slightly for manual typing vs instant for scan
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted && _searchCtrl.text == query && query.length >= 4) {
           _tryBarcodeMatch(query);
@@ -140,25 +219,41 @@ class _SalesTerminalScreenState extends State<SalesTerminalScreen> {
   }
 
   void _tryBarcodeMatch(String query) {
+    final clean = query.trim();
+    if (clean.isEmpty) return;
+
     final inventory = context.read<InventoryProvider>();
     final exactMatch = inventory.items.firstWhere(
-      (i) => i.barcode.toLowerCase() == query.toLowerCase() &&
-        !i.isOutOfStock &&
+      (i) => i.barcode.toLowerCase() == clean.toLowerCase() &&
         (_isClearanceMode
           ? i.storageLocation.startsWith('CLEARANCE:')
           : !i.storageLocation.startsWith('CLEARANCE:')),
       orElse: () => ItemModel(id: '', name: '', price: 0),
     );
+
     if (exactMatch.id.isNotEmpty) {
-      _addToCart(exactMatch);
-      _searchCtrl.clear();
-      setState(() => _searchQuery = '');
-      _rapidKeyCount = 0;
+      if (exactMatch.isOutOfStock) {
+        SoundEffects.playError();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ ${exactMatch.name} is Out of Stock'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        _addToCart(exactMatch);
+        _searchCtrl.clear();
+        setState(() => _searchQuery = '');
+        _rapidKeyCount = 0;
+      }
     }
   }
 
   void _addToCart(ItemModel item) {
     context.read<SalesProvider>().addToCart(item);
+    SoundEffects.playSuccess();
     // Re-focus search field so scanner is always ready
     Future.microtask(() {
       if (mounted) _searchFocus.requestFocus();

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/barcode_print_helper.dart';
 import '../../core/constants.dart';
 import '../../providers/vendor_provider.dart';
 import '../../providers/inventory_provider.dart';
@@ -105,6 +106,9 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       'total': e.total,
     }).toList();
 
+    final savedEntries = List<_PurchaseEntry>.from(_entries);
+    final vendorName = _selectedVendor!.name;
+
     final success = await context.read<PurchaseProvider>().addPurchase(
       vendorId: _selectedVendor!.id,
       vendorName: _selectedVendor!.name,
@@ -124,6 +128,11 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         backgroundColor: AppColors.success,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        action: SnackBarAction(
+          label: 'Print Inward Labels',
+          textColor: Colors.white,
+          onPressed: () => _printInwardLabelsForEntries(savedEntries, vendorName),
+        ),
       ));
       setState(() {
         _selectedVendor = null;
@@ -132,6 +141,71 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         _paymentMode = 'Cash';
       });
     }
+  }
+
+  void _printInwardLabelsForPurchase(PurchaseModel purchase) {
+    final inventory = context.read<InventoryProvider>().items;
+    final Map<String, ItemModel> itemMap = {for (var item in inventory) item.id: item};
+    
+    final printItems = <BarcodePrintItem>[];
+    for (final raw in purchase.itemsList) {
+      final itemId = raw['item_id']?.toString() ?? '';
+      final name = raw['name']?.toString() ?? 'Item';
+      final qty = (raw['quantity'] as num?)?.toInt() ?? 1;
+      final matched = itemMap[itemId];
+      
+      printItems.add(BarcodePrintItem(
+        name: matched?.name ?? name,
+        barcode: (matched != null && matched.barcode.isNotEmpty)
+            ? matched.barcode
+            : (itemId.isNotEmpty ? itemId : 'SKY-${Random().nextInt(99999)}'),
+        price: matched?.price ?? 0.0,
+        size: matched?.size ?? '',
+        color: matched?.color ?? '',
+        quantity: qty > 0 ? qty : 1,
+      ));
+    }
+
+    if (printItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No items in this purchase to print.')),
+      );
+      return;
+    }
+
+    BarcodePrintHelper.printBatchItems(
+      context,
+      title: 'Inward Labels - ${purchase.vendorName}',
+      items: printItems,
+    );
+  }
+
+  void _printInwardLabelsForEntries(List<_PurchaseEntry> entries, String vendorName) {
+    final inventory = context.read<InventoryProvider>().items;
+    final Map<String, ItemModel> itemMap = {for (var item in inventory) item.id: item};
+
+    final printItems = <BarcodePrintItem>[];
+    for (final e in entries) {
+      final matched = itemMap[e.itemId];
+      printItems.add(BarcodePrintItem(
+        name: matched?.name ?? e.name,
+        barcode: (matched != null && matched.barcode.isNotEmpty)
+            ? matched.barcode
+            : (e.itemId.isNotEmpty ? e.itemId : 'SKY-${Random().nextInt(99999)}'),
+        price: matched?.price ?? e.costPrice,
+        size: matched?.size ?? '',
+        color: matched?.color ?? '',
+        quantity: e.quantity > 0 ? e.quantity : 1,
+      ));
+    }
+
+    if (printItems.isEmpty) return;
+
+    BarcodePrintHelper.printBatchItems(
+      context,
+      title: 'Inward Labels - $vendorName',
+      items: printItems,
+    );
   }
 
   void _showError(String msg) {
@@ -429,6 +503,24 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                 _detailRow('Paid', Formatters.currency(purchase.paidAmount), color: AppColors.success),
                 if (purchase.dueAmount > 0)
                   _detailRow('Due', Formatters.currency(purchase.dueAmount), color: AppColors.error),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _printInwardLabelsForPurchase(purchase);
+                    },
+                    icon: const Icon(Icons.qr_code_2_rounded, size: 18),
+                    label: const Text('Print Inward Labels', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
