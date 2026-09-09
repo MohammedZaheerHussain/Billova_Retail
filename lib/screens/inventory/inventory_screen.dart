@@ -836,8 +836,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final price = '₹${item.price.round()}';
     final size = item.size.replaceAll("'", "\\'").replaceAll('"', '\\"');
 
-    final barWidth = 1.8;
-    final barHeight = format == 'zebra4x2' ? 52 : 38;
+    final barWidth = 2.0;
+    final barHeight = format == 'zebra4x2' ? 52 : 36;
     final fontSize = format == 'zebra4x2' ? 14 : 11;
 
     final labelsHtml = StringBuffer();
@@ -858,7 +858,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           '<span class="price">MRP: $price</span>'
           '</div></div>'
         );
-        barcodeJs.write('JsBarcode("#bc$i","$barcode",{format:"CODE128",width:$barWidth,height:$barHeight,displayValue:true,fontSize:$fontSize,fontOptions:"bold",font:"sans-serif",textMargin:1,margin:0,background:"#ffffff",lineColor:"#000000"});');
+        barcodeJs.write('JsBarcode("#bc$i","$barcode",{format:"CODE128",width:$barWidth,height:$barHeight,displayValue:true,fontSize:$fontSize,fontOptions:"bold",font:"monospace",textMargin:1,margin:0,background:"#ffffff",lineColor:"#000000"});');
 
         // Right label (if exists)
         if (i + 1 < count) {
@@ -873,7 +873,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
             '<span class="price">MRP: $price</span>'
             '</div></div>'
           );
-          barcodeJs.write('JsBarcode("#bc$nextIdx","$barcode",{format:"CODE128",width:$barWidth,height:$barHeight,displayValue:true,fontSize:$fontSize,fontOptions:"bold",font:"sans-serif",textMargin:1,margin:0,background:"#ffffff",lineColor:"#000000"});');
+          barcodeJs.write('JsBarcode("#bc$nextIdx","$barcode",{format:"CODE128",width:$barWidth,height:$barHeight,displayValue:true,fontSize:$fontSize,fontOptions:"bold",font:"monospace",textMargin:1,margin:0,background:"#ffffff",lineColor:"#000000"});');
         } else {
           labelsHtml.write('<div class="label-2up empty-slot"></div>');
         }
@@ -892,7 +892,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           '<span class="price">MRP: $price</span>'
           '</div></div>'
         );
-        barcodeJs.write('JsBarcode("#bc$i","$barcode",{format:"CODE128",width:$barWidth,height:$barHeight,displayValue:true,fontSize:$fontSize,fontOptions:"bold",font:"sans-serif",textMargin:1,margin:0,background:"#ffffff",lineColor:"#000000"});');
+        barcodeJs.write('JsBarcode("#bc$i","$barcode",{format:"CODE128",width:$barWidth,height:$barHeight,displayValue:true,fontSize:$fontSize,fontOptions:"bold",font:"monospace",textMargin:1,margin:0,background:"#ffffff",lineColor:"#000000"});');
       }
     } else if (format == 'zebra4x2') {
       // Large 100x50mm (4"x2") label
@@ -907,7 +907,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           '<span class="price-lg">MRP: $price</span>'
           '</div></div>'
         );
-        barcodeJs.write('JsBarcode("#bc$i","$barcode",{format:"CODE128",width:2.4,height:$barHeight,displayValue:true,fontSize:$fontSize,fontOptions:"bold",font:"sans-serif",textMargin:2,margin:0,background:"#ffffff",lineColor:"#000000"});');
+        barcodeJs.write('JsBarcode("#bc$i","$barcode",{format:"CODE128",width:2.5,height:$barHeight,displayValue:true,fontSize:$fontSize,fontOptions:"bold",font:"monospace",textMargin:2,margin:0,background:"#ffffff",lineColor:"#000000"});');
       }
     } else {
       // A4 Sheet 3x8 Grid
@@ -923,7 +923,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           '<span class="price">MRP: $price</span>'
           '</div></div>'
         );
-        barcodeJs.write('JsBarcode("#bc$i","$barcode",{format:"CODE128",width:$barWidth,height:$barHeight,displayValue:true,fontSize:$fontSize,fontOptions:"bold",font:"sans-serif",textMargin:1,margin:0,background:"#ffffff",lineColor:"#000000"});');
+        barcodeJs.write('JsBarcode("#bc$i","$barcode",{format:"CODE128",width:$barWidth,height:$barHeight,displayValue:true,fontSize:$fontSize,fontOptions:"bold",font:"monospace",textMargin:1,margin:0,background:"#ffffff",lineColor:"#000000"});');
       }
       labelsHtml.write('</div>');
     }
@@ -944,10 +944,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
         .empty-slot { visibility: hidden; }
         .shop { font-size: 9px; font-weight: 900; letter-spacing: 0.6px; line-height: 1.1; text-transform: uppercase; color: #000 !important; -webkit-text-stroke: 0.35px #000; }
         .item-name { font-size: 8px; font-weight: 800; max-width: 98%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; color: #000 !important; -webkit-text-stroke: 0.25px #000; }
-        .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; margin: 0.2mm 0; }
-        svg.barcode-svg { height: 13.5mm; max-width: 100%; shape-rendering: crispEdges !important; text-rendering: geometricPrecision !important; display: block; margin: 0 auto; }
-        svg.barcode-svg rect { fill: #000000 !important; shape-rendering: crispEdges !important; }
-        svg.barcode-svg text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important; font-size: 9.5px !important; font-weight: 900 !important; fill: #000000 !important; -webkit-text-stroke: 0.3px #000000 !important; }
+        .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; }
+        svg.barcode-svg { width: 96%; max-height: 14mm; shape-rendering: crispEdges; }
         .footer-row { width: 98%; display: flex; justify-content: space-between; align-items: center; font-size: 9px; line-height: 1; color: #000 !important; }
         .size { font-size: 8.5px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.25px #000; }
         .price { font-size: 10.5px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.4px #000; letter-spacing: 0.2px; }
@@ -965,10 +963,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
         .label-1up { width: 50mm; height: 25mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; padding: 0.8mm 1.5mm; page-break-after: always; break-after: page; overflow: hidden; }
         .shop { font-size: 9px; font-weight: 900; letter-spacing: 0.6px; line-height: 1.1; text-transform: uppercase; color: #000 !important; -webkit-text-stroke: 0.35px #000; }
         .item-name { font-size: 8px; font-weight: 800; max-width: 98%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; color: #000 !important; -webkit-text-stroke: 0.25px #000; }
-        .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; margin: 0.2mm 0; }
-        svg.barcode-svg { height: 13.5mm; max-width: 100%; shape-rendering: crispEdges !important; text-rendering: geometricPrecision !important; display: block; margin: 0 auto; }
-        svg.barcode-svg rect { fill: #000000 !important; shape-rendering: crispEdges !important; }
-        svg.barcode-svg text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important; font-size: 9.5px !important; font-weight: 900 !important; fill: #000000 !important; -webkit-text-stroke: 0.3px #000000 !important; }
+        .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; }
+        svg.barcode-svg { width: 96%; max-height: 14mm; shape-rendering: crispEdges; }
         .footer-row { width: 98%; display: flex; justify-content: space-between; align-items: center; font-size: 9px; line-height: 1; color: #000 !important; }
         .size { font-size: 8.5px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.25px #000; }
         .price { font-size: 10.5px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.4px #000; letter-spacing: 0.2px; }
@@ -986,10 +982,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
         .label-4x2 { width: 100mm; height: 50mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; padding: 2mm 3mm; page-break-after: always; break-after: page; overflow: hidden; }
         .shop-lg { font-size: 15px; font-weight: 900; letter-spacing: 1px; line-height: 1.1; text-transform: uppercase; color: #000 !important; -webkit-text-stroke: 0.45px #000; }
         .item-name-lg { font-size: 13px; font-weight: 800; max-width: 98%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; color: #000 !important; -webkit-text-stroke: 0.3px #000; }
-        .bc-wrap-lg { width: 100%; display: flex; justify-content: center; align-items: center; margin: 1mm 0; }
-        svg.barcode-svg-lg { height: 28mm; max-width: 100%; shape-rendering: crispEdges !important; text-rendering: geometricPrecision !important; display: block; margin: 0 auto; }
-        svg.barcode-svg-lg rect { fill: #000000 !important; shape-rendering: crispEdges !important; }
-        svg.barcode-svg-lg text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important; font-size: 12px !important; font-weight: 900 !important; fill: #000000 !important; -webkit-text-stroke: 0.35px #000000 !important; }
+        .bc-wrap-lg { width: 100%; display: flex; justify-content: center; align-items: center; }
+        svg.barcode-svg-lg { width: 96%; max-height: 28mm; shape-rendering: crispEdges; }
         .footer-row-lg { width: 98%; display: flex; justify-content: space-between; align-items: center; font-size: 13px; line-height: 1.1; color: #000 !important; }
         .size-lg { font-size: 12.5px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.3px #000; }
         .price-lg { font-size: 15px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.5px #000; }
@@ -1008,10 +1002,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
         .label-a4 { border: 1px dashed #bbb; padding: 2mm; height: 32mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; }
         .shop { font-size: 9px; font-weight: 900; letter-spacing: 0.6px; line-height: 1.1; text-transform: uppercase; color: #000 !important; -webkit-text-stroke: 0.35px #000; }
         .item-name { font-size: 8px; font-weight: 800; max-width: 98%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; color: #000 !important; -webkit-text-stroke: 0.25px #000; }
-        .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; margin: 0.2mm 0; }
-        svg.barcode-svg { height: 13.5mm; max-width: 100%; shape-rendering: crispEdges !important; text-rendering: geometricPrecision !important; display: block; margin: 0 auto; }
-        svg.barcode-svg rect { fill: #000000 !important; shape-rendering: crispEdges !important; }
-        svg.barcode-svg text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important; font-size: 9.5px !important; font-weight: 900 !important; fill: #000000 !important; -webkit-text-stroke: 0.3px #000000 !important; }
+        .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; }
+        svg.barcode-svg { width: 96%; max-height: 14mm; shape-rendering: crispEdges; }
         .footer-row { width: 98%; display: flex; justify-content: space-between; align-items: center; font-size: 9px; line-height: 1; color: #000 !important; }
         .size { font-size: 8.5px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.25px #000; }
         .price { font-size: 10.5px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.4px #000; letter-spacing: 0.2px; }
