@@ -833,7 +833,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   void _doPrintLabels(ItemModel item, int count, {String format = 'zebra2up', bool highDensity = true}) {
     final name = item.name.replaceAll("'", "\\'").replaceAll('"', '\\"');
     final barcode = item.barcode.replaceAll("'", "\\'").replaceAll('"', '\\"');
-    final price = '₹${item.price.round()}';
+    final price = Formatters.currency(item.price).replaceAll("'", "\\'").replaceAll('"', '\\"');
     final size = item.size.replaceAll("'", "\\'").replaceAll('"', '\\"');
 
     final barWidth = 2.0;
@@ -932,81 +932,69 @@ class _InventoryScreenState extends State<InventoryScreen> {
     if (format == 'zebra2up') {
       cssRules = '''
         @page { size: 104mm 25mm; margin: 0; }
-        @media print {
-          body { margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          .no-print { display: none !important; }
-        }
+        @media print { body { margin: 0; padding: 0; background: #fff; } .no-print { display: none !important; } }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; color: #000; -webkit-font-smoothing: antialiased; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; color: #000; }
         .sheet { width: 104mm; margin: 0 auto; background: #fff; }
         .row-2up { width: 104mm; height: 25mm; display: flex; flex-direction: row; justify-content: space-between; align-items: stretch; page-break-after: always; break-after: page; padding: 0.5mm 1.5mm; overflow: hidden; }
         .label-2up { width: 49.5mm; height: 24mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; padding: 0.8mm 1mm; overflow: hidden; }
         .empty-slot { visibility: hidden; }
-        .shop { font-size: 9px; font-weight: 900; letter-spacing: 0.6px; line-height: 1.1; text-transform: uppercase; color: #000 !important; -webkit-text-stroke: 0.35px #000; }
-        .item-name { font-size: 8px; font-weight: 800; max-width: 98%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; color: #000 !important; -webkit-text-stroke: 0.25px #000; }
+        .shop { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
+        .item-name { font-size: 7.5px; font-weight: 700; max-width: 96%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
         .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; }
         svg.barcode-svg { width: 96%; max-height: 14mm; shape-rendering: crispEdges; }
-        .footer-row { width: 98%; display: flex; justify-content: space-between; align-items: center; font-size: 9px; line-height: 1; color: #000 !important; }
-        .size { font-size: 8.5px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.25px #000; }
-        .price { font-size: 10.5px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.4px #000; letter-spacing: 0.2px; }
+        .footer-row { width: 96%; display: flex; justify-content: space-between; align-items: center; font-size: 8px; line-height: 1; }
+        .size { font-size: 7.5px; font-weight: 600; }
+        .price { font-size: 9px; font-weight: 900; }
       ''';
     } else if (format == 'zebra1up') {
       cssRules = '''
         @page { size: 50mm 25mm; margin: 0; }
-        @media print {
-          body { margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          .no-print { display: none !important; }
-        }
+        @media print { body { margin: 0; padding: 0; background: #fff; } .no-print { display: none !important; } }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; color: #000; -webkit-font-smoothing: antialiased; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; color: #000; }
         .sheet { width: 50mm; margin: 0 auto; background: #fff; }
         .label-1up { width: 50mm; height: 25mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; padding: 0.8mm 1.5mm; page-break-after: always; break-after: page; overflow: hidden; }
-        .shop { font-size: 9px; font-weight: 900; letter-spacing: 0.6px; line-height: 1.1; text-transform: uppercase; color: #000 !important; -webkit-text-stroke: 0.35px #000; }
-        .item-name { font-size: 8px; font-weight: 800; max-width: 98%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; color: #000 !important; -webkit-text-stroke: 0.25px #000; }
+        .shop { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
+        .item-name { font-size: 7.5px; font-weight: 700; max-width: 96%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
         .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; }
         svg.barcode-svg { width: 96%; max-height: 14mm; shape-rendering: crispEdges; }
-        .footer-row { width: 98%; display: flex; justify-content: space-between; align-items: center; font-size: 9px; line-height: 1; color: #000 !important; }
-        .size { font-size: 8.5px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.25px #000; }
-        .price { font-size: 10.5px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.4px #000; letter-spacing: 0.2px; }
+        .footer-row { width: 96%; display: flex; justify-content: space-between; align-items: center; font-size: 8px; line-height: 1; }
+        .size { font-size: 7.5px; font-weight: 600; }
+        .price { font-size: 9px; font-weight: 900; }
       ''';
     } else if (format == 'zebra4x2') {
       cssRules = '''
         @page { size: 100mm 50mm; margin: 0; }
-        @media print {
-          body { margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          .no-print { display: none !important; }
-        }
+        @media print { body { margin: 0; padding: 0; background: #fff; } .no-print { display: none !important; } }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; color: #000; -webkit-font-smoothing: antialiased; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; color: #000; }
         .sheet { width: 100mm; margin: 0 auto; background: #fff; }
         .label-4x2 { width: 100mm; height: 50mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; padding: 2mm 3mm; page-break-after: always; break-after: page; overflow: hidden; }
-        .shop-lg { font-size: 15px; font-weight: 900; letter-spacing: 1px; line-height: 1.1; text-transform: uppercase; color: #000 !important; -webkit-text-stroke: 0.45px #000; }
-        .item-name-lg { font-size: 13px; font-weight: 800; max-width: 98%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; color: #000 !important; -webkit-text-stroke: 0.3px #000; }
+        .shop-lg { font-size: 14px; font-weight: 900; letter-spacing: 1px; line-height: 1.1; text-transform: uppercase; }
+        .item-name-lg { font-size: 12px; font-weight: 700; max-width: 96%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
         .bc-wrap-lg { width: 100%; display: flex; justify-content: center; align-items: center; }
         svg.barcode-svg-lg { width: 96%; max-height: 28mm; shape-rendering: crispEdges; }
-        .footer-row-lg { width: 98%; display: flex; justify-content: space-between; align-items: center; font-size: 13px; line-height: 1.1; color: #000 !important; }
-        .size-lg { font-size: 12.5px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.3px #000; }
-        .price-lg { font-size: 15px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.5px #000; }
+        .footer-row-lg { width: 96%; display: flex; justify-content: space-between; align-items: center; font-size: 13px; line-height: 1.1; }
+        .size-lg { font-size: 12px; font-weight: 600; }
+        .price-lg { font-size: 14px; font-weight: 900; }
       ''';
     } else {
       cssRules = '''
         @page { size: A4; margin: 8mm 6mm; }
-        @media print {
-          body { margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          .no-print { display: none !important; }
-        }
+        @media print { body { margin: 0; padding: 0; background: #fff; } .no-print { display: none !important; } }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; color: #000; -webkit-font-smoothing: antialiased; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; color: #000; }
         .sheet { max-width: 100%; margin: 0 auto; background: #fff; }
         .grid-a4 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2mm 3mm; padding: 4mm; }
         .label-a4 { border: 1px dashed #bbb; padding: 2mm; height: 32mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; }
-        .shop { font-size: 9px; font-weight: 900; letter-spacing: 0.6px; line-height: 1.1; text-transform: uppercase; color: #000 !important; -webkit-text-stroke: 0.35px #000; }
-        .item-name { font-size: 8px; font-weight: 800; max-width: 98%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; color: #000 !important; -webkit-text-stroke: 0.25px #000; }
+        .shop { font-size: 8.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1; text-transform: uppercase; }
+        .item-name { font-size: 7.5px; font-weight: 700; max-width: 96%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
         .bc-wrap { width: 100%; display: flex; justify-content: center; align-items: center; }
         svg.barcode-svg { width: 96%; max-height: 14mm; shape-rendering: crispEdges; }
-        .footer-row { width: 98%; display: flex; justify-content: space-between; align-items: center; font-size: 9px; line-height: 1; color: #000 !important; }
-        .size { font-size: 8.5px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.25px #000; }
-        .price { font-size: 10.5px; font-weight: 900; color: #000 !important; -webkit-text-stroke: 0.4px #000; letter-spacing: 0.2px; }
+        .footer-row { width: 96%; display: flex; justify-content: space-between; align-items: center; font-size: 8px; line-height: 1; }
+        .size { font-size: 7.5px; font-weight: 600; }
+        .price { font-size: 9px; font-weight: 900; }
       ''';
     }
 
