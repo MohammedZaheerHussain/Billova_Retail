@@ -126,53 +126,6 @@ class BarcodePrintHelper {
                       });
                     }),
                   ]),
-                  const SizedBox(height: 16),
-
-                  Text('Printer & Label Format',
-                      style: TextStyle(color: AppColors.textSecondary(dialogCtx), fontSize: 12, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface(dialogCtx),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.cardBorder(dialogCtx)),
-                    ),
-                    child: Column(
-                      children: [
-                        _formatRadioTile(
-                          value: 'zebra2up',
-                          groupValue: selectedFormat,
-                          title: 'Zebra 2-Up Roll (50×25mm × 2 across)',
-                          subtitle: '⭐ Default for ZD220 Dual Sticker Roll',
-                          onChanged: (v) => setDialogState(() => selectedFormat = v!),
-                        ),
-                        const Divider(height: 1),
-                        _formatRadioTile(
-                          value: 'zebra1up',
-                          groupValue: selectedFormat,
-                          title: 'Zebra 1-Up Roll (50×25mm / 2"×1")',
-                          subtitle: 'Single column continuous sticker roll',
-                          onChanged: (v) => setDialogState(() => selectedFormat = v!),
-                        ),
-                        const Divider(height: 1),
-                        _formatRadioTile(
-                          value: 'zebra4x2',
-                          groupValue: selectedFormat,
-                          title: 'Zebra 1-Up Large (100×50mm / 4"×2")',
-                          subtitle: 'Full width 4-inch shipping/box label',
-                          onChanged: (v) => setDialogState(() => selectedFormat = v!),
-                        ),
-                        const Divider(height: 1),
-                        _formatRadioTile(
-                          value: 'a4',
-                          groupValue: selectedFormat,
-                          title: 'A4 Sheet (3×8 Grid - 24 Labels)',
-                          subtitle: 'Standard desktop laser/inkjet sheet paper',
-                          onChanged: (v) => setDialogState(() => selectedFormat = v!),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -297,53 +250,6 @@ class BarcodePrintHelper {
                             ],
                           ),
                         )),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  Text('Printer & Label Format',
-                      style: TextStyle(color: AppColors.textSecondary(dialogCtx), fontSize: 12, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface(dialogCtx),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.cardBorder(dialogCtx)),
-                    ),
-                    child: Column(
-                      children: [
-                        _formatRadioTile(
-                          value: 'zebra2up',
-                          groupValue: selectedFormat,
-                          title: 'Zebra 2-Up Roll (50×25mm × 2 across)',
-                          subtitle: '⭐ Default for ZD220 Dual Sticker Roll',
-                          onChanged: (v) => setDialogState(() => selectedFormat = v!),
-                        ),
-                        const Divider(height: 1),
-                        _formatRadioTile(
-                          value: 'zebra1up',
-                          groupValue: selectedFormat,
-                          title: 'Zebra 1-Up Roll (50×25mm / 2"×1")',
-                          subtitle: 'Single column continuous sticker roll',
-                          onChanged: (v) => setDialogState(() => selectedFormat = v!),
-                        ),
-                        const Divider(height: 1),
-                        _formatRadioTile(
-                          value: 'zebra4x2',
-                          groupValue: selectedFormat,
-                          title: 'Zebra 1-Up Large (100×50mm / 4"×2")',
-                          subtitle: 'Full width 4-inch shipping/box label',
-                          onChanged: (v) => setDialogState(() => selectedFormat = v!),
-                        ),
-                        const Divider(height: 1),
-                        _formatRadioTile(
-                          value: 'a4',
-                          groupValue: selectedFormat,
-                          title: 'A4 Sheet (3×8 Grid - 24 Labels)',
-                          subtitle: 'Standard desktop laser/inkjet sheet paper',
-                          onChanged: (v) => setDialogState(() => selectedFormat = v!),
-                        ),
                       ],
                     ),
                   ),
@@ -609,44 +515,6 @@ class BarcodePrintHelper {
           border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
         ),
         child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.accent)),
-      ),
-    );
-  }
-
-  static Widget _formatRadioTile({
-    required String value,
-    required String groupValue,
-    required String title,
-    required String subtitle,
-    required ValueChanged<String?> onChanged,
-  }) {
-    final isSelected = value == groupValue;
-    return InkWell(
-      onTap: () => onChanged(value),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
-          children: [
-            Radio<String>(
-              value: value,
-              groupValue: groupValue,
-              onChanged: onChanged,
-              activeColor: AppColors.accent,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.compact,
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500)),
-                  Text(subtitle, style: TextStyle(fontSize: 10, color: isSelected ? AppColors.accent : Colors.grey)),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
