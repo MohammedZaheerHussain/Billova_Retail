@@ -65,8 +65,8 @@ void main() {
   group('UpdateNotificationDialog UI Tests', () {
     testWidgets('renders dialog with release notes and action buttons', (tester) async {
       const versionInfo = AppVersionModel(
-        version: '1.0.2',
-        releaseDate: '14 Aug 2026',
+        version: '1.0.3',
+        releaseDate: '10 Sep 2026',
         releaseNotes: [
           '⚡ Dashboard improvements',
           '📊 Performance boost',
@@ -90,8 +90,9 @@ void main() {
       );
 
       expect(find.text('New Update Available'), findsOneWidget);
-      expect(find.text('v1.0.2'), findsOneWidget);
-      expect(find.text('14 Aug 2026'), findsOneWidget);
+      expect(find.text('v${AppVersion.currentVersion}'), findsOneWidget);
+      expect(find.text('v1.0.3'), findsOneWidget);
+      expect(find.text('10 Sep 2026'), findsOneWidget);
       expect(find.text("What's New"), findsOneWidget);
       expect(find.text('Update Now'), findsOneWidget);
       expect(find.text('Later'), findsOneWidget);

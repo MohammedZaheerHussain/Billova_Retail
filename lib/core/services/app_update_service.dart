@@ -42,9 +42,13 @@ class AppUpdateService {
       // 1. Fetch from hosted version.json (Vercel static endpoint)
       try {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final uri = kIsWeb
-            ? Uri.base.resolve('version.json?t=$timestamp')
-            : Uri.parse('${AppVersion.productionUrl}/version.json?t=$timestamp');
+        final String origin;
+        if (kIsWeb && Uri.base.scheme.isNotEmpty && Uri.base.authority.isNotEmpty) {
+          origin = '${Uri.base.scheme}://${Uri.base.authority}';
+        } else {
+          origin = AppVersion.productionUrl;
+        }
+        final uri = Uri.parse('$origin/version.json?t=$timestamp');
 
         final response = await http.get(
           uri,

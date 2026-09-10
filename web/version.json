@@ -1,15 +1,15 @@
 {
-  "version": "1.0.1",
-  "build_number": 2,
-  "release_date": "14 Aug 2026",
+  "version": "1.0.2",
+  "build_number": 3,
+  "release_date": "10 Sep 2026",
   "force_update": false,
   "minimum_supported_version": "1.0.0",
   "update_url": "https://sky-walk-six.vercel.app",
   "release_notes": [
-    "⚡ Enhanced Attendance Tracking (Automatic Login & Logout logging)",
-    "📊 Performance Analytics & Executive Sales Overview optimizations",
-    "🎨 High-contrast Sales Trend chart with interactive tooltips",
-    "🏷️ Separate Low Stock and Out of Stock inventory monitoring cards",
-    "🚀 In-App Update Notification System"
+    "🏷️ Clean Barcode Label Printing (Automated layout, hidden format clutter)",
+    "🖨️ Zebra Thermal Printer & Custom Driver Auto-Configuration",
+    "⚡ Zero-Focus Instant POS Barcode Scanner Listener",
+    "📦 Bulk Inward Purchase Barcode Label Printing",
+    "🚀 Real-time In-App Update Notification & Cache Refresh System"
   ]
 }
