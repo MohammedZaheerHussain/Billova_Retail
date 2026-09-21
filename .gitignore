@@ -18,10 +18,6 @@ skills-lock.json
 build/
 !build/web/
 !build/web/**
-build/web/assets/.env
-build/web/assets/.env.*
-build/web/assets/assets/.env
-build/web/assets/assets/.env.*
 *.g.dart
 *.freezed.dart
 
@@ -35,10 +31,13 @@ build/web/assets/assets/.env.*
 *.swp
 Thumbs.db
 
-# Env (NEVER commit secrets)
-.env
-.env.*
+# Env (Protect local root secrets)
+/.env
+/.env.local
+/.env.*.local
 !.env.example
+!assets/.env
+!build/web/assets/.env
 
 # Vercel
 .vercel/
