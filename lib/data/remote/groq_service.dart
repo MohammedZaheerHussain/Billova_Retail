@@ -11,7 +11,13 @@ class GroqService {
   static const String _baseUrl = 'https://api.groq.com/openai/v1/chat/completions';
   static const String _model = 'llama-3.1-8b-instant';
 
-  String get _apiKey => dotenv.env['GROQ_API_KEY'] ?? '';
+  String get _apiKey {
+    const envKey = String.fromEnvironment('GROQ_API_KEY');
+    if (envKey.isNotEmpty) return envKey;
+    final dotVal = dotenv.env['GROQ_API_KEY'];
+    if (dotVal != null && dotVal.isNotEmpty) return dotVal;
+    return '';
+  }
 
   /// Generate AI business insights from aggregated data
   Future<String> generateInsights(Map<String, dynamic> businessData) async {

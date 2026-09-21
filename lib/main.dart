@@ -23,8 +23,12 @@ import 'app.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables from .env
-  await dotenv.load(fileName: '.env');
+  // Load environment variables from .env if available
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    debugPrint('Note: .env file not found or failed to load ($e). Using built-in configuration.');
+  }
 
   await Supabase.initialize(
     url: AppConstants.supabaseUrl,

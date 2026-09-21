@@ -8,9 +8,25 @@ class AppConstants {
   static const String appVersion = '1.0.0';
   static const String appTagline = 'Professional Billing, Simplified';
 
-  // ─── Supabase (loaded from .env) ───
-  static String get supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
-  static String get supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  // ─── Supabase (loaded from environment / .env / fallback) ───
+  static const String _defaultSupabaseUrl = 'https://auqapthcohowhjcchnia.supabase.co';
+  static const String _defaultSupabaseAnonKey = 'sb_publishable_WoVw7PKKbK8BpASXg2eA0w_LooCAyZs';
+
+  static String get supabaseUrl {
+    const envUrl = String.fromEnvironment('SUPABASE_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+    final dotVal = dotenv.env['SUPABASE_URL'];
+    if (dotVal != null && dotVal.isNotEmpty) return dotVal;
+    return _defaultSupabaseUrl;
+  }
+
+  static String get supabaseAnonKey {
+    const envKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+    if (envKey.isNotEmpty) return envKey;
+    final dotVal = dotenv.env['SUPABASE_ANON_KEY'];
+    if (dotVal != null && dotVal.isNotEmpty) return dotVal;
+    return _defaultSupabaseAnonKey;
+  }
 
   // ─── Database ───
   static const String dbName = 'billova_retail.db';
