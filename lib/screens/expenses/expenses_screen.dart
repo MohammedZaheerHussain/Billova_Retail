@@ -200,7 +200,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           Expanded(
                             flex: 2,
                             child: DropdownButtonFormField<String>(
-                              value: _selectedCategory,
+                              initialValue: _selectedCategory,
                               onChanged: (v) => setState(() => _selectedCategory = v!),
                               dropdownColor: AppColors.card(context),
                               style: TextStyle(

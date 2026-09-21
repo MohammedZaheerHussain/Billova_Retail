@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════
--- SKYWALK Billing — Migration 003: Vendors + Purchases
+-- Billova Retail — Migration 003: Vendors + Purchases
 -- Run this in Supabase SQL Editor (Dashboard → SQL Editor)
 -- ═══════════════════════════════════════════════════════
 

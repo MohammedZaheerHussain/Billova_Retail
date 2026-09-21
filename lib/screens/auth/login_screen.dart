@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_typography.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/staff_provider.dart';
 import '../../providers/inventory_provider.dart';
@@ -61,10 +59,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   ];
 
   static const _slideTexts = [
-    {'title': 'Step into Style', 'sub': 'Premium footwear crafted for comfort, made for you.'},
-    {'title': 'Elevate Every Step', 'sub': 'Engineered for performance, designed for excellence.'},
-    {'title': 'Walk the Future', 'sub': 'Innovation meets craftsmanship in every pair.'},
-    {'title': 'Born to Move', 'sub': 'Precision engineering for the modern athlete.'},
+    {'title': 'Modern Retail POS', 'sub': 'Fast checkout, thermal printing, and smart barcode billing.'},
+    {'title': 'Intelligent Inventory', 'sub': 'Real-time stock tracking, low stock alerts, and vendor purchases.'},
+    {'title': 'Customer & Credit Care', 'sub': 'Automated Udhar ledgers, loyalty rewards, and WhatsApp bills.'},
+    {'title': 'AI Business Analytics', 'sub': 'Live sales trends, profit margins, and growth insights.'},
   ];
 
   @override
@@ -258,7 +256,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // LEFT PANEL — Image slideshow with SKYWALK branding
+  // LEFT PANEL — Image slideshow with Billova Retail branding
   // ═══════════════════════════════════════════════════════════════
   Widget _buildLeftPanel() {
     return Stack(
@@ -302,7 +300,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           ),
         ),
 
-        // SKYWALK Logo — top left
+        // BILLOVA Logo — top left
         Positioned(
           top: 40,
           left: 40,
@@ -317,11 +315,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   gradient: AppColors.primaryGradient,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.flight_takeoff_rounded, color: Colors.white, size: 22),
+                child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 22),
               ),
               const SizedBox(height: 12),
               const Text(
-                'SKYWALK',
+                'BILLOVA',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 22,
@@ -330,7 +328,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 ),
               ),
               const Text(
-                '~ ELEVATE EVERY STEP ~',
+                '~ RETAIL POS SYSTEM ~',
                 style: TextStyle(
                   color: Colors.white60,
                   fontSize: 9,
@@ -492,7 +490,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     const SizedBox(height: 6),
                     Text(
                       _loginMode == 0
-                          ? 'Sign in to your Skywalk account'
+                          ? 'Sign in to your Billova Retail account'
                           : 'Clock in with your staff credentials',
                       style: const TextStyle(
                         fontSize: 14,
@@ -534,7 +532,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               autofillHints: const [AutofillHints.email, AutofillHints.username],
                               style: const TextStyle(color: Color(0xFF0F172A), fontSize: 14),
                               decoration: _lightInputDecoration(
-                                hint: 'admin@skywalk.com',
+                                hint: 'admin@billova.com',
                                 icon: Icons.email_outlined,
                               ),
                               validator: (v) {
@@ -806,7 +804,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                 Expanded(
                                   child: Text(
                                     _loginMode == 0
-                                        ? 'This system is restricted to authorized Skywalk personnel only. Unauthorized access is prohibited.'
+                                        ? 'This system is restricted to authorized Billova Retail personnel only. Unauthorized access is prohibited.'
                                         : 'Enter the username and PIN provided by your admin. You will be automatically clocked in.',
                                     style: const TextStyle(
                                       fontSize: 11.5,

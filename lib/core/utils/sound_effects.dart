@@ -15,10 +15,10 @@ class SoundEffects {
           try {
             var AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) return;
-            if (!window._skywalkAudioCtx) {
-              window._skywalkAudioCtx = new AudioContext();
+            if (!window._billovaAudioCtx) {
+              window._billovaAudioCtx = new AudioContext();
             }
-            var ctx = window._skywalkAudioCtx;
+            var ctx = window._billovaAudioCtx;
             if (ctx.state === 'suspended') {
               ctx.resume();
             }
@@ -47,10 +47,10 @@ class SoundEffects {
           try {
             var AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) return;
-            if (!window._skywalkAudioCtx) {
-              window._skywalkAudioCtx = new AudioContext();
+            if (!window._billovaAudioCtx) {
+              window._billovaAudioCtx = new AudioContext();
             }
-            var ctx = window._skywalkAudioCtx;
+            var ctx = window._billovaAudioCtx;
             if (ctx.state === 'suspended') {
               ctx.resume();
             }

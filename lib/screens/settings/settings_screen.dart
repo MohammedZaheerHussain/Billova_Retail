@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../providers/theme_provider.dart';
@@ -21,7 +20,6 @@ import '../../data/local/db_helper.dart';
 import '../../data/remote/supabase_service.dart';
 import 'dart:html' as html;
 import '../../core/utils/data_export_service.dart';
-import '../../core/utils/formatters.dart';
 import '../../core/config/app_version.dart';
 import '../../providers/app_update_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -604,7 +602,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight))),
                   Switch(
                     value: _autoPrint,
-                    activeColor: AppColors.success,
+                    activeThumbColor: AppColors.success,
                     onChanged: (v) async {
                       setState(() => _autoPrint = v);
                       await DBHelper.instance.setSetting('auto_print', v.toString());
@@ -644,7 +642,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       color: isDark ? AppColors.textPrimary(context) : AppColors.textPrimaryLight))),
                   Switch(
                     value: _gstEnabled,
-                    activeColor: AppColors.accent,
+                    activeThumbColor: AppColors.accent,
                     onChanged: (v) => setState(() => _gstEnabled = v),
                   ),
                 ]),
@@ -1188,7 +1186,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       if (val != null && val > 0) loyalty.setEarnRate(val);
                     }),
                 const SizedBox(height: 12),
-                _loyaltyField('Redeem Value', '${loyalty.redeemValue.toStringAsFixed(0)}',
+                _loyaltyField('Redeem Value', loyalty.redeemValue.toStringAsFixed(0),
                     '\u20b9 per point', Icons.currency_rupee_rounded,
                     onChanged: (v) {
                       final val = double.tryParse(v);
@@ -1636,7 +1634,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: color,
+            activeThumbColor: color,
             activeTrackColor: color.withValues(alpha: 0.3),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
@@ -1713,7 +1711,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: Row(
                     children: [
                       Text(
-                        'SKYWALK Billing',
+                        'Billova Retail',
                         style: AppTypography.bodyMedium.copyWith(
                           color: AppColors.textPrimary(context),
                           fontWeight: FontWeight.w600,
@@ -1801,7 +1799,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     : AppColors.primary.withValues(alpha: 0.12)),
             ),
             child: Column(children: [
-              // SKYWALK Logo Icon
+              // BILLOVA Logo Icon
               Container(
                 width: 56, height: 56,
                 decoration: BoxDecoration(
@@ -1817,14 +1815,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 16),
 
-              // SKYWALK text
+              // BILLOVA RETAIL text
               ShaderMask(
                 shaderCallback: (bounds) => AppColors.primaryGradient.createShader(bounds),
-                child: Text('SKYWALK', style: AppTypography.h3.copyWith(
-                  color: Colors.white, letterSpacing: 5, fontWeight: FontWeight.w800, fontSize: 22)),
+                child: Text('BILLOVA RETAIL', style: AppTypography.h3.copyWith(
+                  color: Colors.white, letterSpacing: 4, fontWeight: FontWeight.w800, fontSize: 20)),
               ),
               const SizedBox(height: 4),
-              Text('Billing Software', style: AppTypography.bodySmall.copyWith(
+              Text('Professional POS & Billing', style: AppTypography.bodySmall.copyWith(
                 color: AppColors.textSecondary(context), letterSpacing: 1)),
 
               const SizedBox(height: 20),

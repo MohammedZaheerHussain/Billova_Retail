@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════
--- SKYWALK Billing — Migration 004: Staff + Attendance
+-- Billova Retail — Migration 004: Staff + Attendance
 -- Run this in Supabase SQL Editor (Dashboard → SQL Editor)
 -- ═══════════════════════════════════════════════════════
 

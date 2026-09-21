@@ -11,7 +11,6 @@ import '../../providers/staff_provider.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/loyalty_settings_provider.dart';
 import '../../data/models/sale_model.dart';
-import '../../data/models/item_model.dart';
 import '../../data/models/return_model.dart';
 
 class ReturnExchangeScreen extends StatefulWidget {

@@ -8,7 +8,7 @@ import 'package:crypto/crypto.dart';
 /// a 4-6 digit numeric PIN in a retail ERP context.
 class PinHasher {
   // Salt prefix — prevents rainbow table attacks on short PINs
-  static const _salt = 'skywalk_erp_v1_';
+  static const _salt = 'billova_retail_v1_';
 
   /// Hash a raw PIN string. Returns a hex-encoded SHA-256 digest.
   static String hash(String rawPin) {

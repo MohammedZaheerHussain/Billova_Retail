@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════
--- SKYWALK Billing — Migration 009: Customer Loyalty Points
+-- Billova Retail — Migration 009: Customer Loyalty Points
 -- Run this in Supabase SQL Editor (Dashboard → SQL Editor)
 -- ═══════════════════════════════════════════════════════
 

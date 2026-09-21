@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════
--- SKYWALK Billing — Migration 005: Customers Table
+-- Billova Retail — Migration 005: Customers Table
 -- Run this in Supabase SQL Editor (Dashboard → SQL Editor)
 -- ═══════════════════════════════════════════════════════
 

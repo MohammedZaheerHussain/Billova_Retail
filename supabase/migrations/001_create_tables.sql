@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════
--- SKYWALK Billing — Supabase Table Definitions
+-- Billova Retail — Supabase Table Definitions
 -- Run this in Supabase SQL Editor (Dashboard → SQL Editor)
 -- ═══════════════════════════════════════════════════════
 

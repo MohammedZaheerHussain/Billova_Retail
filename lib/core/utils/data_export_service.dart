@@ -85,7 +85,7 @@ class DataExportService {
 
     final csv = _buildCsv(columns, rows);
     final timestamp = DateTime.now().toIso8601String().substring(0, 10);
-    _triggerDownload(csv, 'SKYWALK_${tableName}_$timestamp.csv');
+    _triggerDownload(csv, 'BILLOVA_${tableName}_$timestamp.csv');
     return rows.length;
   }
 
@@ -123,7 +123,7 @@ class DataExportService {
       }
     }
 
-    _triggerDownload(buffer.toString(), 'SKYWALK_FULL_BACKUP_$timestamp.csv');
+    _triggerDownload(buffer.toString(), 'BILLOVA_FULL_BACKUP_$timestamp.csv');
     return counts;
   }
 
@@ -139,7 +139,7 @@ class DataExportService {
     final buffer = StringBuffer();
     final monthLabel = '${target.year}-${target.month.toString().padLeft(2, '0')}';
 
-    buffer.writeln('SKYWALK Billing — Monthly Report: $monthLabel');
+    buffer.writeln('Billova Retail — Monthly Report: $monthLabel');
     buffer.writeln('Generated: ${DateTime.now().toIso8601String()}');
     buffer.writeln('');
 
@@ -203,7 +203,7 @@ class DataExportService {
       counts['customers'] = -1;
     }
 
-    _triggerDownload(buffer.toString(), 'SKYWALK_MONTHLY_${monthLabel}.csv');
+    _triggerDownload(buffer.toString(), 'BILLOVA_MONTHLY_$monthLabel.csv');
     return counts;
   }
 

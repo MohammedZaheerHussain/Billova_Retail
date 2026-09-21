@@ -24,7 +24,7 @@ class WhatsAppHelper {
     String customerName = '',
   }) {
     final buf = StringBuffer();
-    buf.writeln('*SKYWALK BILL*');
+    buf.writeln('*BILLOVA RETAIL BILL*');
     buf.writeln('');
     if (customerName.isNotEmpty) buf.writeln('Hi $customerName,');
     buf.writeln('Invoice: *$invoiceNumber*');
@@ -41,7 +41,7 @@ class WhatsAppHelper {
     buf.writeln('Payment: $paymentMode');
     buf.writeln('');
     buf.writeln('Thank you for shopping with us!');
-    buf.writeln('Visit again! - Team SKYWALK');
+    buf.writeln('Visit again! - Team Billova Retail');
     return buf.toString();
   }
 
@@ -50,23 +50,23 @@ class WhatsAppHelper {
   static const List<Map<String, String>> offerTemplates = [
     {
       'title': 'Festival Offer',
-      'message': '*Festival Special from SKYWALK!*\n\nFlat *20% OFF* on all products!\n\nHurry - offer valid for limited time only!\n\nVisit now!',
+      'message': '*Festival Special from Billova Retail!*\n\nFlat *20% OFF* on all products!\n\nHurry - offer valid for limited time only!\n\nVisit now!',
     },
     {
       'title': 'Clearance Sale',
-      'message': '*SKYWALK Clearance Sale!*\n\nUp to *50% OFF* on selected styles!\n\nLimited stock - first come, first served!\n\nVisit today!',
+      'message': '*Billova Retail Clearance Sale!*\n\nUp to *50% OFF* on selected styles!\n\nLimited stock - first come, first served!\n\nVisit today!',
     },
     {
       'title': 'New Arrivals',
-      'message': '*New Arrivals at SKYWALK!*\n\nFresh styles just dropped!\n\nBe the first to grab them!\n\nVisit now or miss out!',
+      'message': '*New Arrivals at Billova Retail!*\n\nFresh styles just dropped!\n\nBe the first to grab them!\n\nVisit now or miss out!',
     },
     {
       'title': 'VIP/Loyalty',
-      'message': '*Exclusive VIP Offer - SKYWALK*\n\nAs a valued customer, you get *EXTRA 10% OFF*!\n\nUse this message to claim at store.\n\nThank you for your loyalty!',
+      'message': '*Exclusive VIP Offer - Billova Retail*\n\nAs a valued customer, you get *EXTRA 10% OFF*!\n\nUse this message to claim at store.\n\nThank you for your loyalty!',
     },
     {
       'title': 'Weekend Special',
-      'message': '*Weekend Special - SKYWALK*\n\nBuy 2 pairs, get *Rs.500 OFF*!\n\nThis Saturday & Sunday only!\n\nSee you there!',
+      'message': '*Weekend Special - Billova Retail*\n\nBuy 2 pairs, get *Rs.500 OFF*!\n\nThis Saturday & Sunday only!\n\nSee you there!',
     },
   ];
 
@@ -79,7 +79,7 @@ class WhatsAppHelper {
     required double pendingAmount,
     required String paymentStatus,
     required List<Map<String, dynamic>> purchases,
-    String companyName = 'SKYWALK',
+    String companyName = 'Billova Retail',
   }) {
     String status;
     if (pendingAmount <= 0) {
@@ -137,7 +137,7 @@ class WhatsAppHelper {
     required double dueAmount,
     required String paymentMode,
     required double overallPending,
-    String companyName = 'SKYWALK',
+    String companyName = 'Billova Retail',
   }) {
     String status;
     if (dueAmount <= 0) {

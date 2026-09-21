@@ -4,7 +4,7 @@ class AppConstants {
   AppConstants._();
 
   // ─── App Info ───
-  static const String appName = 'SKYWALK Billing';
+  static const String appName = 'Billova Retail';
   static const String appVersion = '1.0.0';
   static const String appTagline = 'Professional Billing, Simplified';
 
@@ -13,11 +13,11 @@ class AppConstants {
   static String get supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
   // ─── Database ───
-  static const String dbName = 'skywalk_billing.db';
+  static const String dbName = 'billova_retail.db';
   static const int dbVersion = 16;
 
   // ─── Invoice ───
-  static const String invoicePrefix = 'SKY';
+  static const String invoicePrefix = 'BIL';
   static const String currencySymbol = '₹';
   static const String currencyCode = 'INR';
 

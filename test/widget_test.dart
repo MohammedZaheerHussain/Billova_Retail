@@ -6,11 +6,13 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skywalk_billing/app.dart';
+import 'package:billova_retail/core/constants.dart';
 
 void main() {
-  testWidgets('App load smoke test', (WidgetTester tester) async {
-    // Verify SkywalkApp instantiates
-    expect(const SkywalkApp(), isNotNull);
+  test('App configuration and constants test', () {
+    expect(AppConstants.appName, 'Billova Retail');
+    expect(AppConstants.appTagline, 'Professional Billing, Simplified');
+    expect(AppConstants.invoicePrefix, 'BIL');
+    expect(AppConstants.dbName, 'billova_retail.db');
   });
 }

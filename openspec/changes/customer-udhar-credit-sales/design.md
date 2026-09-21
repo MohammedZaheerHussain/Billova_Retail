@@ -1,6 +1,6 @@
 ## Context
 
-The SKYWALK Billing system already has a working Udhar pattern for vendors (`VendorModel.balance`, `PurchaseModel.dueAmount`). We mirror this exact pattern for customers to keep the codebase consistent. The vendor pattern stores a running `balance` on the vendor model and per-purchase `due_amount`. Collections reduce the balance.
+The Billova Retail system already has a working Udhar pattern for vendors (`VendorModel.balance`, `PurchaseModel.dueAmount`). We mirror this exact pattern for customers to keep the codebase consistent. The vendor pattern stores a running `balance` on the vendor model and per-purchase `due_amount`. Collections reduce the balance.
 
 **Existing payment flow:**
 ```

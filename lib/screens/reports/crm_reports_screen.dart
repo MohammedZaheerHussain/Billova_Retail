@@ -86,7 +86,6 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
               secondary: AppColors.accent,
               onSecondary: Colors.white,
             ),
-            dialogBackgroundColor: const Color(0xFF1A1A2E),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(foregroundColor: AppColors.accent),
             ),
@@ -110,7 +109,7 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
               rangeSelectionBackgroundColor: AppColors.primary.withValues(alpha: 0.2),
               surfaceTintColor: Colors.transparent,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
+            ), dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF1A1A2E)),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
@@ -148,7 +147,6 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
               onSurface: Colors.white,
               secondary: AppColors.accent,
             ),
-            dialogBackgroundColor: const Color(0xFF1A1A2E),
             datePickerTheme: DatePickerThemeData(
               backgroundColor: const Color(0xFF1A1A2E),
               headerBackgroundColor: AppColors.primary.withValues(alpha: 0.15),
@@ -165,7 +163,7 @@ class _CrmReportsScreenState extends State<CrmReportsScreen> {
               todayForegroundColor: WidgetStateProperty.all(AppColors.accent),
               surfaceTintColor: Colors.transparent,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
+            ), dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF1A1A2E)),
           ),
           child: child!,
         );

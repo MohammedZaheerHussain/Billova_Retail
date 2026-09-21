@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-/// Represents metadata about the latest release of SKYWALK Billing.
+/// Represents metadata about the latest release of Billova Retail.
 class AppVersionModel {
   final String version;
   final int buildNumber;
@@ -17,7 +17,7 @@ class AppVersionModel {
     required this.releaseNotes,
     this.forceUpdate = false,
     this.minimumSupportedVersion,
-    this.updateUrl = 'https://sky-walk-six.vercel.app',
+    this.updateUrl = 'https://billova-retail.vercel.app',
   });
 
   factory AppVersionModel.fromJson(Map<String, dynamic> json) {
@@ -45,7 +45,7 @@ class AppVersionModel {
       releaseNotes: notes,
       forceUpdate: json['force_update'] == true || json['force_update'] == 1,
       minimumSupportedVersion: json['minimum_supported_version']?.toString(),
-      updateUrl: json['update_url']?.toString() ?? 'https://sky-walk-six.vercel.app',
+      updateUrl: json['update_url']?.toString() ?? 'https://billova-retail.vercel.app',
     );
   }
 

@@ -155,7 +155,7 @@ class _StaffScreenState extends State<StaffScreen> {
                       SizedBox(height: 12),
                       // Role selector
                       DropdownButtonFormField<String>(
-                        value: role,
+                        initialValue: role,
                         decoration: InputDecoration(
                           labelText: 'Role',
                           labelStyle: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
@@ -257,7 +257,7 @@ class _StaffScreenState extends State<StaffScreen> {
                             if (isEditing) {
                               // Only update PIN if user entered a new one
                               final newPin = pinCtrl.text.trim();
-                              success = await provider.updateStaff(staff!.copyWith(
+                              success = await provider.updateStaff(staff.copyWith(
                                 name: nameCtrl.text.trim(),
                                 pin: newPin.isNotEmpty ? PinHasher.hash(newPin) : null,
                                 role: role,
@@ -1012,7 +1012,7 @@ class _StaffScreenState extends State<StaffScreen> {
                 Text(staff.name, overflow: TextOverflow.ellipsis,
                     style: AppTypography.bodyMedium.copyWith(
                         color: AppColors.textPrimary(context), fontWeight: FontWeight.w600, fontSize: 13)),
-                Text('${todayBills} bills today',
+                Text('$todayBills bills today',
                     style: AppTypography.labelSmall.copyWith(
                         color: AppColors.textTertiary(context), fontSize: 10)),
               ]),

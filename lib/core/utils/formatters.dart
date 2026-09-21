@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import '../constants.dart';
 
 class Formatters {
   Formatters._();
@@ -49,7 +50,7 @@ class Formatters {
   // ─── Invoice Number ───
   static String invoiceNumber(int sequence) {
     final now = DateTime.now();
-    final prefix = 'SKY';
+    final prefix = AppConstants.invoicePrefix;
     final datePart = DateFormat('yyMM').format(now);
     final seqPart = sequence.toString().padLeft(4, '0');
     return '$prefix-$datePart-$seqPart';

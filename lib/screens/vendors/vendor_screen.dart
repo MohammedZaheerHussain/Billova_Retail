@@ -120,7 +120,7 @@ class _VendorScreenState extends State<VendorScreen> {
                         final provider = context.read<VendorProvider>();
                         bool success;
                         if (isEditing) {
-                          success = await provider.updateVendor(vendor!.copyWith(
+                          success = await provider.updateVendor(vendor.copyWith(
                             name: nameCtrl.text.trim(),
                             phone: phoneCtrl.text.trim(),
                             notes: notesCtrl.text.trim(),

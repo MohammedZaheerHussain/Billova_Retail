@@ -4,7 +4,7 @@ schema: spec-driven
 context: |
   Tech stack: Flutter (Dart), Supabase (PostgreSQL), SQLite (local)
   Platform: Web-first billing system (also supports mobile)
-  Domain: Retail POS / Billing system for SKYWALK clothing store
+  Domain: Retail POS / Billing system for Billova Retail store
   Architecture: Provider pattern, cloud-first with offline fallback
   Key modules: Sales Terminal, Inventory, Customers, Bill History,
     Staff Management, Purchases, Expenses, Cash Till, Loyalty Points,

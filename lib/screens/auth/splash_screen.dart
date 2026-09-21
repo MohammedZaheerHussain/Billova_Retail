@@ -117,7 +117,7 @@ class _SplashScreenState extends State<SplashScreen>
                       shaderCallback: (bounds) =>
                           AppColors.primaryGradient.createShader(bounds),
                       child: Text(
-                        'SKYWALK',
+                        'BILLOVA',
                         style: AppTypography.displayLarge.copyWith(
                           color: Colors.white,
                           letterSpacing: 8,
@@ -126,7 +126,7 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'BILLING',
+                      'RETAIL',
                       style: AppTypography.labelLarge.copyWith(
                         color: AppColors.textSecondaryDark,
                         letterSpacing: 12,

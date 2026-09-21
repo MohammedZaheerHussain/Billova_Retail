@@ -1,6 +1,6 @@
 ## Context
 
-SKYWALK Billing uses a dual-write architecture: all business data writes to local SQLite first, then syncs to Supabase via `SupabaseService.syncRecord()` / `guaranteedSave()`. On login, `pullAllData()` restores all cloud data to local DB. This ensures offline-first operation with cloud backup.
+Billova Retail uses a dual-write architecture: all business data writes to local SQLite first, then syncs to Supabase via `SupabaseService.syncRecord()` / `guaranteedSave()`. On login, `pullAllData()` restores all cloud data to local DB. This ensures offline-first operation with cloud backup.
 
 **Current gap:** The `settings` table and `SharedPreferences` keys used for shop configuration, GST info, and loyalty program settings are **never synced to Supabase**. The `settings` table is not in the pull list, and `LoyaltySettingsProvider` writes only to `SharedPreferences`.
 

@@ -1,4 +1,4 @@
-/// Centralized version configuration for SKYWALK Billing.
+/// Centralized version configuration for Billova Retail.
 class AppVersion {
   AppVersion._();
 
@@ -9,10 +9,10 @@ class AppVersion {
   static const int currentBuildNumber = 3;
 
   /// App name
-  static const String appName = 'SKYWALK Billing';
+  static const String appName = 'Billova Retail';
 
   /// Default production URL
-  static const String productionUrl = 'https://sky-walk-six.vercel.app';
+  static const String productionUrl = 'https://billova-retail.vercel.app';
 
   /// Compare two semantic version strings (e.g., "1.0.2" vs "1.0.0").
   /// Returns:

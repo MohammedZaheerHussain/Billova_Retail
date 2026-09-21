@@ -11,7 +11,6 @@ import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../providers/expense_provider.dart';
 import '../../providers/cash_till_provider.dart';
-import '../../providers/theme_provider.dart';
 import '../../providers/staff_provider.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/vendor_provider.dart';
@@ -33,7 +32,6 @@ import '../customers/customer_screen.dart';
 import '../settings/settings_screen.dart';
 import '../returns/return_exchange_screen.dart';
 import '../clearance/clearance_stock_screen.dart';
-import '../loans/loans_chits_screen.dart';
 import '../reports/crm_reports_screen.dart';
 import '../../providers/app_update_provider.dart';
 
@@ -372,7 +370,7 @@ class _AppShellState extends State<AppShell> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Initializing Skywalk Workspace...',
+                'Initializing Billova Retail Workspace...',
                 style: AppTypography.bodyMedium.copyWith(
                   color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                 ),
@@ -447,9 +445,9 @@ class _AppShellState extends State<AppShell> {
                   Expanded(
                     child: ShaderMask(
                       shaderCallback: (bounds) => AppColors.primaryGradient.createShader(bounds),
-                      child: Text('SKYWALK',
+                      child: Text('BILLOVA RETAIL',
                           style: AppTypography.labelLarge.copyWith(
-                            color: Colors.white, letterSpacing: 3, fontSize: 15)),
+                            color: Colors.white, letterSpacing: 2, fontSize: 13, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],

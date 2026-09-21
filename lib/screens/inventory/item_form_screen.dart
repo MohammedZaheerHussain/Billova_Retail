@@ -7,7 +7,6 @@ import '../../data/models/item_model.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/category_provider.dart';
-import '../../data/models/category_model.dart';
 
 class ItemFormDialog extends StatefulWidget {
   final ItemModel? item;
@@ -96,7 +95,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
         ? cat.substring(0, min(3, cat.length)).toUpperCase()
         : 'GEN';
     final num = (10000 + Random().nextInt(90000)).toString();
-    setState(() => _barcodeCtrl.text = 'SKY-$code-$num');
+    setState(() => _barcodeCtrl.text = 'BIL-$code-$num');
   }
 
   @override
@@ -243,7 +242,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                                       icon: Icons.category_rounded);
                                 }
                                 return DropdownButtonFormField<String>(
-                                  value: _selectedCategory != null &&
+                                  initialValue: _selectedCategory != null &&
                                       categories.any((c) => c.name == _selectedCategory)
                                       ? _selectedCategory : null,
                                   items: categories.map((c) => DropdownMenuItem(
@@ -360,7 +359,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                         const SizedBox(height: 12),
                         // GST Rate dropdown
                         DropdownButtonFormField<double>(
-                          value: _gstRate,
+                          initialValue: _gstRate,
                           items: const [
                             DropdownMenuItem(value: 0, child: Text('No GST (0%)', style: TextStyle(fontSize: 13))),
                             DropdownMenuItem(value: 5, child: Text('GST 5%', style: TextStyle(fontSize: 13))),

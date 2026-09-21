@@ -20,7 +20,7 @@ class GroqService {
     }
 
     try {
-      final prompt = '''You are an expert AI Business Intelligence advisor for SKYWALK, a retail shoe/clothing shop in India.
+      final prompt = '''You are an expert AI Business Intelligence advisor for Billova Retail, a retail business in India.
 
 Analyze this REAL business data and provide professional, data-driven insights:
 

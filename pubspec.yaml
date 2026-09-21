@@ -1,5 +1,5 @@
-name: skywalk_billing
-description: "SKYWALK Professional Billing Software"
+name: billova_retail
+description: "Billova Retail — Professional Billing Software"
 publish_to: 'none'
 version: 1.0.2+3
 
@@ -50,6 +50,7 @@ dependencies:
   # HTTP
   http: ^1.2.2
 
+  crypto: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

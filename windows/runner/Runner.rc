@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.skywalk" "\0"
-            VALUE "FileDescription", "skywalk_billing" "\0"
+            VALUE "CompanyName", "com.billova" "\0"
+            VALUE "FileDescription", "billova_retail" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "skywalk_billing" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.skywalk. All rights reserved." "\0"
-            VALUE "OriginalFilename", "skywalk_billing.exe" "\0"
-            VALUE "ProductName", "skywalk_billing" "\0"
+            VALUE "InternalName", "billova_retail" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.billova. All rights reserved." "\0"
+            VALUE "OriginalFilename", "billova_retail.exe" "\0"
+            VALUE "ProductName", "billova_retail" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

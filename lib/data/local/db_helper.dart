@@ -13,7 +13,7 @@ class _WebDB {
   bool _initialized = false;
 
   /// Key used to persist sync queue in localStorage (via SharedPreferences)
-  static const _syncQueueKey = 'skywalk_sync_queue';
+  static const _syncQueueKey = 'billova_sync_queue';
 
   Future<void> init() async {
     if (_initialized) return;
@@ -1067,7 +1067,7 @@ class DBHelper {
       }
       for (final row in rows) {
         final inv = row['invoice_number'] as String? ?? '';
-        if (inv.startsWith('SKY-')) {
+        if (inv.startsWith('${AppConstants.invoicePrefix}-') || inv.startsWith('BIL-') || inv.startsWith('SKY-')) {
           final parts = inv.split('-');
           if (parts.length == 3) {
             final dbSeq = int.tryParse(parts[2]) ?? 0;
@@ -1079,7 +1079,7 @@ class DBHelper {
     } catch (_) {}
 
     await setSetting('last_invoice_seq', seq.toString());
-    return 'SKY-$todayKey-${seq.toString().padLeft(4, '0')}';
+    return '${AppConstants.invoicePrefix}-$todayKey-${seq.toString().padLeft(4, '0')}';
   }
 
   // ─── Categories CRUD ───

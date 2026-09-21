@@ -219,7 +219,7 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
             Text('Reason', style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context))),
             const SizedBox(height: 4),
             DropdownButtonFormField<String>(
-              value: reason, dropdownColor: AppColors.card(context),
+              initialValue: reason, dropdownColor: AppColors.card(context),
               style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
               items: _reasons.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
               onChanged: (v) => ss(() => reason = v!),
@@ -371,7 +371,7 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
             Text('Reason', style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context))),
             const SizedBox(height: 4),
             DropdownButtonFormField<String>(
-              value: reason, dropdownColor: AppColors.card(context),
+              initialValue: reason, dropdownColor: AppColors.card(context),
               style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
               items: _reasons.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
               onChanged: (v) => ss(() => reason = v!),
@@ -490,7 +490,7 @@ class _ClearanceStockScreenState extends State<ClearanceStockScreen> {
             Text('Reason', style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary(context))),
             const SizedBox(height: 4),
             DropdownButtonFormField<String>(
-              value: reason, dropdownColor: AppColors.card(context),
+              initialValue: reason, dropdownColor: AppColors.card(context),
               style: TextStyle(color: AppColors.textPrimary(context), fontSize: 13),
               items: _reasons.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
               onChanged: (v) => ss(() => reason = v!),

@@ -282,7 +282,7 @@ class BillDetailDialog extends StatelessWidget {
         .join('\n');
 
     final message = '''
-🧾 *SKYWALK Billing*
+🧾 *Billova Retail*
 ━━━━━━━━━━━━━━
 Invoice: *${sale.invoiceNumber}*
 Date: ${Formatters.dateTime(sale.createdAt)}

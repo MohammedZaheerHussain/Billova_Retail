@@ -1,6 +1,6 @@
 ## Context
 
-The SKYWALK Billing system has a discount flow where the user enters a flat rupee amount (e.g., ₹100), which is internally converted to a percentage of the subtotal. This percentage is then used to compute `discountAmount`. The `sale.total` is correctly stored as `subtotal - discountAmount + GST`. However, the **dashboard payment distribution** reads raw `cash_amount`/`upi_amount`/`card_amount` fields which may not reflect the discount. Additionally, `todaySalesTotal()` and weekly revenue DB queries sum `sale.total` directly, which is correct — but the payment fields create an inconsistency in the "Sales by Payment" chart.
+The Billova Retail system has a discount flow where the user enters a flat rupee amount (e.g., ₹100), which is internally converted to a percentage of the subtotal. This percentage is then used to compute `discountAmount`. The `sale.total` is correctly stored as `subtotal - discountAmount + GST`. However, the **dashboard payment distribution** reads raw `cash_amount`/`upi_amount`/`card_amount` fields which may not reflect the discount. Additionally, `todaySalesTotal()` and weekly revenue DB queries sum `sale.total` directly, which is correct — but the payment fields create an inconsistency in the "Sales by Payment" chart.
 
 **Current data flow:**
 ```

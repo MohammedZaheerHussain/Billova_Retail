@@ -8,8 +8,8 @@ import 'screens/auth/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/shell/app_shell.dart';
 
-class SkywalkApp extends StatelessWidget {
-  const SkywalkApp({super.key});
+class BillovaApp extends StatelessWidget {
+  const BillovaApp({super.key});
 
   @override
   Widget build(BuildContext context) {

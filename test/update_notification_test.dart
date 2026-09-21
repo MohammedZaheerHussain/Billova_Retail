@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skywalk_billing/core/config/app_version.dart';
-import 'package:skywalk_billing/data/models/app_version_model.dart';
-import 'package:skywalk_billing/widgets/update_notification_dialog.dart';
+import 'package:billova_retail/core/config/app_version.dart';
+import 'package:billova_retail/data/models/app_version_model.dart';
+import 'package:billova_retail/widgets/update_notification_dialog.dart';
 
 void main() {
   group('AppVersion & SemVer Comparison Tests', () {

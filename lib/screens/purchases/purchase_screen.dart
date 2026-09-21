@@ -253,7 +253,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
           ? cat.substring(0, cat.length < 3 ? cat.length : 3).toUpperCase()
           : 'GEN';
       final num = (10000 + Random().nextInt(90000)).toString();
-      barcodeCtrl.text = 'SKY-\$code-\$num';
+      barcodeCtrl.text = 'BIL-\$code-\$num';
     }
 
     void updateCategoryFields(String categoryName, void Function(void Function()) setDialogState) {
@@ -317,7 +317,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                             return _purchaseField(ctx, 'Category', categoryCtrl, 'e.g. Shoes', Icons.category_rounded);
                           }
                           return DropdownButtonFormField<String>(
-                            value: selectedCategory != null &&
+                            initialValue: selectedCategory != null &&
                                 categories.any((c) => c.name == selectedCategory)
                                 ? selectedCategory : null,
                             items: categories.map((c) => DropdownMenuItem(
@@ -654,7 +654,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
           Row(children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: _selectedVendor?.id,
+                initialValue: _selectedVendor?.id,
                 decoration: _inputDecor('Select Vendor'),
                 dropdownColor: AppColors.surface(context),
                 style: TextStyle(color: AppColors.textPrimary(context)),
@@ -784,7 +784,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             Row(children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _paymentMode,
+                  initialValue: _paymentMode,
                   decoration: _inputDecor('Payment Mode'),
                   dropdownColor: AppColors.surface(context),
                   style: TextStyle(color: AppColors.textPrimary(context)),

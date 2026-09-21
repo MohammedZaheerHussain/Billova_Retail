@@ -1416,7 +1416,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final a = _analytics!;
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
@@ -1424,6 +1424,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(children: [
             const Icon(Icons.account_balance_rounded, color: AppColors.accent, size: 18),
@@ -1431,27 +1432,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Text('Profit Breakdown (Month)', style: AppTypography.h4.copyWith(
                 color: AppColors.textPrimary(context), fontWeight: FontWeight.w700, fontSize: 14)),
           ]),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           _profitRow('Gross Sales', a.monthGrossSales, AppColors.success),
           _profitRow('(-) Discounts', a.monthDiscounts, AppColors.warning),
           _profitRow('Net Revenue', a.monthRevenue, AppColors.success, bold: true),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           _profitRow('(-) Cost of Goods', a.monthCOGS, AppColors.error),
           _profitRow('Gross Profit', a.monthGrossProfit, a.monthGrossProfit >= 0 ? AppColors.success : AppColors.error, bold: true),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           _profitRow('(-) Expenses', a.monthExpenses, AppColors.error),
           if (a.monthGST > 0)
             _profitRow('GST Collected', a.monthGST, const Color(0xFF0984E3)),
-          const Divider(height: 16),
+          const Divider(height: 10),
           Row(children: [
             Expanded(child: Text('Net Profit', style: AppTypography.bodyMedium.copyWith(
                 color: AppColors.textPrimary(context), fontWeight: FontWeight.w700, fontSize: 13))),
             Text(Formatters.currency(a.monthNetProfit),
                 style: AppTypography.mono.copyWith(
                     color: a.monthNetProfit >= 0 ? AppColors.success : AppColors.error,
-                    fontWeight: FontWeight.w800, fontSize: 15)),
+                    fontWeight: FontWeight.w800, fontSize: 14)),
           ]),
-          const SizedBox(height: 6),
+          const SizedBox(height: 3),
           Row(children: [
             Expanded(child: Text('Profit Margin', style: AppTypography.labelSmall.copyWith(
                 color: AppColors.textTertiary(context), fontSize: 11))),
@@ -1466,7 +1467,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       fontWeight: FontWeight.w700, fontSize: 11)),
             ),
           ]),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           Row(children: [
             _growthChip('Week', a.weekGrowthPct),
             const SizedBox(width: 6),
@@ -1479,7 +1480,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _profitRow(String label, double value, Color color, {bool bold = false}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 5),
+      padding: const EdgeInsets.only(bottom: 2.5),
       child: Row(children: [
         Container(width: 6, height: 6, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
         const SizedBox(width: 8),

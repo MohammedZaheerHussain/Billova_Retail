@@ -315,7 +315,7 @@ class BarcodePrintHelper {
         // Left label
         labelsHtml.write(
           '<div class="label-2up">'
-          '<div class="shop">SKYWALK</div>'
+          '<div class="shop">BILLOVA RETAIL</div>'
           '<div class="item-name">$leftName</div>'
           '<div class="bc-wrap"><svg id="bc$i" class="barcode-svg"></svg></div>'
           '<div class="footer-row">'
@@ -336,7 +336,7 @@ class BarcodePrintHelper {
 
           labelsHtml.write(
             '<div class="label-2up">'
-            '<div class="shop">SKYWALK</div>'
+            '<div class="shop">BILLOVA RETAIL</div>'
             '<div class="item-name">$rightName</div>'
             '<div class="bc-wrap"><svg id="bc$nextIdx" class="barcode-svg"></svg></div>'
             '<div class="footer-row">'
@@ -363,7 +363,7 @@ class BarcodePrintHelper {
         if (format == 'zebra1up') {
           labelsHtml.write(
             '<div class="label-1up">'
-            '<div class="shop">SKYWALK</div>'
+            '<div class="shop">BILLOVA RETAIL</div>'
             '<div class="item-name">$itemName</div>'
             '<div class="bc-wrap"><svg id="bc$i" class="barcode-svg"></svg></div>'
             '<div class="footer-row">'
@@ -375,7 +375,7 @@ class BarcodePrintHelper {
         } else if (format == 'zebra4x2') {
           labelsHtml.write(
             '<div class="label-4x2">'
-            '<div class="shop-lg">SKYWALK</div>'
+            '<div class="shop-lg">BILLOVA RETAIL</div>'
             '<div class="item-name-lg">$itemName</div>'
             '<div class="bc-wrap-lg"><svg id="bc$i" class="barcode-svg-lg"></svg></div>'
             '<div class="footer-row-lg">'
@@ -388,7 +388,7 @@ class BarcodePrintHelper {
           // A4 Sheet Grid
           labelsHtml.write(
             '<div class="label-a4">'
-            '<div class="shop">SKYWALK</div>'
+            '<div class="shop">BILLOVA RETAIL</div>'
             '<div class="item-name">$itemName</div>'
             '<div class="bc-wrap"><svg id="bc$i" class="barcode-svg"></svg></div>'
             '<div class="footer-row">'

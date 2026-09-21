@@ -1,4 +1,4 @@
-package com.skywalk.skywalk_billing
+package com.billova.retail_billing
 
 import io.flutter.embedding.android.FlutterActivity
 

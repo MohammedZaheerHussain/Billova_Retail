@@ -106,7 +106,7 @@ class UpdateNotificationDialog extends StatelessWidget {
                     const SizedBox(height: 6),
 
                     Text(
-                      'A newer version of SKYWALK Billing is ready.',
+                      'A newer version of Billova Retail is ready.',
                       style: AppTypography.bodySmall.copyWith(
                         color: const Color(0xFF94A3B8),
                         fontSize: 13,
@@ -266,7 +266,7 @@ class UpdateNotificationDialog extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'This is a required update. Please update to continue using SKYWALK Billing.',
+                            'This is a required update. Please update to continue using Billova Retail.',
                             style: TextStyle(color: AppColors.error, fontSize: 11, fontWeight: FontWeight.w600),
                           ),
                         ),

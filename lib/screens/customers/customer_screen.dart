@@ -106,7 +106,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                         final provider = context.read<CustomerProvider>();
                         bool success;
                         if (isEditing) {
-                          success = await provider.updateCustomer(customer!.copyWith(
+                          success = await provider.updateCustomer(customer.copyWith(
                             name: nameCtrl.text.trim(),
                             phone: phoneCtrl.text.trim(),
                           ));
@@ -500,7 +500,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
         : 'Never';
 
     // Credit severity color
-    Color _creditColor(double bal) {
+    Color creditColor(double bal) {
       if (bal >= 2000) return AppColors.error;
       if (bal >= 500) return AppColors.warning;
       return const Color(0xFFFF8C00); // dark orange for low amounts
@@ -512,7 +512,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: customer.balance > 0
-              ? _creditColor(customer.balance).withValues(alpha: 0.3)
+              ? creditColor(customer.balance).withValues(alpha: 0.3)
               : AppColors.cardBorder(context),
         ),
       ),
@@ -523,14 +523,14 @@ class _CustomerScreenState extends State<CustomerScreen> {
           width: 44, height: 44,
           decoration: BoxDecoration(
             color: customer.balance > 0
-                ? _creditColor(customer.balance).withValues(alpha: 0.1)
+                ? creditColor(customer.balance).withValues(alpha: 0.1)
                 : AppColors.accent.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Center(child: Text(
             customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?',
             style: AppTypography.h3.copyWith(
-              color: customer.balance > 0 ? _creditColor(customer.balance) : AppColors.accent,
+              color: customer.balance > 0 ? creditColor(customer.balance) : AppColors.accent,
             ),
           )),
         ),
@@ -564,15 +564,15 @@ class _CustomerScreenState extends State<CustomerScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _creditColor(customer.balance).withValues(alpha: 0.12),
+                  color: creditColor(customer.balance).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _creditColor(customer.balance).withValues(alpha: 0.4)),
+                  border: Border.all(color: creditColor(customer.balance).withValues(alpha: 0.4)),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(
                     customer.balance >= 2000 ? Icons.warning_rounded : Icons.access_time_rounded,
                     size: 12,
-                    color: _creditColor(customer.balance),
+                    color: creditColor(customer.balance),
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -584,7 +584,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: _creditColor(customer.balance),
+                      color: creditColor(customer.balance),
                     ),
                   ),
                 ]),
@@ -623,7 +623,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                     PopupMenuItem(
                       onTap: () => WhatsAppHelper.send(
                         phone: customer.phone,
-                        message: 'Hi ${customer.name}!\nThank you for shopping at SKYWALK.\nVisit us again for exciting offers!',
+                        message: 'Hi ${customer.name}!\nThank you for shopping at Billova Retail.\nVisit us again for exciting offers!',
                       ),
                       child: Row(children: [
                         Icon(Icons.chat_rounded, size: 18, color: Color(0xFF25D366)),
@@ -829,7 +829,9 @@ class _CustomerScreenState extends State<CustomerScreen> {
       if (customer.phone.isNotEmpty && s.customerPhone == customer.phone) return true;
       // Only fall back to name if THIS customer has no phone AND sale has no phone
       if (customer.phone.isEmpty && s.customerPhone.isEmpty &&
-          s.customerName.toLowerCase().trim() == customer.name.toLowerCase().trim()) return true;
+          s.customerName.toLowerCase().trim() == customer.name.toLowerCase().trim()) {
+        return true;
+      }
       return false;
     }).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));

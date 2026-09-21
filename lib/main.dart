@@ -54,7 +54,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ReturnProvider()),
         ChangeNotifierProvider(create: (_) => AppUpdateProvider()),
       ],
-      child: const SkywalkApp(),
+      child: const BillovaApp(),
     ),
   );
 }

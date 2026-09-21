@@ -20,7 +20,7 @@ class ReceiptPrinter {
   }
 
   static Future<void> _doPrint(SaleModel sale, {double cashPaid = 0, double upiPaid = 0}) async {
-    final shopName = await _db.getSetting('shop_name') ?? 'SKYWALK STORE';
+    final shopName = await _db.getSetting('shop_name') ?? 'BILLOVA RETAIL';
     final shopAddress = await _db.getSetting('shop_address') ?? '';
     final shopPhone = await _db.getSetting('shop_phone') ?? '';
     final shopLogo = await _db.getSetting('shop_logo') ?? '';
