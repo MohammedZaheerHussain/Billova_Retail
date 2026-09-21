@@ -18,6 +18,10 @@ skills-lock.json
 build/
 !build/web/
 !build/web/**
+build/web/assets/.env
+build/web/assets/.env.*
+build/web/assets/assets/.env
+build/web/assets/assets/.env.*
 *.g.dart
 *.freezed.dart
 
