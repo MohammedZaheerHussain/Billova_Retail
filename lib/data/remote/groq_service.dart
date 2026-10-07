@@ -10,9 +10,9 @@ class GroqService {
 
   static const String _baseUrl = 'https://api.groq.com/openai/v1/chat/completions';
   static const List<String> _models = [
+    'qwen/qwen3.8-27b',
     'openai/gpt-oss-120b',
     'openai/gpt-oss-20b',
-    'qwen/qwen3.8-27b',
   ];
 
   static String get _defaultKey {
@@ -93,13 +93,17 @@ Avoid generic advice. Every insight must reference actual data points.''';
                 {'role': 'user', 'content': prompt}
               ],
               'temperature': 0.6,
-              'max_tokens': 1000,
+              'max_tokens': 1500,
             }),
           );
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
-            String content = data['choices']?[0]?['message']?['content'] ?? '';
+            final msg = data['choices']?[0]?['message'];
+            String content = msg?['content'] ?? '';
+            if (content.isEmpty && msg?['reasoning'] != null) {
+              content = msg!['reasoning'];
+            }
             // Force ₹ — replace any stray dollar signs
             content = content.replaceAll('\$', '₹');
             if (content.isNotEmpty) {
