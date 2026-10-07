@@ -350,13 +350,23 @@ class _AppShellState extends State<AppShell> {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.receipt_long_rounded,
-                  size: 32,
                   color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(6),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/images/billova_logo.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -433,12 +443,27 @@ class _AppShellState extends State<AppShell> {
             child: Row(
               children: [
                 Container(
-                  width: 40, height: 40,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: Icon(Icons.receipt_long_rounded, size: 22, color: Colors.white),
+                  padding: const EdgeInsets.all(3),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(7),
+                    child: Image.asset(
+                      'assets/images/billova_logo.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
                 ),
                 if (_sidebarExpanded) ...[
                   const SizedBox(width: 12),

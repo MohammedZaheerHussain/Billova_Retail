@@ -60,6 +60,7 @@ flutter:
   uses-material-design: true
   assets:
     - .env
+    - assets/images/billova_logo.png
     - assets/images/barakah_logo.jpg
     - assets/images/login/slide_1.jpg
     - assets/images/login/slide_2.jpg

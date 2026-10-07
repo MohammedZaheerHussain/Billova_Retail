@@ -89,12 +89,12 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // ─── Logo / Icon ───
+                    // ─── Billova Logo ───
                     Container(
                       width: 100,
                       height: 100,
                       decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
@@ -104,10 +104,13 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.receipt_long_rounded,
-                        size: 48,
-                        color: Colors.white,
+                      padding: const EdgeInsets.all(10),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.asset(
+                          'assets/images/billova_logo.png',
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 32),

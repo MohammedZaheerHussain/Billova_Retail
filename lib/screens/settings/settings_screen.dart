@@ -1799,11 +1799,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     : AppColors.primary.withValues(alpha: 0.12)),
             ),
             child: Column(children: [
-              // BILLOVA Logo Icon
+              // BILLOVA Logo
               Container(
                 width: 56, height: 56,
                 decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
@@ -1811,7 +1811,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       blurRadius: 16, offset: const Offset(0, 6)),
                   ],
                 ),
-                child: const Icon(Icons.receipt_long_rounded, color: Colors.white, size: 28),
+                padding: const EdgeInsets.all(5),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/images/billova_logo.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
 
