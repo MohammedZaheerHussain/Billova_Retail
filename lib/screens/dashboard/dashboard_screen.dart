@@ -17,6 +17,7 @@ import '../../data/models/vendor_model.dart';
 import '../../data/models/customer_model.dart';
 import '../shell/app_shell.dart';
 import '../../widgets/stock_alert_drawer.dart';
+import '../../widgets/ai_insights_viewer.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -1940,21 +1941,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ]),
             ))
           else
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppColors.surface(context),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-              ),
-              child: SelectableText(
-                _aiInsights,
-                style: AppTypography.bodyMedium.copyWith(
-                  color: AppColors.textPrimary(context),
-                  height: 1.6,
-                  fontSize: 13,
-                ),
-              ),
+            AIInsightsViewer(
+              rawText: _aiInsights,
+              onRefresh: _generateAIInsights,
+              isLoading: _isLoadingAI,
             ),
         ],
       ),

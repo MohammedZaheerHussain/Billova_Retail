@@ -40,44 +40,26 @@ class GroqService {
     }
 
     try {
-      final prompt = '''You are an expert AI Business Intelligence advisor for Billova Retail, a retail business in India.
+      final prompt = '''You are the executive AI Retail Advisor for Billova Retail (India).
+Analyze this business data and deliver SHORT, CRISP, HIGH-IMPACT retail insights.
 
-Analyze this REAL business data and provide professional, data-driven insights:
-
+DATA:
 ${jsonEncode(businessData)}
 
-RULES:
+CRITICAL RULES:
 - All currency in Indian Rupees (₹). NEVER use \$.
-- Be specific — cite exact numbers, product names, customer names from the data.
-- Give exactly 8-10 insights organized by section.
-- Each insight: emoji + bold title + 1-2 sentence actionable advice.
+- MAXIMUM 2 bullet points per section.
+- Each bullet point MUST be exactly ONE short, punchy sentence (12-20 words max).
+- Format: • **Headline**: One crisp actionable sentence with numbers/names.
+- NO filler words, NO conversational intro/outro, NO repetitive text.
+- If store is new or has zero data, provide 2 quick-start retail actions per section.
 
-SECTIONS (use these exact headers):
-**📊 Financial Health**
-- Analyze profit margins, revenue growth, expense ratios. Compare week/month growth.
-- Flag if expenses are eating into profit.
-
-**📦 Inventory Intelligence**
-- Restock urgency for fast sellers with low stock.
-- Dead stock items needing discount clearance.
-- Overstock warnings.
-
-**🏆 Product & Category Winners**
-- Top performing products/categories by revenue and profit.
-- Underperforming categories to review.
-
-**👥 Customer Insights**
-- Inactive customers to re-engage (name them, suggest WhatsApp messages).
-- VIP customers deserving exclusive deals.
-
-**🕐 Sales Timing**
-- Peak selling days and hours from the data.
-
-**💡 Action Items (Today)**
-- 2-3 concrete things the owner should do RIGHT NOW.
-
-TONE: Professional but friendly. Like a smart business consultant.
-Avoid generic advice. Every insight must reference actual data points.''';
+REQUIRED SECTIONS (Use exact headers):
+### 📊 Financial Health
+### 📦 Inventory & Stock
+### 🏆 Product & Revenue
+### 👥 Customer Growth
+### 💡 Today's Top Actions''';
 
       for (final model in _models) {
         try {
